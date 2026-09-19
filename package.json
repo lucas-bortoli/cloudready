@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "tsc && vp build",
-    "preview": "vp preview",
+    "dev:kernel": "cargo run",
+    "build": "cargo build --release",
+    "test": "vp test run --passWithNoTests && cargo test && cargo test --release",
     "prepare": "vp config"
   },
   "dependencies": {

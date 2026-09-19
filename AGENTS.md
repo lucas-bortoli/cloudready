@@ -1,3 +1,5 @@
+A self-contained, portable web application platform ("web OS").
+
 <!--VITE PLUS START-->
 
 # Using Vite+, the Unified Toolchain for the Web
