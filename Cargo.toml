@@ -1,0 +1,11 @@
+[package]
+name = "cloudready"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "cloudready"
+path = "src/kernel/main.rs"
+
+[dependencies]
+tiny_http = "0.12.0"
