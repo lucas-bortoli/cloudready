@@ -14,6 +14,7 @@ export interface Size2d {
   height: number;
 }
 
+/** A rectangle represented by its top-left point and size. */
 export interface Rectangle extends Point2d, Size2d {}
 
 /**
@@ -48,6 +49,13 @@ export interface Range {
   max: number;
 }
 
+/**
+ * Creates a half-open numeric range.
+ *
+ * @param min Inclusive lower bound.
+ * @param max Exclusive upper bound.
+ * @throws {Error} When `min` is greater than `max`.
+ */
 export function range(min: number, max: number): Range {
   if (min > max) {
     throw new Error(`The range's minimum is larger than its maximum (min=${min} max=${max})`);

@@ -1,16 +1,19 @@
 /**
  * Represents a Universally Unique Identifier (UUID).
- * This type extends a string with optional tags for additional type safety and metadata.
- * @template Tag - An optional type to associate with the UUID.
+ * The optional tag prevents IDs for different domain objects from being mixed
+ * accidentally while remaining a plain string at runtime.
+ *
+ * @template Tag Domain-specific identifier tag.
  */
 export type Uuid<Tag extends string = string> = string & { _tag?: `uuid:${Tag}` };
 
 /**
  * Generates a UUID string.
- * This function utilizes the `crypto.randomUUID` API when available (Node.js 15+, modern browsers) for cryptographically secure UUID generation.
- * It falls back to a less secure, but widely compatible, algorithm for older environments.
- * @template ID - An optional type to constrain the UUID type (defaults to UUID).
- * @returns A UUID string.
+ * Uses `crypto.randomUUID` when the platform supports it and a compatible
+ * fallback otherwise.
+ *
+ * @template Tag Domain-specific identifier tag.
+ * @returns A UUID branded with `Tag`.
  */
 export default function generateUuid<Tag extends string>(): Uuid<Tag> {
   // Check if crypto.randomUUID is available (Node.js 15+, modern browsers)

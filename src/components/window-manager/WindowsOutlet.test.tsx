@@ -5,7 +5,7 @@ import { render } from "solid-js/web";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 import WindowManager from "./WindowManager";
 import { WindowManagerProvider, useWindowManager } from "./WindowManagerContext";
-import WindowOutlet from "./WindowOutlet";
+import WindowsOutlet from "./WindowsOutlet";
 
 const HANDLE_DIRECTIONS = ["n", "e", "s", "w", "nw", "ne", "se", "sw"] as const;
 
@@ -43,7 +43,7 @@ function TestDesktop(props: { onManager: (windowManager: WindowManager) => void 
     });
   });
 
-  return <WindowOutlet />;
+  return <WindowsOutlet />;
 }
 
 function renderWindow() {
@@ -76,7 +76,7 @@ function renderWindow() {
   };
 }
 
-describe("WindowOutlet", () => {
+describe("WindowsOutlet", () => {
   beforeAll(() => {
     Object.defineProperty(HTMLElement.prototype, "clientWidth", {
       configurable: true,

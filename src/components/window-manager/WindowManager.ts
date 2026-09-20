@@ -5,26 +5,42 @@ import generateUuid from "../../lib/uuid";
 
 const makeWindowId = () => generateUuid<"WindowId">();
 
+/** A stable identifier for a window managed by {@link WindowManager}. */
 export type WindowId = ReturnType<typeof makeWindowId>;
 
 interface WindowState {
   id: WindowId;
   title: string;
+  /** The usable client content area's width and height, excluding window frame chrome. */
   size: Size2d;
+  /** The minimum usable client content area, excluding window frame chrome. */
   minimumSize: Size2d;
   content: () => JSX.Element;
 }
 
+/** An immutable view of a window managed by {@link WindowManager}. */
 export type WindowEntry = Readonly<WindowState>;
 
+/** Optional properties used when creating a window. */
 export interface CreateWindowOptions {
+  /** Text displayed in the window's title bar. Defaults to `"Untitled"`. */
   title?: string;
+  /** The usable client content area's width and height, excluding window frame chrome. */
   size?: Size2d;
+  /** The minimum usable client content area, excluding window frame chrome. */
   minimumSize?: Size2d;
+  /** Lazily renders the window's client content. */
   content?: () => JSX.Element;
 }
 
+/**
+ * Owns the reactive collection of application windows.
+ *
+ * Window size values always describe client content, not the titlebar or frame.
+ * Position and pointer-interaction state remain local to the rendered window.
+ */
 export default class WindowManager {
+  /** Reactive, read-only list of managed windows. */
   public readonly getWindows: Accessor<readonly WindowEntry[]>;
   private readonly windows: WindowState[];
   private readonly setWindows: SetStoreFunction<WindowState[]>;
@@ -83,18 +99,18 @@ export default class WindowManager {
   }
 
   /**
-   * Updates the size of a window.
+   * Updates a window's usable client content area, excluding window frame chrome.
    * @param windowId The ID of the window to update.
-   * @param size The new size for the window.
+   * @param size New client width and height in CSS pixels.
    */
   public setSize(windowId: WindowId, size: Size2d) {
     this.setWindows((window) => window.id === windowId, "size", size);
   }
 
   /**
-   * Updates the minimum size of a window.
+   * Updates the minimum usable client content area, excluding window frame chrome.
    * @param windowId The ID of the window to update.
-   * @param minimumSize The new minimum size for the window.
+   * @param minimumSize New minimum client width and height in CSS pixels.
    */
   public setMinimumSize(windowId: WindowId, minimumSize: Size2d) {
     this.setWindows((window) => window.id === windowId, "minimumSize", minimumSize);
