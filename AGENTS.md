@@ -20,3 +20,16 @@ Focused commands are available when needed:
 Cargo does not invoke Vite+ or Node.js. `cargo run` is API-only, and
 `cargo build --release` requires an existing `target/userland-static-bundle/`.
 Use `vp run build` for production builds.
+
+## Frontend structure
+
+- Use `kebab-case` directory names for feature areas, such as `components/window-manager/`.
+- Put one exported component in each `PascalCase.tsx` file. Name components for one entity
+  in singular form; use plural names only for collection renderers, such as `WindowsOutlet`.
+- Keep types and helpers within a feature directory until another feature needs them. Promote
+  only framework-independent, reusable utilities to `src/lib/`.
+- Name context modules `FeatureContext.tsx`; export a matching `FeatureProvider` and
+  `useFeature` hook.
+- Co-locate component tests as `Component.test.tsx`.
+- Prefer explicit relative imports over barrel files unless a feature develops a deliberate
+  public API.
