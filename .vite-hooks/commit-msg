@@ -13,6 +13,12 @@ case "$subject" in
 esac
 
 if printf '%s\n' "$subject" | LC_ALL=C grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)\([^()[:space:]]+\)!?: [^[:space:]].*$'; then
+  if grep -q 'Co-Authored-By.*Claude' "$1"; then
+    cat >&2 <<'EOF'
+Commit rejected: Co-Authored-By Claude is not allowed.
+EOF
+    exit 1
+  fi
   exit 0
 fi
 
