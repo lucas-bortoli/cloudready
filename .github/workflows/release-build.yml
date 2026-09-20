@@ -51,7 +51,7 @@ jobs:
           cache: true
           run-install: true
       - run: vp run build
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.binary }}
@@ -69,9 +69,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Create the commit tag
+        id: tag
         shell: bash
         run: |
           tag="v$(date -u +'%Y-%m-%d')-${GITHUB_SHA:0:5}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
           existing_sha="$(git ls-remote origin "refs/tags/${tag}^{}" | awk '{print $1}')"
           if [ -n "${existing_sha}" ]; then
             if [ "${existing_sha}" = "${GITHUB_SHA}" ]; then
@@ -85,3 +87,20 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag --annotate "${tag}" "${GITHUB_SHA}" --message "Release build ${tag}"
           git push origin "${tag}"
+      - name: Download release binaries
+        uses: actions/download-artifact@v6
+        with:
+          pattern: cloudready-*
+          merge-multiple: true
+          path: release-assets
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            gh release upload "${TAG}" release-assets/* --clobber
+          else
+            gh release create "${TAG}" release-assets/* --title "${TAG}" --generate-notes
+          fi
