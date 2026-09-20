@@ -1,6 +1,7 @@
 import { defineConfig } from "vite-plus";
 import tailwindcss from "@tailwindcss/vite";
 import solid from "vite-plugin-solid";
+import oxfmtConfig from "./oxfmt.config.ts";
 import { lintConfig } from "./oxlint.config.ts";
 
 export default defineConfig({
@@ -20,10 +21,6 @@ export default defineConfig({
   staged: {
     "*": "vp check --fix",
   },
-  fmt: {
-    sortTailwindcss: {
-      stylesheet: "./src/style.css",
-    },
-  },
+  fmt: oxfmtConfig,
   lint: lintConfig,
 });
