@@ -1,0 +1,85 @@
+name: Release build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Check and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: voidzero-dev/setup-vp@v1.21.0
+        with:
+          node-version: lts
+          cache: true
+          run-install: true
+      - name: Check formatting, linting, and types
+        run: vp check
+      - name: Test frontend and backend
+        run: vp run test
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: verify
+    if: github.event_name == 'push'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            artifact: cloudready-linux
+            binary: target/release/cloudready
+          - name: Windows
+            os: windows-latest
+            artifact: cloudready-windows
+            binary: target/release/cloudready.exe
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: voidzero-dev/setup-vp@v1.21.0
+        with:
+          node-version: lts
+          cache: true
+          run-install: true
+      - run: vp run build
+      - uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error
+
+  tag:
+    name: Tag release build
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Create the commit tag
+        shell: bash
+        run: |
+          tag="v$(date -u +'%Y-%m-%d')-${GITHUB_SHA:0:5}"
+          existing_sha="$(git ls-remote origin "refs/tags/${tag}^{}" | awk '{print $1}')"
+          if [ -n "${existing_sha}" ]; then
+            if [ "${existing_sha}" = "${GITHUB_SHA}" ]; then
+              echo "Tag ${tag} already exists for this commit."
+              exit 0
+            fi
+            echo "Tag ${tag} already exists for a different commit." >&2
+            exit 1
+          fi
+          git tag --annotate "${tag}" "${GITHUB_SHA}" --message "Release build ${tag}"
+          git push origin "${tag}"

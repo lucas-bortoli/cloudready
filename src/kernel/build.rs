@@ -1,4 +1,4 @@
-use std::{env, fs, path::Path, process::Command};
+use std::{env, fs, path::Path};
 
 fn main() {
     println!("cargo::rustc-check-cfg=cfg(embedded_frontend)");
@@ -7,42 +7,17 @@ fn main() {
         return;
     }
 
-    for input in [
-        "src",
-        "package.json",
-        "package-lock.json",
-        "vite.config.ts",
-        "tsconfig.json",
-    ] {
-        println!("cargo::rerun-if-changed={input}");
-    }
-
     let root = env::var("CARGO_MANIFEST_DIR").unwrap();
     let root = Path::new(&root);
-    let local_vp = root.join("node_modules/.bin/vp");
-    let vp = if local_vp.exists() {
-        local_vp.as_os_str()
-    } else {
-        std::ffi::OsStr::new("vp")
-    };
-    for args in [vec!["exec", "tsc"], vec!["build"]] {
-        let output = Command::new(vp)
-            .args(args)
-            .current_dir(root)
-            .output()
-            .expect("Release builds require Vite+ and frontend dependencies; run vp install first");
-        assert!(
-            output.status.success(),
-            "Frontend build failed:\n{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-
     let bundle = root.join("target/userland-static-bundle");
+    println!("cargo::rerun-if-changed={}", bundle.display());
+    assert!(
+        bundle.is_dir(),
+        "Release builds require a frontend bundle; run `vp run build` before `cargo build --release`"
+    );
     assert!(
         bundle.join("index.html").is_file(),
-        "Frontend build did not produce index.html"
+        "Frontend bundle is missing index.html; run `vp run build`"
     );
     let mut entries = Vec::new();
     collect(&bundle, &bundle, &mut entries);

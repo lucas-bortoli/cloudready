@@ -6,8 +6,12 @@
   "scripts": {
     "dev": "vp dev",
     "dev:kernel": "cargo run",
-    "build": "cargo build --release",
-    "test": "vp test run --passWithNoTests && cargo test && cargo test --release",
+    "build:frontend": "vp exec tsc && vp build",
+    "build": "vp run build:frontend && cargo build --release",
+    "test:frontend": "vp test run --passWithNoTests",
+    "test:kernel": "cargo test",
+    "test:kernel:release": "vp run build:frontend && cargo test --release",
+    "test": "vp run test:frontend && vp run test:kernel && vp run test:kernel:release",
     "prepare": "vp config"
   },
   "dependencies": {
@@ -25,12 +29,5 @@
   },
   "overrides": {
     "vite": "npm:@voidzero-dev/vite-plus-core@0.3.3"
-  },
-  "devEngines": {
-    "packageManager": {
-      "name": "npm",
-      "version": "12.0.2",
-      "onFail": "download"
-    }
   }
 }
