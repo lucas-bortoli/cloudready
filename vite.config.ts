@@ -1,11 +1,14 @@
-import { defineConfig } from "vite-plus";
 import tailwindcss from "@tailwindcss/vite";
 import solid from "vite-plugin-solid";
+import { defineConfig } from "vite-plus";
 import oxfmtConfig from "./oxfmt.config.ts";
 import { lintConfig } from "./oxlint.config.ts";
 
+// @ts-expect-error @types/node is not installed, but I'm not going to install them just for an one-off environment read.
+const isVitest = Boolean(process.env.VITEST);
+
 export default defineConfig({
-  plugins: [tailwindcss(), solid()],
+  plugins: [tailwindcss(), solid({ hot: !isVitest })],
   root: "src",
   publicDir: "public",
   server: {
