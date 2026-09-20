@@ -12,7 +12,7 @@
     --heading: "Inter Display", system-ui, "Segoe UI", Roboto, sans-serif;
     --mono: ui-monospace, Consolas, monospace;
 
-    font: 18px/145% var(--sans);
+    font: 16px var(--sans);
     letter-spacing: 0.18px;
     color-scheme: light dark;
     color: var(--text);
@@ -27,5 +27,44 @@
     /* Custom classes go here */
   }
 
+  #app {
+    width: 100lvw;
+    height: 100lvh;
+    overflow: hidden;
+  }
+
+  * {
+    user-select: none;
+  }
+
   /* Custom classes go here */
+}
+
+@theme {
+  --text-xs: 9px;
+  --text-xs--line-height: 12px;
+  --text-sm: 10.5px;
+  --text-sm--line-height: 15px;
+  --text-base: 12px;
+  --text-base--line-height: 18px;
+  --text-lg: 13.5px;
+  --text-lg--line-height: 21px;
+  --text-xl: 15px;
+  --text-xl--line-height: 21px;
+  --text-2xl: 18px;
+  --text-2xl--line-height: 24px;
+  --text-3xl: 22.5px;
+  --text-3xl--line-height: 27px;
+  --text-4xl: 27px;
+  --text-4xl--line-height: 30px;
+  --text-5xl: 36px;
+  --text-5xl--line-height: 36px;
+  --text-6xl: 45px;
+  --text-6xl--line-height: 45px;
+  --text-7xl: 54px;
+  --text-7xl--line-height: 54px;
+  --text-8xl: 72px;
+  --text-8xl--line-height: 72px;
+  --text-9xl: 96px;
+  --text-9xl--line-height: 96px;
 }
