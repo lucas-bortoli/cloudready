@@ -18,6 +18,9 @@
   },
   "oxc.disableNestedConfig": true,
   "oxc.fmt.disableNestedConfig": true,
+  "oxc.enable.oxlint": true,
+  "oxc.lint.run": "onType",
+  "oxc.typeAware": true,
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
   "editor.codeActionsOnSave": {

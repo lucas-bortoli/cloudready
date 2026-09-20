@@ -1,6 +1,7 @@
 import { defineConfig } from "vite-plus";
 import tailwindcss from "@tailwindcss/vite";
 import solid from "vite-plugin-solid";
+import { lintConfig } from "./oxlint.config.ts";
 
 export default defineConfig({
   plugins: [tailwindcss(), solid()],
@@ -24,9 +25,5 @@ export default defineConfig({
       stylesheet: "./src/style.css",
     },
   },
-  lint: {
-    jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    rules: { "vite-plus/prefer-vite-plus-imports": "error" },
-    options: { typeAware: true, typeCheck: true },
-  },
+  lint: lintConfig,
 });
