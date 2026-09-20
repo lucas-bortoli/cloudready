@@ -33,3 +33,15 @@ Use `vp run build` for production builds.
 - Co-locate component tests as `Component.test.tsx`.
 - Prefer explicit relative imports over barrel files unless a feature develops a deliberate
   public API.
+
+## Errors
+
+- Public application and library APIs that can fail in a recoverable way must throw exported,
+  named error classes rather than an unadorned `Error`.
+- Define one error class for each meaningful, catchable failure condition and preserve runtime
+  `instanceof` behavior.
+- Document every public throwing API with `@throws {SpecificError}` entries.
+- Format JSDoc as multiline blocks: use a summary line and put each `@throws` tag on its own line.
+- Across HTTP boundaries, use stable machine-readable error codes and map them to the matching
+  client-side error classes.
+- Reserve generic errors for unrecoverable programmer bugs and internal assertions.
