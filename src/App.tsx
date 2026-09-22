@@ -1,4 +1,5 @@
 import { onCleanup, onMount } from "solid-js";
+import Taskbar from "./components/taskbar/TaskBar";
 import type { WindowId } from "./components/window-manager/WindowManager";
 import { useWindowManager } from "./components/window-manager/WindowManagerContext";
 import WindowsOutlet from "./components/window-manager/WindowsOutlet";
@@ -26,6 +27,7 @@ export default function App() {
     <div x-role="desktop root" class="relative h-full w-full text-base">
       <h1>Hello World! {windowManager.getWindows().length} window(s)</h1>
       <WindowsOutlet />
+      <Taskbar />
     </div>
   );
 }
