@@ -72,7 +72,7 @@ jobs:
         id: tag
         shell: bash
         run: |
-          tag="v$(date -u +'%Y-%m-%d')-${GITHUB_SHA:0:5}"
+          tag="v$(date -u +'%Y.%m.%d')-${GITHUB_SHA:0:2}"
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
           existing_sha="$(git ls-remote origin "refs/tags/${tag}^{}" | awk '{print $1}')"
           if [ -n "${existing_sha}" ]; then
@@ -102,5 +102,5 @@ jobs:
           if gh release view "${TAG}" > /dev/null 2>&1; then
             gh release upload "${TAG}" release-assets/* --clobber
           else
-            gh release create "${TAG}" release-assets/* --title "${TAG}" --generate-notes
+            gh release create "${TAG}" release-assets/* --title "Release ${TAG}" --generate-notes
           fi
