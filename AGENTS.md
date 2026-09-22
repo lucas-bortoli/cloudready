@@ -21,6 +21,12 @@ Cargo does not invoke Vite+ or Node.js. `cargo run` is API-only, and
 `cargo build --release` requires an existing `target/userland-static-bundle/`.
 Use `vp run build` for production builds.
 
+## Verification
+
+- Do not run TypeScript checks, frontend builds, or broad test suites after every small change.
+  Run only the focused verification relevant to the change, or run broader checks when the user
+  requests them or before a meaningful handoff.
+
 ## Frontend structure
 
 - Use `kebab-case` directory names for feature areas, such as `components/window-manager/`.
@@ -33,6 +39,12 @@ Use `vp run build` for production builds.
 - Co-locate component tests as `Component.test.tsx`.
 - Prefer explicit relative imports over barrel files unless a feature develops a deliberate
   public API.
+
+## Markup roles
+
+- The `x-role` attribute is sacred: it defines stable semantic roles in the web OS markup.
+  Preserve every existing `x-role` value verbatim. Never remove, rename, repurpose, or replace
+  one without explicit user approval; add one to canonical structural elements when needed.
 
 ## Errors
 

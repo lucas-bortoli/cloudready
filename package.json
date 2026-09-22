@@ -15,7 +15,7 @@
     "prepare": "vp config"
   },
   "dependencies": {
-    "lucide-solid": "^1.47.0",
+    "@carbon/icons": "^11.88.0",
     "solid-js": "^1.9.15"
   },
   "devDependencies": {
