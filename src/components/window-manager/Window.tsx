@@ -53,9 +53,7 @@ type InteractionStart = Omit<DragInteraction, "pointerId"> | Omit<ResizeInteract
  * position state.
  */
 export default function Window(props: { entry: WindowEntry }) {
-  // oxlint-disable-next-line no-unassigned-vars
   let windowElement: HTMLDivElement | undefined;
-  // oxlint-disable-next-line no-unassigned-vars
   let clientElement: HTMLElement | undefined;
   let activePointerId: number | undefined;
   let interaction: Interaction | undefined;
