@@ -1,4 +1,5 @@
 import { onCleanup, onMount } from "solid-js";
+import Button from "./components/button/Button";
 import Taskbar from "./components/taskbar/TaskBar";
 import type { WindowId } from "./components/window-manager/WindowManager";
 import { useWindowManager } from "./components/window-manager/WindowManagerContext";
@@ -12,7 +13,25 @@ export default function App() {
 
   onMount(() => {
     windowId = windowManager.createWindow({
-      content: () => <h1>Hi!</h1>,
+      content: () => (
+        <section class="p-4">
+          <h1 class="mb-3 text-xl font-semibold text-neutral-900">Hi!</h1>
+          <div class="flex flex-wrap gap-2">
+            <Button variant="primary" onClick={() => undefined}>
+              Primary
+            </Button>
+            <Button variant="secondary" onClick={() => undefined}>
+              Secondary
+            </Button>
+            <Button variant="ghost" onClick={() => undefined}>
+              Ghost
+            </Button>
+            <Button variant="danger" onClick={() => undefined}>
+              Danger
+            </Button>
+          </div>
+        </section>
+      ),
     });
   });
 
