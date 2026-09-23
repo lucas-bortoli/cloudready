@@ -1,6 +1,7 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import Button from "./components/button/Button";
 import Checkbox from "./components/checkbox/Checkbox";
+import Dropdown from "./components/dropdown/Dropdown";
 import Radio from "./components/radio/Radio";
 import RadioGroup from "./components/radio/RadioGroup";
 import TextInput from "./components/text-input/TextInput";
@@ -19,6 +20,7 @@ export default function App() {
   const [mixedValue, setMixedValue] = createSignal(false);
   const [isMixed, setIsMixed] = createSignal(true);
   const [theme, setTheme] = createSignal("system");
+  const [appearance, setAppearance] = createSignal("light");
 
   let windowId: WindowId | undefined;
 
@@ -96,6 +98,35 @@ export default function App() {
               </div>
             </RadioGroup>
             <output class="font-mono text-sm text-neutral-600">{theme()}</output>
+          </div>
+          <div class="mt-5 grid gap-4 text-neutral-900">
+            <label class="grid gap-1.5">
+              <span class="font-medium">Appearance</span>
+              <Dropdown
+                class="w-64"
+                onValueChange={setAppearance}
+                options={[
+                  { label: "Light", value: "light" },
+                  { label: "Dark", value: "dark" },
+                  { disabled: true, label: "System (unavailable)", value: "system" },
+                ]}
+                value={appearance()}
+              />
+              <output class="font-mono text-sm text-neutral-600">{appearance()}</output>
+            </label>
+            <label class="grid gap-1.5">
+              <span class="font-medium">Locked appearance</span>
+              <Dropdown
+                class="w-64"
+                disabled
+                onValueChange={() => undefined}
+                options={[
+                  { label: "Automatic", value: "automatic" },
+                  { label: "Manual", value: "manual" },
+                ]}
+                value="automatic"
+              />
+            </label>
           </div>
         </section>
       ),
