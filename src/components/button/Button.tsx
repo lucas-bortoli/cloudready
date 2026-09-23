@@ -105,7 +105,7 @@ export default function Button(props: ButtonProps) {
       aria-disabled={isInactive() || undefined}
       aria-label={ariaLabel ?? title}
       class={cn(
-        "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm font-medium shadow transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
+        "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xs font-medium shadow transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         variant === "primary" &&
           "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700 focus:bg-neutral-700 active:bg-neutral-900",
         variant === "secondary" &&
