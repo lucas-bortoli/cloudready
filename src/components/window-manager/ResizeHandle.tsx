@@ -15,19 +15,47 @@ export default function ResizeHandle(props: {
 }) {
   const style = createMemo<JSX.CSSProperties>(() => {
     if (props.direction === "nw") {
-      return { top: 0, left: 0, width: "12px", height: "12px", cursor: "nw-resize" };
+      return {
+        top: 0,
+        left: 0,
+        width: "16px",
+        height: "16px",
+        cursor: "nw-resize",
+        "border-bottom-right-radius": "16px",
+      };
+    } else if (props.direction === "ne") {
+      return {
+        top: 0,
+        right: 0,
+        width: "16px",
+        height: "16px",
+        cursor: "ne-resize",
+        "border-bottom-left-radius": "16px",
+      };
+    } else if (props.direction === "se") {
+      return {
+        right: 0,
+        bottom: 0,
+        width: "16px",
+        height: "16px",
+        cursor: "se-resize",
+        "border-top-left-radius": "16px",
+      };
+    } else if (props.direction === "sw") {
+      return {
+        bottom: 0,
+        left: 0,
+        width: "16px",
+        height: "16px",
+        cursor: "sw-resize",
+        "border-top-right-radius": "16px",
+      };
     } else if (props.direction === "n") {
       return { top: 0, left: 0, right: 0, height: "8px", cursor: "n-resize" };
-    } else if (props.direction === "ne") {
-      return { top: 0, right: 0, width: "12px", height: "12px", cursor: "ne-resize" };
     } else if (props.direction === "e") {
       return { top: 0, right: 0, bottom: 0, width: "8px", cursor: "e-resize" };
-    } else if (props.direction === "se") {
-      return { right: 0, bottom: 0, width: "12px", height: "12px", cursor: "se-resize" };
     } else if (props.direction === "s") {
       return { right: 0, bottom: 0, left: 0, height: "8px", cursor: "s-resize" };
-    } else if (props.direction === "sw") {
-      return { bottom: 0, left: 0, width: "12px", height: "12px", cursor: "sw-resize" };
     } else {
       return { top: 0, bottom: 0, left: 0, width: "8px", cursor: "w-resize" };
     }
@@ -36,7 +64,7 @@ export default function ResizeHandle(props: {
   return (
     <div
       x-role="resize handle"
-      class="absolute bg-black opacity-0 transition-opacity delay-75 hover:opacity-50"
+      class="absolute bg-black opacity-0 transition-opacity delay-75 hover:opacity-20"
       style={style()}
       onPointerDown={(event) => props.onPointerDown(props.direction, event)}
     />
