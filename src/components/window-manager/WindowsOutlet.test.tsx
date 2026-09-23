@@ -1,8 +1,6 @@
-// @vitest-environment jsdom
-
 import { onMount } from "solid-js";
 import { render } from "solid-js/web";
-import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import WindowManager from "./WindowManager";
 import { WindowManagerProvider, useWindowManager } from "./WindowManagerContext";
 import WindowsOutlet from "./WindowsOutlet";

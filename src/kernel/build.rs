@@ -13,11 +13,11 @@ fn main() {
     println!("cargo::rerun-if-changed={}", bundle.display());
     assert!(
         bundle.is_dir(),
-        "Release builds require a frontend bundle; run `vp run build` before `cargo build --release`"
+        "Release builds require a frontend bundle; run `npm run build` before `cargo build --release`"
     );
     assert!(
         bundle.join("index.html").is_file(),
-        "Frontend bundle is missing index.html; run `vp run build`"
+        "Frontend bundle is missing index.html; run `npm run build`"
     );
     let mut entries = Vec::new();
     collect(&bundle, &bundle, &mut entries);

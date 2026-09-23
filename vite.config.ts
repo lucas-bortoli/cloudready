@@ -1,10 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import solid from "vite-plugin-solid";
-import { defineConfig } from "vite-plus";
-import oxfmtConfig from "./oxfmt.config.ts";
-import { lintConfig } from "./oxlint.config.ts";
+import { defineConfig } from "vite";
 
-// @ts-expect-error @types/node is not installed, but I'm not going to install them just for an one-off environment read.
 const isVitest = Boolean(process.env.VITEST);
 
 export default defineConfig({
@@ -12,7 +9,7 @@ export default defineConfig({
   root: "src",
   publicDir: "public",
   server: {
-    // Forward API requests during development to the kernel started with `vp run dev:kernel`.
+    // Forward API requests during development to the kernel started with `npm run dev:kernel`.
     proxy: {
       "/api/": "http://127.0.0.1:3000",
     },
@@ -21,9 +18,4 @@ export default defineConfig({
     outDir: "../target/userland-static-bundle",
     emptyOutDir: true,
   },
-  staged: {
-    "*": "vp check --fix",
-  },
-  fmt: oxfmtConfig,
-  lint: lintConfig,
 });
