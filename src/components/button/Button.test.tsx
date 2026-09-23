@@ -1,8 +1,8 @@
-// @vitest-environment jsdom
+// @vitest-environment happy-dom
 
 import type { JSX } from "solid-js";
 import { render } from "solid-js/web";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 import Button from "./Button";
 
 function renderButton(button: () => JSX.Element) {
@@ -29,7 +29,7 @@ describe("Button", () => {
     const { dispose, element } = renderButton(() => <Button>Save</Button>);
 
     expect(element.type).toBe("button");
-    expect(element.className).toContain("bg-white");
+    expect(element.className).toContain("bg-neutral-100");
     expect(element.className).toContain("h-7");
 
     dispose();

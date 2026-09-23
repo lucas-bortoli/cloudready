@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { onMount } from "solid-js";
 import { render } from "solid-js/web";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
