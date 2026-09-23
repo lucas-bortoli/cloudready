@@ -1,5 +1,8 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import Button from "./components/button/Button";
+import Checkbox from "./components/checkbox/Checkbox";
+import Radio from "./components/radio/Radio";
+import RadioGroup from "./components/radio/RadioGroup";
 import TextInput from "./components/text-input/TextInput";
 import Taskbar from "./components/taskbar/TaskBar";
 import type { WindowId } from "./components/window-manager/WindowManager";
@@ -11,6 +14,11 @@ export default function App() {
   const windowManager = useWindowManager();
   const [singleLineValue, setSingleLineValue] = createSignal("CloudReady");
   const [multiLineValue, setMultiLineValue] = createSignal("First line\nSecond line");
+  const [uncheckedValue, setUncheckedValue] = createSignal(false);
+  const [checkedValue, setCheckedValue] = createSignal(true);
+  const [mixedValue, setMixedValue] = createSignal(false);
+  const [isMixed, setIsMixed] = createSignal(true);
+  const [theme, setTheme] = createSignal("system");
 
   let windowId: WindowId | undefined;
 
@@ -56,6 +64,38 @@ export default function App() {
                 {multiLineValue()}
               </output>
             </label>
+          </div>
+          <div class="mt-5 grid gap-2">
+            <Checkbox checked={uncheckedValue()} onCheckedChange={setUncheckedValue}>
+              Unchecked ({String(uncheckedValue())})
+            </Checkbox>
+            <Checkbox checked={checkedValue()} onCheckedChange={setCheckedValue}>
+              Checked ({String(checkedValue())})
+            </Checkbox>
+            <Checkbox
+              checked={mixedValue()}
+              indeterminate={isMixed()}
+              onCheckedChange={(nextChecked) => {
+                setMixedValue(nextChecked);
+                setIsMixed(false);
+              }}
+            >
+              Indeterminate ({isMixed() ? "mixed" : String(mixedValue())})
+            </Checkbox>
+            <Checkbox checked={false} disabled onCheckedChange={() => undefined}>
+              Disabled
+            </Checkbox>
+          </div>
+          <div class="mt-5 grid gap-2 text-neutral-900">
+            <span class="font-medium">Theme</span>
+            <RadioGroup name="theme" onValueChange={setTheme} value={theme()}>
+              <div class="grid gap-2">
+                <Radio value="light">Light</Radio>
+                <Radio value="dark">Dark</Radio>
+                <Radio value="system">System</Radio>
+              </div>
+            </RadioGroup>
+            <output class="font-mono text-sm text-neutral-600">{theme()}</output>
           </div>
         </section>
       ),
