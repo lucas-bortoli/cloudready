@@ -6,6 +6,7 @@ export const lintConfig = {
     { name: "solid", specifier: "eslint-plugin-solid" },
   ],
   rules: {
+    "no-unassigned-vars": "off",
     "vite-plus/prefer-vite-plus-imports": "error",
     "solid/jsx-no-duplicate-props": "error",
     "solid/jsx-no-undef": ["error", { typescriptEnabled: true }],
