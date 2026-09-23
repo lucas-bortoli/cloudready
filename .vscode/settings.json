@@ -17,6 +17,8 @@
   },
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
+  "tailwindCSS.classFunctions": ["cn"],
+  "tailwindCSS.experimental.configFile": "src/style.css",
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
     "source.organizeImports": "always"

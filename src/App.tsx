@@ -23,11 +23,11 @@ export default function App() {
             <Button variant="secondary" onClick={() => undefined}>
               Secondary
             </Button>
-            <Button variant="ghost" onClick={() => undefined}>
-              Ghost
-            </Button>
             <Button variant="danger" onClick={() => undefined}>
               Danger
+            </Button>
+            <Button variant="ghost" onClick={() => undefined} loading>
+              Ghost
             </Button>
           </div>
         </section>

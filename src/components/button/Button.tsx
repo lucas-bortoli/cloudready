@@ -1,26 +1,20 @@
 import type { JSX } from "solid-js";
+import { cn } from "../../lib/dom";
 
 /** Visual emphasis applied to a {@link Button}. */
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
-
-/**
- * The physical size of a {@link Button}.
- *
- * The `"icon"` size is square and requires a `title`, which supplies its accessible name.
- */
-export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 type NativeButtonProps = Omit<
   JSX.ButtonHTMLAttributes<HTMLButtonElement>,
   "aria-busy" | "aria-disabled" | "children" | "class" | "disabled" | "onClick" | "title" | "type"
 >;
 
-/** Shared properties accepted by every {@link Button} size. */
+/** Shared properties accepted by every {@link Button}. */
 interface ButtonCommonProps extends NativeButtonProps {
   /**
    * The accessible name supplied by the caller.
    *
-   * For icon buttons, this overrides the label derived from `title`.
+   * For textless buttons, this overrides the label derived from `title`.
    */
   "aria-label"?: string;
   /** Additional Tailwind classes appended after the component's standard classes. */
@@ -58,30 +52,15 @@ interface ButtonCommonProps extends NativeButtonProps {
 /**
  * Properties accepted by {@link Button}.
  *
- * The icon size requires `title`; it is forwarded as the native tooltip and is used as the
- * accessible name unless `aria-label` is supplied. Other sizes may use either visible children
- * or any normal native button naming mechanism.
+ * `title` is forwarded as the native tooltip and used as the accessible name unless `aria-label`
+ * is supplied. Buttons without visible text should provide one of those properties.
  */
-export type ButtonProps =
-  | (ButtonCommonProps & {
-      /** Content visible within the button. */
-      children?: JSX.Element;
-      size?: Exclude<ButtonSize, "icon">;
-      /** Native tooltip text. */
-      title?: string;
-    })
-  | (ButtonCommonProps & {
-      /** Icon-only buttons do not accept a visible text label. */
-      children?: never;
-      size: "icon";
-      /** Required tooltip and default accessible name for an icon-only button. */
-      title: string;
-    });
-
-/** Joins conditional Tailwind utility strings for Oxfmt's configured class sorter. */
-function tw(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
+export type ButtonProps = ButtonCommonProps & {
+  /** Content visible within the button. */
+  children?: JSX.Element;
+  /** Native tooltip text and fallback accessible name. */
+  title?: string;
+};
 
 /**
  * Renders a consistently styled native button with accessible, focusable inactive states.
@@ -100,7 +79,6 @@ export default function Button(props: ButtonProps) {
     endIcon,
     loading = false,
     onClick,
-    size = "md",
     startIcon,
     title,
     type = "button",
@@ -125,21 +103,18 @@ export default function Button(props: ButtonProps) {
       {...nativeProps}
       aria-busy={loading || undefined}
       aria-disabled={isInactive() || undefined}
-      aria-label={ariaLabel ?? (size === "icon" ? title : undefined)}
-      class={tw(
-        "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
+      aria-label={ariaLabel ?? title}
+      class={cn(
+        "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm font-medium shadow transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         variant === "primary" &&
-          "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700 active:bg-neutral-900",
+          "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700 focus:bg-neutral-700 active:bg-neutral-900",
         variant === "secondary" &&
-          "border border-neutral-400 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 active:bg-neutral-300",
+          "border border-neutral-400 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 focus:bg-neutral-200 active:bg-neutral-300",
         variant === "ghost" &&
-          "border border-transparent bg-transparent text-neutral-700 hover:bg-neutral-100 active:bg-neutral-200",
+          "border border-transparent bg-transparent text-neutral-700 shadow-none hover:bg-neutral-100 focus:bg-neutral-100 active:bg-neutral-200",
         variant === "danger" &&
-          "border border-neutral-400 bg-neutral-100 text-neutral-800 hover:border-red-400 hover:bg-red-50 hover:text-red-700 active:bg-red-100",
-        size === "sm" && "min-h-7 gap-1.5 px-2 text-sm",
-        size === "md" && "min-h-9 gap-2 px-3 text-base",
-        size === "lg" && "min-h-11 gap-2.5 px-4 text-lg",
-        size === "icon" && "size-9",
+          "border border-neutral-400 bg-neutral-100 text-neutral-800 hover:border-red-400 hover:bg-red-50 hover:text-red-700 focus:border-red-400 focus:bg-red-50 focus:text-red-700 active:bg-red-100",
+        "h-7 gap-1.5 px-4",
         className,
       )}
       title={title}

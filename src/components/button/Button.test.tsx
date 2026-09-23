@@ -25,22 +25,21 @@ function renderButton(button: () => JSX.Element) {
 }
 
 describe("Button", () => {
-  it("uses the secondary medium button defaults", () => {
+  it("uses the compact secondary button defaults", () => {
     const { dispose, element } = renderButton(() => <Button>Save</Button>);
 
     expect(element.type).toBe("button");
     expect(element.className).toContain("bg-white");
-    expect(element.className).toContain("min-h-9");
+    expect(element.className).toContain("h-7");
 
     dispose();
   });
 
-  it("renders explicit variants, sizes, icons, and caller classes", () => {
+  it("renders explicit variants, icons, and caller classes", () => {
     const { dispose, element } = renderButton(() => (
       <Button
         class="custom-class"
         endIcon={<span>→</span>}
-        size="lg"
         startIcon={<span>←</span>}
         variant="danger"
       >
@@ -49,7 +48,7 @@ describe("Button", () => {
     ));
 
     expect(element.className).toContain("hover:bg-red-50");
-    expect(element.className).toContain("min-h-11");
+    expect(element.className).toContain("h-7");
     expect(element.className).toContain("custom-class");
     expect(element.textContent).toBe("←Delete→");
     expect(element.querySelector('[aria-hidden="true"]')).not.toBeNull();
@@ -59,15 +58,11 @@ describe("Button", () => {
 
   it("renders the primary and ghost variant surfaces", () => {
     const primaryButton = renderButton(() => <Button variant="primary">Save</Button>);
-    const ghostButton = renderButton(() => (
-      <Button size="sm" variant="ghost">
-        Cancel
-      </Button>
-    ));
+    const ghostButton = renderButton(() => <Button variant="ghost">Cancel</Button>);
 
     expect(primaryButton.element.className).toContain("bg-neutral-800");
     expect(ghostButton.element.className).toContain("bg-transparent");
-    expect(ghostButton.element.className).toContain("min-h-7");
+    expect(ghostButton.element.className).toContain("h-7");
 
     primaryButton.dispose();
     ghostButton.dispose();
@@ -95,9 +90,9 @@ describe("Button", () => {
     namedButton.dispose();
   });
 
-  it("uses title as the icon button's tooltip and default accessible name", () => {
+  it("uses title as a textless button's tooltip and default accessible name", () => {
     const { dispose, element } = renderButton(() => (
-      <Button size="icon" startIcon={<span>×</span>} title="Close" />
+      <Button startIcon={<span>×</span>} title="Close" />
     ));
 
     expect(element.getAttribute("title")).toBe("Close");
@@ -106,9 +101,9 @@ describe("Button", () => {
     dispose();
   });
 
-  it("preserves an explicit icon button aria-label", () => {
+  it("preserves an explicit textless button aria-label", () => {
     const { dispose, element } = renderButton(() => (
-      <Button aria-label="Dismiss dialog" size="icon" startIcon={<span>×</span>} title="Close" />
+      <Button aria-label="Dismiss dialog" startIcon={<span>×</span>} title="Close" />
     ));
 
     expect(element.getAttribute("aria-label")).toBe("Dismiss dialog");
