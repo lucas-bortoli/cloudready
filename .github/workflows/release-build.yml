@@ -15,15 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - uses: voidzero-dev/setup-vp@v1.21.0
+      - uses: actions/setup-node@v6
         with:
-          node-version: lts
-          cache: true
-          run-install: true
+          node-version: 20
+          cache: npm
+      - run: npm ci
       - name: Check formatting, linting, and types
-        run: vp check
+        run: npm run format:check && npm run lint && npx tsc
       - name: Test frontend and backend
-        run: vp run test
+        run: npm run test
 
   build:
     name: Build (${{ matrix.name }})
@@ -45,12 +45,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - uses: voidzero-dev/setup-vp@v1.21.0
+      - uses: actions/setup-node@v6
         with:
-          node-version: lts
-          cache: true
-          run-install: true
-      - run: vp run build
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
       - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact }}
