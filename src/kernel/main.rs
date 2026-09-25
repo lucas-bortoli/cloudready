@@ -4,6 +4,7 @@ use serde::Deserialize;
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 use uuid::Uuid;
 
+mod chromium;
 mod filesystem;
 
 // The build script enables this module only for release builds.
@@ -11,12 +12,22 @@ mod filesystem;
 mod frontend;
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let chromium = chromium::executable_from_args(std::env::args_os().skip(1))?;
     // Listen locally by default; allow deployments to override the address and port.
     let address = std::env::var("KERNEL_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());
     let server = Server::http(&address)?;
     let database_path = database_path()?;
     let mut filesystem = filesystem::FileSystem::open(&database_path)?;
     println!("Listening on http://{}", server.server_addr());
+    // Debug kernels are paired with Vite; release kernels serve the embedded frontend.
+    #[cfg(not(embedded_frontend))]
+    let chromium_address = "localhost:5173";
+    #[cfg(embedded_frontend)]
+    let chromium_address = &address;
+    let _chromium_profile = chromium
+        .as_deref()
+        .map(|executable| chromium::launch(executable, chromium_address))
+        .transpose()?;
 
     for mut request in server.incoming_requests() {
         // Route by path so query parameters do not affect endpoint matching.

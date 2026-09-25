@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:kernel": "cargo run",
+    "dev:kernel": "cargo run --",
     "build:frontend": "tsc && vite build",
     "build": "npm run build:frontend && cargo build --release",
     "test:frontend": "vitest run --passWithNoTests",
