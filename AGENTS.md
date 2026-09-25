@@ -27,6 +27,11 @@ Use `npm run build` for production builds.
   Run only the focused verification relevant to the change, or run broader checks when the user
   requests them or before a meaningful handoff.
 
+## Pull requests
+
+- When the user says “do the PR thing,” create a pull request for the current branch with
+  GitHub CLI, then rebase-merge it and delete the remote branch.
+
 ## Frontend structure
 
 - Use `kebab-case` directory names for feature areas, such as `components/window-manager/`.
