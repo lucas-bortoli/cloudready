@@ -29,7 +29,7 @@ Use `npm run build` for production builds.
 
 ## Pull requests
 
-- When the user says “do the PR thing,” create a pull request for the current branch with
+- When the user says "make a PR thing", create a pull request for the current branch with
   GitHub CLI, then rebase-merge it and delete the remote branch.
 
 ## Frontend structure
