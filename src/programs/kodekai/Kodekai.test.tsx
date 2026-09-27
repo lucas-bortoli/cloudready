@@ -23,6 +23,16 @@ function pointerEvent(type: string, clientX: number, clientY: number) {
   return new PointerEvent(type, { bubbles: true, button: 0, clientX, clientY, pointerId: 1 });
 }
 
+function keyboardEvent(key: string) {
+  return new KeyboardEvent("keydown", { bubbles: true, key, shiftKey: true });
+}
+
+function findCard(container: ParentNode, cardId: string) {
+  return Array.from(container.querySelectorAll<HTMLLIElement>("[data-kodekai-card]")).find(
+    (card) => card.dataset.kodekaiCard === cardId,
+  )!;
+}
+
 function renderBoard() {
   const model = Model.empty();
   const projectId = model.createProject({ title: "Cloudready" });
@@ -58,6 +68,7 @@ function renderBoard() {
   return {
     board,
     boundingRect,
+    cardRects,
     container,
     dispose: () => {
       dispose();
@@ -82,6 +93,7 @@ describe("Kodekai card dragging", () => {
     const { boundingRect, container, dispose, firstId, model, secondId, source, thirdId } =
       renderBoard();
 
+    source.focus();
     source.dispatchEvent(pointerEvent("pointerdown", 10, 30));
     document.dispatchEvent(pointerEvent("pointermove", 12, 32));
 
@@ -102,11 +114,18 @@ describe("Kodekai card dragging", () => {
 
     document.dispatchEvent(pointerEvent("pointerup", 10, 180));
 
+    const movedCard = Array.from(
+      container.querySelectorAll<HTMLLIElement>("[data-kodekai-card]"),
+    ).find((card) => card.dataset.kodekaiCard === firstId)!;
+    expect(document.activeElement).toBe(movedCard);
+    movedCard.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
     expect(model.listCards(model.getCard(firstId).projectId).map((card) => card.id)).toEqual([
       secondId,
       thirdId,
       firstId,
     ]);
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
     expect(container.querySelector('li[aria-hidden="true"]')).toBeNull();
     expect(source.className).not.toContain("opacity-0");
     boundingRect.mockRestore();
@@ -179,6 +198,81 @@ describe("Kodekai card dragging", () => {
     source.dispatchEvent(pointerEvent("pointerdown", 10, 30));
     document.dispatchEvent(pointerEvent("pointermove", 600, 300));
     document.dispatchEvent(pointerEvent("pointerup", 600, 300));
+
+    expect(model.getCard(firstId)).toMatchObject({ bucket: "icebox", displayIndex: 0 });
+    dispose();
+  });
+});
+
+describe("Kodekai card keyboard navigation", () => {
+  it("reorders cards vertically and retains focus", () => {
+    const { dispose, firstId, model, secondId, source, thirdId } = renderBoard();
+
+    source.focus();
+    source.dispatchEvent(keyboardEvent("ArrowDown"));
+
+    expect(model.listCards(model.getCard(firstId).projectId).map((card) => card.id)).toEqual([
+      secondId,
+      firstId,
+      thirdId,
+    ]);
+    const movedDownCard = findCard(document, firstId);
+    expect(document.activeElement).toBe(movedDownCard);
+
+    movedDownCard.dispatchEvent(keyboardEvent("ArrowUp"));
+
+    expect(model.listCards(model.getCard(firstId).projectId).map((card) => card.id)).toEqual([
+      firstId,
+      secondId,
+      thirdId,
+    ]);
+    expect(document.activeElement).toBe(findCard(document, firstId));
+    dispose();
+  });
+
+  it("keeps cards in place at the top and bottom of a bucket", () => {
+    const { dispose, firstId, model, source, thirdId } = renderBoard();
+    const lastCard = Array.from(
+      document.querySelectorAll<HTMLLIElement>("[data-kodekai-card]"),
+    ).find((card) => card.dataset.kodekaiCard === thirdId)!;
+
+    source.dispatchEvent(keyboardEvent("ArrowUp"));
+    lastCard.dispatchEvent(keyboardEvent("ArrowDown"));
+
+    expect(model.getCard(firstId)).toMatchObject({ bucket: "icebox", displayIndex: 0 });
+    expect(model.getCard(thirdId)).toMatchObject({ bucket: "icebox", displayIndex: 2 });
+    dispose();
+  });
+
+  it("moves cards horizontally to the matching visual row and retains focus", () => {
+    const { cardRects, dispose, firstId, inProgress, model, secondId, thirdId } = renderBoard();
+
+    model.moveCard(secondId, { bucket: "in-progress", displayIndex: 0 });
+    model.moveCard(thirdId, { bucket: "in-progress", displayIndex: 1 });
+    const destinationCards = inProgress.querySelectorAll<HTMLLIElement>("[data-kodekai-card]");
+    cardRects.set(destinationCards[0], rect(300, 10, 256, 40));
+    cardRects.set(destinationCards[1], rect(300, 60, 256, 40));
+
+    const currentSource = findCard(document, firstId);
+    cardRects.set(currentSource, rect(0, 20, 256, 40));
+    currentSource.focus();
+    currentSource.dispatchEvent(keyboardEvent("ArrowRight"));
+
+    expect(model.getCard(firstId)).toMatchObject({ bucket: "in-progress", displayIndex: 1 });
+    expect(model.listCards(model.getCard(firstId).projectId).map((card) => card.id)).toEqual([
+      secondId,
+      firstId,
+      thirdId,
+    ]);
+    const movedCard = findCard(inProgress, firstId);
+    expect(document.activeElement).toBe(movedCard);
+    dispose();
+  });
+
+  it("does not move cards beyond the outermost buckets", () => {
+    const { dispose, firstId, model, source } = renderBoard();
+
+    source.dispatchEvent(keyboardEvent("ArrowLeft"));
 
     expect(model.getCard(firstId)).toMatchObject({ bucket: "icebox", displayIndex: 0 });
     dispose();
