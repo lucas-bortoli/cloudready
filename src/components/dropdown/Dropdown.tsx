@@ -29,7 +29,8 @@ export interface DropdownOption {
  * Properties accepted by {@link Dropdown}.
  *
  * Dropdown is controlled: `value` is its sole source of truth and `onValueChange` reports an
- * accepted user selection. `value` must identify an option in `options`.
+ * accepted user selection. A `null` or `undefined` value represents no selection; otherwise,
+ * `value` must identify an option in `options`.
  */
 export interface DropdownProps extends NativeSelectProps {
   /** Additional Tailwind classes appended after the component's standard classes. */
@@ -46,8 +47,8 @@ export interface DropdownProps extends NativeSelectProps {
   onKeyDown?: JSX.EventHandler<HTMLSelectElement, KeyboardEvent>;
   /** The available choices rendered as native options. */
   options: readonly DropdownOption[];
-  /** The current controlled selected value. */
-  value: string;
+  /** The current controlled selected value, or no selection. */
+  value: string | null | undefined;
   /**
    * Optional stable semantic role forwarded unchanged to the native select.
    *
@@ -76,15 +77,23 @@ export default function Dropdown(props: DropdownProps) {
   let select: HTMLSelectElement | undefined;
   const isInactive = () => local.disabled ?? false;
 
-  createEffect(() => {
-    if (select) {
+  const synchronizeSelection = () => {
+    if (!select) return;
+
+    if (local.value == null) {
+      select.selectedIndex = -1;
+    } else {
       select.value = local.value;
     }
+  };
+
+  createEffect(() => {
+    synchronizeSelection();
   });
 
   const handleChange: JSX.EventHandler<HTMLSelectElement, Event> = (event) => {
     if (isInactive()) {
-      event.currentTarget.value = local.value;
+      synchronizeSelection();
       return;
     }
 
@@ -100,16 +109,18 @@ export default function Dropdown(props: DropdownProps) {
   };
 
   return (
-    <div class="relative inline-block justify-self-start">
+    <div
+      class={cn(
+        "relative inline-block h-7 min-w-0 cursor-pointer justify-self-start rounded-xs border border-neutral-400 bg-neutral-50 text-neutral-800 shadow transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-600 hover:bg-neutral-200 focus:bg-neutral-200 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
+        props.class,
+      )}
+    >
       <select
         {...nativeProps}
         ref={select}
         aria-disabled={isInactive() || undefined}
-        class={cn(
-          "relative z-0 block h-7 min-w-0 cursor-pointer appearance-none rounded-xs border border-neutral-400 bg-neutral-50 py-0 pr-7 pl-2 text-neutral-800 shadow transition-colors hover:bg-neutral-200 focus:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
-          local.class,
-        )}
-        value={local.value}
+        class="relative z-0 block h-full w-full appearance-none py-0 pr-7 pl-2 outline-none"
+        value={local.value ?? undefined}
         x-role={local["x-role"]}
         onChange={handleChange}
         onKeyDown={handleKeyDown}

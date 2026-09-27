@@ -46,9 +46,9 @@ describe("Dropdown", () => {
     expect(element.value).toBe("dark");
     expect(element.name).toBe("theme");
     expect(element.required).toBe(true);
-    expect(element.className).toContain("h-7");
     expect(element.className).toContain("appearance-none");
-    expect(element.className).toContain("custom-class");
+    expect(element.parentElement?.className).toContain("h-7");
+    expect(element.parentElement?.className).toContain("custom-class");
     expect(element.parentElement?.className).toContain("justify-self-start");
     expect(
       element.parentElement?.querySelector("svg[aria-hidden='true']")?.getAttribute("class"),
@@ -83,6 +83,23 @@ describe("Dropdown", () => {
     setValue("dark");
 
     expect(element.value).toBe("dark");
+
+    dispose();
+  });
+
+  it("supports an explicitly empty controlled selection", () => {
+    const [value, setValue] = createSignal<string | null>(null);
+    const { dispose, element } = renderDropdown(() => (
+      <Dropdown onValueChange={setValue} options={options} value={value()} />
+    ));
+
+    expect(element.selectedIndex).toBe(-1);
+
+    setValue("dark");
+    expect(element.value).toBe("dark");
+
+    setValue(null);
+    expect(element.selectedIndex).toBe(-1);
 
     dispose();
   });
