@@ -1,8 +1,9 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onMount, Show } from "solid-js";
 import Button from "../../../components/button/Button";
 import DatePicker from "../../../components/date-picker/DatePicker";
 import Dropdown from "../../../components/dropdown/Dropdown";
 import TextInput from "../../../components/text-input/TextInput";
+import focusTrap from "../../../lib/focus-trap";
 import { formatIsoDateTime, parseIsoDateTime } from "../../../lib/iso-date-time";
 import type { Card as CardData, Priority, ProjectId } from "../model/model";
 
@@ -27,6 +28,7 @@ function localDateValue(expiration: string) {
 
 /** Edits a Kodekai card in an overlay contained by the board window. */
 export default function CardEditor(props: CardEditorProps) {
+  let titleInput: HTMLTextAreaElement | undefined;
   const today = localDateValue(formatIsoDateTime(new Date()));
   const [title, setTitle] = createSignal("");
   const [content, setContent] = createSignal("");
@@ -40,6 +42,8 @@ export default function CardEditor(props: CardEditorProps) {
     setPriority(card?.priority ?? "normal");
     setExpirationDate(card ? localDateValue(card.expiration) : today);
   });
+
+  onMount(() => titleInput?.focus());
 
   const save = (event: SubmitEvent) => {
     event.preventDefault();
@@ -82,6 +86,10 @@ export default function CardEditor(props: CardEditorProps) {
         class="w-full max-w-lg rounded border border-neutral-400 bg-white p-5 shadow-xl"
         x-role="kodekai card editor"
         role="dialog"
+        use:focusTrap={focusTrap}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") props.onClose();
+        }}
       >
         <h2 class="mb-4 text-lg font-semibold" id="kodekai-card-editor-title">
           {props.card ? "Editar cartão" : "Novo cartão"}
@@ -89,7 +97,7 @@ export default function CardEditor(props: CardEditorProps) {
         <form class="flex flex-col gap-3" onSubmit={save}>
           <label class="flex flex-col gap-1">
             <span>Título</span>
-            <TextInput autofocus onValueChange={setTitle} required value={title()} />
+            <TextInput ref={titleInput} onValueChange={setTitle} required value={title()} />
           </label>
           <label class="flex flex-col gap-1">
             <span>Descrição</span>

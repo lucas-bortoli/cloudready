@@ -6,7 +6,7 @@ import Category from "./components/Category";
 import { KodekaiProvider, useKodekai } from "./KodekaiContext";
 import useCardDrag from "./lib/useCardDrag";
 import { createMockModel } from "./model/fixture";
-import type { Bucket, Card as CardData, Model, ProjectId } from "./model/model";
+import type { Bucket, Card as CardData, CardId, Model, ProjectId } from "./model/model";
 
 /** Renders the Kodekai board for the model supplied by its provider. */
 function KodekaiView() {
@@ -17,17 +17,35 @@ function KodekaiView() {
   const [rootElement, setRootElement] = createSignal<HTMLElement>();
   const [editorOpen, setEditorOpen] = createSignal(false);
   const [editingCard, setEditingCard] = createSignal<CardData>();
+  let focusReturnTarget: HTMLElement | undefined;
+  let focusReturnCardId: CardId | undefined;
   const projects = createMemo(() => model().listProjects());
   const cardDrag = useCardDrag({ model, rootElement });
 
   const openEditor = (card?: CardData) => {
+    focusReturnTarget =
+      document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    focusReturnCardId = card?.id;
     setEditingCard(card);
     setEditorOpen(true);
   };
 
-  const closeEditor = () => {
+  const closeEditor = (focusCardId = focusReturnCardId) => {
+    const returnTarget = focusReturnTarget;
+    const returnCardId = focusCardId;
     setEditorOpen(false);
     setEditingCard(undefined);
+    focusReturnTarget = undefined;
+    focusReturnCardId = undefined;
+
+    queueMicrotask(() => {
+      const updatedCard = returnCardId
+        ? Array.from(
+            rootElement()?.querySelectorAll<HTMLElement>("[data-kodekai-card]") ?? [],
+          ).find((element) => element.dataset.kodekaiCard === returnCardId)
+        : undefined;
+      (updatedCard ?? (returnTarget?.isConnected ? returnTarget : undefined))?.focus();
+    });
   };
 
   createEffect(() => {
@@ -78,8 +96,7 @@ function KodekaiView() {
             projectId={projectId()}
             onClose={closeEditor}
             onCreate={(card) => {
-              model().createCard(card);
-              closeEditor();
+              closeEditor(model().createCard(card));
             }}
             onUpdate={(card, changes) => {
               model().updateCard(card.id, changes);

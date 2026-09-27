@@ -161,11 +161,6 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     if (currentCard.bucket === target.bucket && currentCard.displayIndex === target.displayIndex)
       return;
 
-    console.debug("[Kodekai] committing card drop", {
-      cardId: drag.card.id,
-      from: { bucket: currentCard.bucket, displayIndex: currentCard.displayIndex },
-      to: { bucket: target.bucket, displayIndex: target.displayIndex },
-    });
     const previousPositions = captureCardPositions();
     if (previewPosition) previousPositions.set(drag.card.id, previewPosition);
     moveCard(

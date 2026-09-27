@@ -98,4 +98,29 @@ describe("CardEditor", () => {
     dispose();
     root.remove();
   });
+
+  it("focuses the title, traps tab navigation, and closes with Escape", () => {
+    const { dispose, onClose, root } = renderEditor();
+    const focusable = [...root.querySelectorAll<HTMLElement>("textarea, select, input, button")];
+    const title = focusable[0];
+    const last = focusable.at(-1)!;
+
+    expect(document.activeElement).toBe(title);
+
+    for (const element of focusable) {
+      Object.defineProperty(element, "getClientRects", {
+        value: () => [{ width: 1, height: 1 }],
+      });
+    }
+    last.focus();
+    last.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Tab" }),
+    );
+    expect(document.activeElement).toBe(title);
+
+    title.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    expect(onClose).toHaveBeenCalledOnce();
+    dispose();
+    root.remove();
+  });
 });

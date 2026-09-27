@@ -1,4 +1,4 @@
-import { createEffect, createMemo, For, type Accessor } from "solid-js";
+import { createMemo, For, type Accessor } from "solid-js";
 import { useKodekai } from "../KodekaiContext";
 import type { DropTarget } from "../lib/useCardDrag";
 import type { Bucket, Card as CardData, CardId, ProjectId } from "../model/model";
@@ -34,13 +34,6 @@ export default function Category(props: CategoryProps) {
     const currentModel = model();
     if (!currentModel.listProjects().some((project) => project.id === projectId)) return [];
     return currentModel.listCards(projectId).filter((card) => card.bucket === props.bucket);
-  });
-
-  createEffect(() => {
-    console.debug("[Kodekai] bucket card list refreshed", {
-      bucket: props.bucket,
-      cards: cards().map(({ displayIndex, id }) => ({ displayIndex, id })),
-    });
   });
 
   return (
