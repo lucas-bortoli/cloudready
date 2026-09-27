@@ -7,6 +7,7 @@ export interface CardProps {
   card: CardData;
   draggingCardId: Accessor<CardId | undefined>;
   onPointerDown: (card: CardData, element: HTMLLIElement, event: PointerEvent) => void;
+  onSelect: (card: CardData) => void;
 }
 
 const priorityLabels: Record<CardData["priority"], string> = {
@@ -64,6 +65,8 @@ export default function Card(props: CardProps) {
     <li
       ref={cardRef}
       data-kodekai-card={props.card.id}
+      role="button"
+      tabIndex={0}
       class="flex max-h-32 cursor-grab touch-none flex-col gap-1 overflow-hidden rounded-sm border border-neutral-400 bg-white p-2 shadow-md **:pointer-events-none"
       classList={{
         "cursor-grabbing": props.draggingCardId() === props.card.id,
@@ -71,6 +74,13 @@ export default function Card(props: CardProps) {
       }}
       onPointerDown={(event) => {
         if (cardRef) props.onPointerDown(props.card, cardRef, event);
+      }}
+      onClick={() => props.onSelect(props.card)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          props.onSelect(props.card);
+        }
       }}
     >
       <h2 ref={titleRef} class="max-h-10 shrink-0 overflow-hidden leading-snug font-medium">

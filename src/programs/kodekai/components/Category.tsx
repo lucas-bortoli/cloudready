@@ -12,14 +12,15 @@ export interface CategoryProps {
   indicator: Accessor<DropTarget | undefined>;
   onCardPointerDown: (card: CardData, element: HTMLLIElement, event: PointerEvent) => void;
   onListElement: (bucket: Bucket, element: HTMLUListElement) => void;
+  onCardSelect: (card: CardData) => void;
 }
 
 const labels: Record<Bucket, string> = {
   icebox: "Levantado",
   "in-progress": "Em andamento",
   blocked: "Com impedimento",
-  revision: "Em revisÃ£o",
-  done: "ConcluÃ­do",
+  revision: "Em revisão",
+  done: "Concluído",
 };
 
 /** Renders one bucket, its cards, and the absolute drop indicator. */
@@ -57,6 +58,7 @@ export default function Category(props: CategoryProps) {
               card={card}
               draggingCardId={props.draggingCardId}
               onPointerDown={props.onCardPointerDown}
+              onSelect={props.onCardSelect}
             />
           )}
         />
