@@ -13,11 +13,12 @@ interface CarbonIconDescriptor {
 
 interface CarbonIconProps {
   icon: CarbonIconDescriptor;
+  class?: string;
 }
 
 export default function CarbonIcon(props: CarbonIconProps) {
   return (
-    <svg {...props.icon.attrs} aria-hidden="true">
+    <svg {...props.icon.attrs} class={props.class} aria-hidden="true">
       <For each={props.icon.content}>
         {(node) => <Dynamic component={node.elem} {...node.attrs} />}
       </For>
