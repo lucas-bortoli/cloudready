@@ -31,13 +31,10 @@ export function KodekaiProvider(props: ParentProps<KodekaiProviderProps>) {
   );
 
   createEffect(() => {
-    console.debug("[Kodekai] subscribing to model changes");
     const unsubscribe = props.model.subscribe(() => {
-      console.debug("[Kodekai] model changed; refreshing consumers");
       setRevision((current) => current + 1);
     });
     onCleanup(() => {
-      console.debug("[Kodekai] unsubscribing from model changes");
       unsubscribe();
     });
   });

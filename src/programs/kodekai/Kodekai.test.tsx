@@ -278,3 +278,62 @@ describe("Kodekai card keyboard navigation", () => {
     dispose();
   });
 });
+
+describe("Kodekai card editor focus", () => {
+  it("focuses a newly created card", async () => {
+    const { dispose, model } = renderBoard();
+    const newCardButton = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent === "Novo cartão",
+    )!;
+
+    newCardButton.click();
+    const title = document.querySelector<HTMLTextAreaElement>("textarea")!;
+    title.value = "Created";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+    document
+      .querySelector("form")!
+      .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+
+    const createdCard = model
+      .listCards(model.listProjects()[0].id)
+      .find((card) => card.title === "Created")!;
+    expect(document.activeElement).toBe(findCard(document, createdCard.id));
+    dispose();
+  });
+
+  it("returns focus to the launching card when the editor closes", async () => {
+    const { dispose, firstId, source } = renderBoard();
+
+    source.focus();
+    source.click();
+    expect(document.activeElement).toBe(document.querySelector("textarea"));
+
+    document
+      .querySelector("textarea")!
+      .dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(findCard(document, firstId));
+    dispose();
+  });
+
+  it("returns focus to the current card element after saving", async () => {
+    const { dispose, firstId, source } = renderBoard();
+
+    source.focus();
+    source.click();
+    const title = document.querySelector<HTMLTextAreaElement>("textarea")!;
+    title.value = "Updated";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+    document
+      .querySelector("form")!
+      .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+
+    const updatedCard = findCard(document, firstId);
+    expect(updatedCard.textContent).toContain("Updated");
+    expect(document.activeElement).toBe(updatedCard);
+    dispose();
+  });
+});
