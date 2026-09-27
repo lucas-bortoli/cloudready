@@ -1,5 +1,5 @@
-import { formatIsoDateTime } from "../../lib/iso-date-time";
-import { type Bucket, type Priority, Model } from "./data";
+import { formatIsoDateTime } from "../../../lib/iso-date-time";
+import { type Bucket, type Priority, Model } from "./model";
 
 interface MockCard {
   title: string;
