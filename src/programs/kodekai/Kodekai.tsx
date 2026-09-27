@@ -1,10 +1,12 @@
-import { createEffect, createMemo, createSignal, For } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import Button from "../../components/button/Button";
 import Dropdown from "../../components/dropdown/Dropdown";
+import CardEditor from "./components/CardEditor";
 import Category from "./components/Category";
 import { KodekaiProvider, useKodekai } from "./KodekaiContext";
 import useCardDrag from "./lib/useCardDrag";
 import { createMockModel } from "./model/fixture";
-import type { Bucket, Model, ProjectId } from "./model/model";
+import type { Bucket, Card as CardData, Model, ProjectId } from "./model/model";
 
 /** Renders the Kodekai board for the model supplied by its provider. */
 function KodekaiView() {
@@ -13,8 +15,20 @@ function KodekaiView() {
     model().listProjects()[0]?.id,
   );
   const [rootElement, setRootElement] = createSignal<HTMLElement>();
+  const [editorOpen, setEditorOpen] = createSignal(false);
+  const [editingCard, setEditingCard] = createSignal<CardData>();
   const projects = createMemo(() => model().listProjects());
   const cardDrag = useCardDrag({ model, rootElement });
+
+  const openEditor = (card?: CardData) => {
+    setEditingCard(card);
+    setEditorOpen(true);
+  };
+
+  const closeEditor = () => {
+    setEditorOpen(false);
+    setEditingCard(undefined);
+  };
 
   createEffect(() => {
     const selectedProjectId = selectedProject();
@@ -26,7 +40,7 @@ function KodekaiView() {
     <section
       x-role="kodekai"
       ref={setRootElement}
-      class="flex h-full min-h-0 flex-col bg-white text-neutral-800"
+      class="relative flex h-full min-h-0 flex-col bg-white text-neutral-800"
     >
       <header class="border-b border-neutral-200 px-8 py-4">
         <Dropdown
@@ -35,6 +49,9 @@ function KodekaiView() {
           onValueChange={setSelectedProject}
           class="w-64"
         />
+        <Button class="ml-3" onClick={() => openEditor()}>
+          Novo cartão
+        </Button>
       </header>
       <section class="flex min-h-0 min-w-0 grow basis-0 gap-4 overflow-auto p-8 pt-4 *:shrink-0">
         <For
@@ -47,10 +64,28 @@ function KodekaiView() {
               indicator={cardDrag.dropTarget}
               onCardPointerDown={cardDrag.onCardPointerDown}
               onListElement={cardDrag.registerBucketList}
+              onCardSelect={openEditor}
             />
           )}
         />
       </section>
+      <Show when={editorOpen() && selectedProject()}>
+        {(projectId) => (
+          <CardEditor
+            card={editingCard()}
+            projectId={projectId()}
+            onClose={closeEditor}
+            onCreate={(card) => {
+              model().createCard(card);
+              closeEditor();
+            }}
+            onUpdate={(card, changes) => {
+              model().updateCard(card.id, changes);
+              closeEditor();
+            }}
+          />
+        )}
+      </Show>
     </section>
   );
 }
