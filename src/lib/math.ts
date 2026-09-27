@@ -79,3 +79,17 @@ export function range(min: number, max: number): Range {
 export function isInRange<N extends number>(n: N, range: Range) {
   return n >= range.min && n < range.max;
 }
+
+/**
+ * Clamps a number to a half-open range.
+ *
+ * Values below `range.min` become `range.min`; values at or above
+ * `range.max` become `range.max - 1`.
+ *
+ * @param n The number to clamp.
+ * @param range The half-open range to clamp into.
+ * @returns A value from `range.min` (inclusive) to `range.max` (exclusive).
+ */
+export function clampRange<N extends number>(n: N, range: Range) {
+  return Math.max(Math.min(n, range.max - 1), range.min);
+}
