@@ -11,8 +11,10 @@ export interface CategoryProps {
   draggingCardId: Accessor<CardId | undefined>;
   indicator: Accessor<DropTarget | undefined>;
   onCardPointerDown: (card: CardData, element: HTMLLIElement, event: PointerEvent) => void;
+  onCardKeyDown: (card: CardData, element: HTMLLIElement, event: KeyboardEvent) => void;
   onListElement: (bucket: Bucket, element: HTMLUListElement) => void;
   onCardSelect: (card: CardData) => void;
+  shouldSuppressCardClick: () => boolean;
 }
 
 const labels: Record<Bucket, string> = {
@@ -58,7 +60,9 @@ export default function Category(props: CategoryProps) {
               card={card}
               draggingCardId={props.draggingCardId}
               onPointerDown={props.onCardPointerDown}
+              onKeyDown={props.onCardKeyDown}
               onSelect={props.onCardSelect}
+              shouldSuppressClick={props.shouldSuppressCardClick}
             />
           )}
         />

@@ -63,8 +63,10 @@ function KodekaiView() {
               draggingCardId={cardDrag.draggingCardId}
               indicator={cardDrag.dropTarget}
               onCardPointerDown={cardDrag.onCardPointerDown}
+              onCardKeyDown={cardDrag.onCardKeyDown}
               onListElement={cardDrag.registerBucketList}
               onCardSelect={openEditor}
+              shouldSuppressCardClick={cardDrag.shouldSuppressCardClick}
             />
           )}
         />

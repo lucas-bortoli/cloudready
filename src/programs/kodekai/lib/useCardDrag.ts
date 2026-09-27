@@ -3,6 +3,7 @@ import type { Bucket, Card, CardId, Model } from "../model/model";
 
 const dragThreshold = 5;
 const cardRepositionDuration = 180;
+const buckets: readonly Bucket[] = ["icebox", "in-progress", "blocked", "revision", "done"];
 
 /** A valid insertion point, measured relative to the destination bucket list. */
 export interface DropTarget {
@@ -16,7 +17,9 @@ export interface CardDragController {
   draggingCardId: Accessor<CardId | undefined>;
   dropTarget: Accessor<DropTarget | undefined>;
   onCardPointerDown: (card: Card, element: HTMLLIElement, event: PointerEvent) => void;
+  onCardKeyDown: (card: Card, element: HTMLLIElement, event: KeyboardEvent) => void;
   registerBucketList: (bucket: Bucket, element: HTMLUListElement) => void;
+  shouldSuppressCardClick: () => boolean;
 }
 
 /** Dependencies for the board-local card dragging interaction. */
@@ -46,6 +49,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
   const bucketLists = new Map<Bucket, HTMLUListElement>();
   let pendingDrag: PendingDrag | undefined;
   let preview: HTMLLIElement | undefined;
+  let suppressNextCardClick = false;
   let cancelCardRepositionAnimation: (() => void) | undefined;
 
   const removeDocumentListeners = () => {
@@ -111,10 +115,37 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     cancelCardRepositionAnimation = () => cancelAnimationFrame(animationFrame);
   };
 
-  const endDrag = (commit: boolean) => {
+  const focusCard = (cardId: CardId) => {
+    const rootElement = options.rootElement();
+    const card = Array.from(
+      rootElement?.querySelectorAll<HTMLLIElement>("[data-kodekai-card]") ?? [],
+    ).find((element) => element.dataset.kodekaiCard === cardId);
+    card?.focus();
+  };
+
+  const moveCard = (
+    card: Card,
+    destination: { bucket: Bucket; displayIndex: number },
+    previousPositions = captureCardPositions(),
+  ) => {
+    const currentCard = options.model().getCard(card.id);
+    if (
+      currentCard.bucket === destination.bucket &&
+      currentCard.displayIndex === destination.displayIndex
+    ) {
+      return;
+    }
+
+    options.model().moveCard(card.id, destination);
+    focusCard(card.id);
+    animateCardRepositioning(previousPositions);
+  };
+
+  const endDrag = (commit: boolean, suppressClick = false) => {
     const drag = pendingDrag;
     const target = dropTarget();
     const previewPosition = preview?.getBoundingClientRect();
+    const wasDragging = Boolean(preview);
 
     removeDocumentListeners();
     preview?.remove();
@@ -122,6 +153,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     pendingDrag = undefined;
     setDraggingCardId();
     setDropTarget();
+    suppressNextCardClick ||= suppressClick && wasDragging;
 
     if (!commit || !drag || !target) return;
 
@@ -136,11 +168,14 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     });
     const previousPositions = captureCardPositions();
     if (previewPosition) previousPositions.set(drag.card.id, previewPosition);
-    options.model().moveCard(drag.card.id, {
-      bucket: target.bucket,
-      displayIndex: target.displayIndex,
-    });
-    animateCardRepositioning(previousPositions);
+    moveCard(
+      drag.card,
+      {
+        bucket: target.bucket,
+        displayIndex: target.displayIndex,
+      },
+      previousPositions,
+    );
   };
 
   const updatePreview = (event: PointerEvent) => {
@@ -232,7 +267,9 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
   };
 
   const onDocumentPointerUp = (event: PointerEvent) => {
-    if (pendingDrag?.pointerId === event.pointerId) endDrag(Boolean(preview && dropTarget()));
+    if (pendingDrag?.pointerId === event.pointerId) {
+      endDrag(Boolean(preview && dropTarget()), true);
+    }
   };
 
   const onDocumentPointerCancel = (event: PointerEvent) => {
@@ -254,6 +291,41 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     document.addEventListener("pointercancel", onDocumentPointerCancel);
   };
 
+  const onCardKeyDown = (card: Card, element: HTMLLIElement, event: KeyboardEvent) => {
+    if (!event.shiftKey) return;
+
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      event.preventDefault();
+      moveCard(card, {
+        bucket: card.bucket,
+        displayIndex: card.displayIndex + (event.key === "ArrowUp" ? -1 : 1),
+      });
+      return;
+    }
+
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+
+    const bucketIndex = buckets.indexOf(card.bucket);
+    const destinationBucket = buckets[bucketIndex + (event.key === "ArrowLeft" ? -1 : 1)];
+    if (!destinationBucket) return;
+
+    const destinationList = bucketLists.get(destinationBucket);
+    if (!destinationList) return;
+
+    const sourceCenter =
+      element.getBoundingClientRect().top + element.getBoundingClientRect().height / 2;
+    const destinationCards = Array.from(
+      destinationList.querySelectorAll<HTMLLIElement>("[data-kodekai-card]"),
+    );
+    const displayIndex = destinationCards.filter((destinationCard) => {
+      const destinationRect = destinationCard.getBoundingClientRect();
+      return sourceCenter > destinationRect.top + destinationRect.height / 2;
+    }).length;
+
+    moveCard(card, { bucket: destinationBucket, displayIndex });
+  };
+
   onCleanup(() => {
     endDrag(false);
     cancelCardRepositionAnimation?.();
@@ -263,6 +335,12 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     draggingCardId,
     dropTarget,
     onCardPointerDown,
+    onCardKeyDown,
     registerBucketList: (bucket, element) => bucketLists.set(bucket, element),
+    shouldSuppressCardClick: () => {
+      const shouldSuppress = suppressNextCardClick;
+      suppressNextCardClick = false;
+      return shouldSuppress;
+    },
   };
 }
