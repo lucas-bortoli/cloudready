@@ -1,5 +1,5 @@
-import { formatIsoDateTime, parseIsoDateTime, type IsoDateTime } from "../../lib/iso-date-time";
-import generateUuid, { type Uuid } from "../../lib/uuid";
+import { formatIsoDateTime, parseIsoDateTime, type IsoDateTime } from "../../../lib/iso-date-time";
+import generateUuid, { type Uuid } from "../../../lib/uuid";
 
 export type Priority = "low" | "normal" | "urgent";
 

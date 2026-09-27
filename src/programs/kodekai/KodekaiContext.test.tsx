@@ -4,7 +4,7 @@ import { createMemo } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it } from "vitest";
 import { formatIsoDateTime } from "../../lib/iso-date-time";
-import { type Bucket, Model, type ProjectId } from "./data";
+import { type Bucket, Model, type ProjectId } from "./model/model";
 import { KodekaiProvider, useKodekai } from "./KodekaiContext";
 
 function ProjectCount() {

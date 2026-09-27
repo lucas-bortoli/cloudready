@@ -8,7 +8,7 @@ import {
   type Accessor,
   type ParentProps,
 } from "solid-js";
-import type { Model } from "./data";
+import type { Model } from "./model/model";
 
 const KodekaiContext = createContext<Accessor<Model>>();
 

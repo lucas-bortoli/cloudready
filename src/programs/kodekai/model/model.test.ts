@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { formatIsoDateTime } from "../../lib/iso-date-time";
-import { InvalidModelJsonError, Model } from "./data";
+import { formatIsoDateTime } from "../../../lib/iso-date-time";
+import { InvalidModelJsonError, Model } from "./model";
 
 const expiration = formatIsoDateTime(new Date("2026-09-27T15:30:00.000Z"));
 

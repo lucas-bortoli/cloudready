@@ -3,7 +3,7 @@
 import { render } from "solid-js/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatIsoDateTime } from "../../lib/iso-date-time";
-import { Model } from "./data";
+import { Model } from "./model/model";
 import Kodekai from "./Kodekai";
 
 const rect = (left: number, top: number, width: number, height: number): DOMRect =>
