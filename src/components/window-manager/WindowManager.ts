@@ -2,6 +2,7 @@ import { type Accessor, type JSX } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
 import type { Point2d, Size2d } from "../../lib/math";
 import generateUuid from "../../lib/uuid";
+import LayerManager, { type LayerItem } from "../layer-manager/LayerManager";
 
 /** Generates a stable identifier for a newly managed window. */
 const makeWindowId = () => generateUuid<"WindowId">();
@@ -30,6 +31,10 @@ interface WindowState {
   isMinimizable: boolean;
   /** Whether the window is pinned. */
   isPinned: boolean;
+  /** Reactive stacking position assigned by the layer manager. */
+  zIndex: () => number;
+  /** Handle that controls this window's global stacking order. */
+  layerItem: LayerItem;
   /** Whether the floating window can be resized. */
   isResizable: boolean;
   /** Optionally approves destruction when the window close control is clicked. */
@@ -82,12 +87,14 @@ export default class WindowManager {
   public readonly getWindows: Accessor<readonly WindowEntry[]>;
   /** Updates the reactive collection of managed windows. */
   private readonly setWindows: SetStoreFunction<WindowState[]>;
+  private readonly layerManager: LayerManager;
 
   /** Creates an empty reactive collection of managed windows. */
-  public constructor() {
+  public constructor(layerManager = new LayerManager()) {
     const [windows, setWindows] = createStore<WindowState[]>([]);
     this.getWindows = () => windows;
     this.setWindows = setWindows;
+    this.layerManager = layerManager;
   }
 
   /**
@@ -97,6 +104,8 @@ export default class WindowManager {
    */
   public createWindow(options?: CreateWindowOptions): WindowId {
     const id = makeWindowId();
+    const isPinned = options?.isPinned ?? false;
+    const layerItem = this.layerManager.createItem(isPinned ? "windowing:pinned" : "windowing");
     this.setWindows(this.getWindows().length, {
       id,
       title: options?.title ?? "Untitled",
@@ -104,7 +113,9 @@ export default class WindowManager {
       dock: options?.dock ?? null,
       isMinimized: options?.isMinimized ?? false,
       isMinimizable: options?.isMinimizable ?? true,
-      isPinned: options?.isPinned ?? false,
+      isPinned,
+      zIndex: layerItem.zIndex,
+      layerItem,
       isResizable: options?.isResizable ?? true,
       closer: options?.closer,
       size: options?.size ?? { width: 400, height: 300 },
@@ -125,6 +136,8 @@ export default class WindowManager {
     if (windowIndex < 0) {
       return false;
     }
+
+    this.getWindows()[windowIndex].layerItem.dispose();
 
     this.setWindows(
       produce((windows) => {
@@ -168,6 +181,24 @@ export default class WindowManager {
    */
   public setMinimized(windowId: WindowId, isMinimized: boolean) {
     this.setWindows((window) => window.id === windowId, "isMinimized", isMinimized);
+  }
+
+  /** Updates whether a window stays above ordinary application windows. */
+  public setPinned(windowId: WindowId, isPinned: boolean) {
+    const window = this.getWindows().find((entry) => entry.id === windowId);
+    if (!window) return;
+    window.layerItem.moveToLayer(isPinned ? "windowing:pinned" : "windowing");
+    this.setWindows((entry) => entry.id === windowId, "isPinned", isPinned);
+  }
+
+  /** Moves a window to the front of its current stacking layer. */
+  public bringToTop(windowId: WindowId) {
+    this.getWindows().find((entry) => entry.id === windowId)?.layerItem.bringToTop();
+  }
+
+  /** Moves a window one position toward the back of its stacking layer. */
+  public sendBack(windowId: WindowId) {
+    this.getWindows().find((entry) => entry.id === windowId)?.layerItem.sendBack();
   }
 
   /**

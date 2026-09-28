@@ -1,6 +1,5 @@
 import Apps16 from "@carbon/icons/es/apps/16.js";
 import { createSignal, Show } from "solid-js";
-
 import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "./CarbonIcon";
 import Clock from "./Clock";
