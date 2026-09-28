@@ -21,6 +21,7 @@ const applications = [
 
 interface StartMenuProps {
   onClose: () => void;
+  onLaunchFiles: () => void;
 }
 
 export default function StartMenu(props: StartMenuProps) {
@@ -76,7 +77,10 @@ export default function StartMenu(props: StartMenuProps) {
               x-role="launcher application"
               class="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-lg p-1 text-left leading-3 transition-colors hover:bg-blue-100 focus-visible:bg-blue-100 focus-visible:outline-none"
               type="button"
-              onClick={props.onClose}
+              onClick={() => {
+                if (application.name === "Files") props.onLaunchFiles();
+                props.onClose();
+              }}
             >
               <span
                 class={`grid size-8 shrink-0 place-items-center rounded-md text-white shadow-sm ${application.color}`}
