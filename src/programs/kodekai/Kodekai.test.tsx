@@ -281,9 +281,10 @@ describe("Kodekai card keyboard navigation", () => {
 
 describe("Kodekai card editor focus", () => {
   it("focuses a newly created card", async () => {
+    vi.useFakeTimers();
     const { dispose, model } = renderBoard();
     const newCardButton = Array.from(document.querySelectorAll("button")).find(
-      (button) => button.textContent === "Novo cartão",
+      (button) => button.title === "New Card...",
     )!;
 
     newCardButton.click();
@@ -293,6 +294,7 @@ describe("Kodekai card editor focus", () => {
     document
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    vi.runAllTimers();
     await Promise.resolve();
 
     const createdCard = model
@@ -303,6 +305,7 @@ describe("Kodekai card editor focus", () => {
   });
 
   it("returns focus to the launching card when the editor closes", async () => {
+    vi.useFakeTimers();
     const { dispose, firstId, source } = renderBoard();
 
     source.focus();
@@ -312,6 +315,7 @@ describe("Kodekai card editor focus", () => {
     document
       .querySelector("textarea")!
       .dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    vi.runAllTimers();
     await Promise.resolve();
 
     expect(document.activeElement).toBe(findCard(document, firstId));
@@ -319,6 +323,7 @@ describe("Kodekai card editor focus", () => {
   });
 
   it("returns focus to the current card element after saving", async () => {
+    vi.useFakeTimers();
     const { dispose, firstId, source } = renderBoard();
 
     source.focus();
@@ -329,11 +334,90 @@ describe("Kodekai card editor focus", () => {
     document
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    vi.runAllTimers();
     await Promise.resolve();
 
     const updatedCard = findCard(document, firstId);
     expect(updatedCard.textContent).toContain("Updated");
     expect(document.activeElement).toBe(updatedCard);
+    dispose();
+  });
+});
+
+describe("Kodekai card deletion", () => {
+  it("deletes the selected card after confirmation", () => {
+    vi.useFakeTimers();
+    const { dispose, firstId, model, source } = renderBoard();
+    vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
+
+    source.click();
+    [...document.querySelectorAll("button")]
+      .find((button) => button.textContent === "Excluir cartão")!
+      .click();
+    vi.runAllTimers();
+
+    expect(() => model.getCard(firstId)).toThrow();
+    dispose();
+  });
+});
+
+describe("Kodekai project management", () => {
+  function toolbarButton(title: string) {
+    return Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.title === title,
+    )!;
+  }
+
+  function saveProjectTitle(title: string) {
+    const input = document.querySelector<HTMLTextAreaElement>(
+      '[x-role="kodekai project editor"] textarea',
+    )!;
+    input.value = title;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    document
+      .querySelector('[x-role="kodekai project editor"] form')!
+      .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+  }
+
+  it("creates a project and selects it", async () => {
+    vi.useFakeTimers();
+    const { dispose, model } = renderBoard();
+
+    toolbarButton("New Project...").click();
+    saveProjectTitle("New project");
+    vi.runAllTimers();
+    await Promise.resolve();
+
+    const created = model.listProjects().find((project) => project.title === "New project")!;
+    expect(document.querySelector<HTMLSelectElement>("select")?.value).toBe(created.id);
+    expect(document.activeElement).toBe(toolbarButton("New Project..."));
+    dispose();
+  });
+
+  it("renames the selected project", () => {
+    const { dispose, model } = renderBoard();
+
+    toolbarButton("Edit Project...").click();
+    saveProjectTitle("Renamed project");
+
+    expect(model.listProjects()[0].title).toBe("Renamed project");
+    expect(document.querySelector("select")?.textContent).toContain("Renamed project");
+    dispose();
+  });
+
+  it("deletes the selected project and leaves no selection", async () => {
+    const { dispose, model } = renderBoard();
+    const remainingId = model.createProject({ title: "Remaining" });
+    vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
+
+    toolbarButton("Edit Project...").click();
+    [...document.querySelectorAll("button")]
+      .find((button) => button.textContent === "Excluir projeto")!
+      .click();
+    await Promise.resolve();
+
+    expect(model.listProjects().map((project) => project.id)).toEqual([remainingId]);
+    expect(document.querySelector<HTMLSelectElement>("select")?.selectedIndex).toBe(-1);
     dispose();
   });
 });

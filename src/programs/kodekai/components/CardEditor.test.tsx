@@ -10,6 +10,7 @@ function renderEditor(card?: ReturnType<Model["getCard"]>) {
   const projectId = Model.empty().createProject({ title: "Project" });
   const onClose = vi.fn();
   const onCreate = vi.fn();
+  const onDelete = vi.fn();
   const onUpdate = vi.fn();
   const root = document.createElement("section");
   root.setAttribute("x-role", "kodekai");
@@ -22,12 +23,13 @@ function renderEditor(card?: ReturnType<Model["getCard"]>) {
         projectId={projectId}
         onClose={onClose}
         onCreate={onCreate}
+        onDelete={onDelete}
         onUpdate={onUpdate}
       />
     ),
     root,
   );
-  return { dispose, onClose, onCreate, onUpdate, root };
+  return { dispose, onClose, onCreate, onDelete, onUpdate, root };
 }
 
 describe("CardEditor", () => {
@@ -88,18 +90,89 @@ describe("CardEditor", () => {
     root.remove();
   });
 
+  it("confirms before deleting an existing card", () => {
+    vi.useFakeTimers();
+    const model = Model.empty();
+    const projectId = model.createProject({ title: "Project" });
+    const card = model.getCard(model.createCard({ projectId, title: "Original" }));
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.stubGlobal("confirm", confirm);
+    const { dispose, onClose, onDelete, root } = renderEditor(card);
+    const deleteButton = [...root.querySelectorAll("button")].find(
+      (button) => button.textContent === "Excluir cartão",
+    )!;
+
+    deleteButton.click();
+    expect(onDelete).not.toHaveBeenCalled();
+    deleteButton.click();
+    expect(onDelete).toHaveBeenCalledWith(card);
+    expect(root.querySelector(".kodekai-editor-closing")).not.toBeNull();
+    vi.runAllTimers();
+    expect(onClose).toHaveBeenCalledOnce();
+    dispose();
+    root.remove();
+  });
+
   it("cancels without submitting changes", () => {
+    vi.useFakeTimers();
     const { dispose, onClose, onCreate, root } = renderEditor();
     [...root.querySelectorAll("button")]
       .find((button) => button.textContent === "Cancelar")!
       .click();
+    expect(root.querySelector(".kodekai-editor-closing")).not.toBeNull();
+    vi.runAllTimers();
     expect(onClose).toHaveBeenCalledOnce();
     expect(onCreate).not.toHaveBeenCalled();
     dispose();
     root.remove();
   });
 
+  it("asks before discarding dirty changes from every close control", () => {
+    const confirm = vi.fn().mockReturnValue(false);
+    vi.stubGlobal("confirm", confirm);
+    const { dispose, onClose, root } = renderEditor();
+    const title = root.querySelector("textarea")!;
+    title.value = "Unsaved card";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+
+    [...root.querySelectorAll("button")]
+      .find((button) => button.textContent === "Cancelar")!
+      .click();
+    title.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    root
+      .querySelector('[x-role="kodekai card editor backdrop"]')!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(confirm).toHaveBeenCalledTimes(3);
+    expect(onClose).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+    dispose();
+    root.remove();
+  });
+
+  it("closes a dirty editor after confirming that its changes should be discarded", () => {
+    vi.useFakeTimers();
+    const confirm = vi.fn().mockReturnValue(true);
+    vi.stubGlobal("confirm", confirm);
+    const { dispose, onClose, root } = renderEditor();
+    const title = root.querySelector("textarea")!;
+    title.value = "Unsaved card";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+
+    [...root.querySelectorAll("button")]
+      .find((button) => button.textContent === "Cancelar")!
+      .click();
+
+    vi.runAllTimers();
+
+    expect(onClose).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+    dispose();
+    root.remove();
+  });
+
   it("focuses the title, traps tab navigation, and closes with Escape", () => {
+    vi.useFakeTimers();
     const { dispose, onClose, root } = renderEditor();
     const focusable = [...root.querySelectorAll<HTMLElement>("textarea, select, input, button")];
     const title = focusable[0];
@@ -119,6 +192,7 @@ describe("CardEditor", () => {
     expect(document.activeElement).toBe(title);
 
     title.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    vi.runAllTimers();
     expect(onClose).toHaveBeenCalledOnce();
     dispose();
     root.remove();
