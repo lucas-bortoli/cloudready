@@ -6,20 +6,37 @@ import ResizeHandles from "./ResizeHandles";
 import Titlebar from "./Titlebar";
 import useWindowInteraction from "./useWindowInteraction";
 import { getFrameStyle, getWindowStyle, integerPixels } from "./window-layout";
-import type { WindowEntry } from "./WindowManager";
+import type { WindowDock, WindowEntry } from "./WindowManager";
+import { useWindowManager } from "./WindowManagerContext";
 
 /** Renders one framed application window. */
 export default function Window(props: { entry: WindowEntry }) {
   const interaction = useWindowInteraction(untrack(() => props.entry));
+  const windowManager = useWindowManager();
+  const handlePointerDown = () => props.entry.layerItem.bringToTop();
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (!event.metaKey || !props.entry.isResizable) return;
+    const dock = {
+      ArrowLeft: "dock-left",
+      ArrowRight: "dock-right",
+      ArrowUp: "dock-full",
+      ArrowDown: null,
+    }[event.key];
+    if (dock === undefined) return;
+    event.preventDefault();
+    windowManager.setDock(props.entry.id, dock as WindowDock);
+  };
 
   return (
     <div
       x-role="window"
       ref={interaction.setWindowElement}
-      class="group/window absolute z-0 box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl"
+      class="group/window absolute box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl"
       data-dock={props.entry.dock ?? undefined}
-      style={{ ...getWindowStyle(props.entry), ...getFrameStyle(props.entry.dock) }}
+      style={{ ...getWindowStyle(props.entry), ...getFrameStyle(props.entry.dock), "z-index": props.entry.zIndex() }}
       tabIndex={-1}
+      onPointerDown={handlePointerDown}
+      onKeyDown={handleKeyDown}
     >
       <Titlebar entry={props.entry} onPointerDown={interaction.onTitlebarPointerDown} />
       <main

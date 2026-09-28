@@ -1,6 +1,8 @@
 import Close16 from "@carbon/icons/es/close/16.js";
 import Maximize16 from "@carbon/icons/es/maximize/16.js";
 import Minimize16 from "@carbon/icons/es/minimize/16.js";
+import PinFilled16 from "@carbon/icons/es/pin--filled/16.js";
+import Pin16 from "@carbon/icons/es/pin/16.js";
 import SidePanelOpen16 from "@carbon/icons/es/side-panel--open/16.js";
 import { Show } from "solid-js";
 import CarbonIcon from "../taskbar/CarbonIcon";
@@ -22,6 +24,16 @@ export default function Titlebar(props: {
     >
       <h1 class="ml-1">{props.entry.title}</h1>
       <div class="ml-auto inline-flex gap-0.5">
+        <button
+          aria-label={props.entry.isPinned ? "Unpin window" : "Pin window"}
+          aria-pressed={props.entry.isPinned}
+          class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => windowManager.setPinned(props.entry.id, !props.entry.isPinned)}
+        >
+          <CarbonIcon icon={props.entry.isPinned ? PinFilled16 : Pin16} />
+        </button>
         <Show when={props.entry.isMinimizable}>
           <button
             aria-label="Minimize window"

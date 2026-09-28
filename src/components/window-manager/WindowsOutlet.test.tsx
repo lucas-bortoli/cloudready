@@ -215,6 +215,20 @@ describe("WindowsOutlet", () => {
     });
   });
 
+  it("keeps pinned windows above ordinary windows and supports changing pin state", () => {
+    const { dispose, windowManager } = renderWindow(2);
+    const windows = document.querySelectorAll<HTMLDivElement>('[x-role="window"]');
+    const zIndexes = () => [...windows].map((element) => Number(element.style.zIndex));
+    const [ordinary, pinned] = windowManager.getWindows();
+
+    windowManager.setPinned(pinned.id, true);
+    expect(zIndexes()[1]).toBeGreaterThan(zIndexes()[0]);
+
+    windowManager.setPinned(pinned.id, false);
+    expect(zIndexes()[0]).toBeLessThan(zIndexes()[1]);
+    dispose();
+  });
+
   it("uses the requested size for the client area, excluding the frame", () => {
     const { client, dispose, window } = renderWindow();
 
@@ -231,10 +245,10 @@ describe("WindowsOutlet", () => {
     const windows = document.querySelectorAll<HTMLDivElement>('[x-role="window"]');
     const firstTitlebar = windows[0].querySelector<HTMLElement>('[x-role="titlebar"]')!;
 
-    expect([windows[0].style.zIndex, windows[1].style.zIndex]).toEqual(["0", "1"]);
+    expect(Number(windows[1].style.zIndex)).toBeGreaterThan(Number(windows[0].style.zIndex));
     firstTitlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
 
-    expect([windows[0].style.zIndex, windows[1].style.zIndex]).toEqual(["1", "0"]);
+    expect(Number(windows[0].style.zIndex)).toBeGreaterThan(Number(windows[1].style.zIndex));
     document.dispatchEvent(pointerEvent("pointerup", 100, 100));
     dispose();
   });
