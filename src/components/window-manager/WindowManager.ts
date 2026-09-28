@@ -20,6 +20,8 @@ interface WindowState {
   dock: WindowDock;
   /** Whether the window is currently hidden from the desktop. */
   isMinimized: boolean;
+  /** Whether the window remains above ordinary application windows. */
+  pinned: boolean;
   /** The usable client content area's width and height, excluding window frame chrome. */
   size: Size2d;
   /** The minimum usable client content area, excluding window frame chrome. */
@@ -40,6 +42,8 @@ export interface CreateWindowOptions {
   dock?: WindowDock;
   /** Whether the window is initially hidden. Defaults to `false`. */
   isMinimized?: boolean;
+  /** Whether the window initially remains above ordinary application windows. Defaults to `false`. */
+  pinned?: boolean;
   /** The usable client content area's width and height, excluding window frame chrome. */
   size?: Size2d;
   /** The minimum usable client content area, excluding window frame chrome. */
@@ -80,6 +84,7 @@ export default class WindowManager {
       position: options?.position ?? null,
       dock: options?.dock ?? null,
       isMinimized: options?.isMinimized ?? false,
+      pinned: options?.pinned ?? false,
       size: options?.size ?? { width: 400, height: 300 },
       minimumSize: options?.minimumSize ?? { width: 200, height: 150 },
       content: options?.content ?? (() => undefined),
@@ -141,6 +146,15 @@ export default class WindowManager {
    */
   public setMinimized(windowId: WindowId, isMinimized: boolean) {
     this.setWindows((window) => window.id === windowId, "isMinimized", isMinimized);
+  }
+
+  /**
+   * Updates whether a window remains above ordinary application windows.
+   * @param windowId The ID of the window to update.
+   * @param pinned Whether the window should use the pinned stacking layer.
+   */
+  public setPinned(windowId: WindowId, pinned: boolean) {
+    this.setWindows((window) => window.id === windowId, "pinned", pinned);
   }
 
   /**

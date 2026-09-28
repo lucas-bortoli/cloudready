@@ -183,16 +183,19 @@ describe("WindowsOutlet", () => {
       position: null,
       dock: null,
       isMinimized: false,
+      pinned: false,
     });
 
     windowManager.setPosition(windowId, { x: 40, y: 20 });
     windowManager.setDock(windowId, "dock-right");
     windowManager.setMinimized(windowId, true);
+    windowManager.setPinned(windowId, true);
 
     expect(windowManager.getWindows()[0]).toMatchObject({
       position: { x: 40, y: 20 },
       dock: "dock-right",
       isMinimized: true,
+      pinned: true,
     });
   });
 
@@ -203,6 +206,7 @@ describe("WindowsOutlet", () => {
       position: { x: 40, y: 20 },
       dock: "dock-left",
       isMinimized: true,
+      pinned: false,
     });
 
     expect(windowManager.getWindows()[0]).toMatchObject({
@@ -230,6 +234,19 @@ describe("WindowsOutlet", () => {
 
     expect([windows[0].style.zIndex, windows[1].style.zIndex]).toEqual(["0", "1"]);
     firstTitlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+
+    expect([windows[0].style.zIndex, windows[1].style.zIndex]).toEqual(["1", "0"]);
+    document.dispatchEvent(pointerEvent("pointerup", 100, 100));
+    dispose();
+  });
+
+  it("keeps pinned windows above ordinary windows", () => {
+    const { dispose, windowManager } = renderWindow(2);
+    const windows = document.querySelectorAll<HTMLDivElement>('[x-role="window"]');
+    const secondTitlebar = windows[1].querySelector<HTMLElement>('[x-role="titlebar"]')!;
+
+    windowManager.setPinned(windowManager.getWindows()[0].id, true);
+    secondTitlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
 
     expect([windows[0].style.zIndex, windows[1].style.zIndex]).toEqual(["1", "0"]);
     document.dispatchEvent(pointerEvent("pointerup", 100, 100));

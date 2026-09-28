@@ -1,18 +1,27 @@
+import ChevronDown16 from "@carbon/icons/es/chevron--down/16.js";
 import Close16 from "@carbon/icons/es/close/16.js";
-import Maximize16 from "@carbon/icons/es/maximize/16.js";
-import Minimize16 from "@carbon/icons/es/minimize/16.js";
-import SidePanelOpen16 from "@carbon/icons/es/side-panel--open/16.js";
-import { batch, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
+import PinFilled16 from "@carbon/icons/es/pin--filled/16.js";
+import Pin16 from "@carbon/icons/es/pin/16.js";
+import {
+  batch,
+  createEffect,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+  type JSX,
+} from "solid-js";
 import focusTrap from "../../lib/focus-trap";
 import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "../taskbar/CarbonIcon";
+import DockPreview from "./DockPreview";
 import ResizeHandle, { type ResizeDirection } from "./ResizeHandle";
 import type { WindowDock, WindowEntry } from "./WindowManager";
 import { useWindowManager } from "./WindowManagerContext";
 
 type ResizeAxis = -1 | 0 | 1;
 const taskbarHeight = 48;
-const dockActivationDistance = 24;
 
 /** Maps each resize handle to its horizontal and vertical growth directions. */
 const resizeAxes = {
@@ -57,31 +66,6 @@ interface ResizeInteraction extends PointerInteraction {
 type Interaction = DragInteraction | ResizeInteraction;
 type InteractionStart = Omit<DragInteraction, "pointerId"> | Omit<ResizeInteraction, "pointerId">;
 
-/** Renders the pinned viewport preview shown while a window is dragged to a dock zone. */
-function DockPreview(props: { dock: Exclude<WindowDock, null> }) {
-  const layerItem = useLayerItem("windowing:pinned");
-  const style = (): JSX.CSSProperties => {
-    if (props.dock === "dock-full") {
-      return { top: 0, right: 0, bottom: integerPixels(taskbarHeight), left: 0 };
-    }
-
-    if (props.dock === "dock-left") {
-      return { top: 0, right: "50%", bottom: integerPixels(taskbarHeight), left: 0 };
-    }
-
-    return { top: 0, right: 0, bottom: integerPixels(taskbarHeight), left: "50%" };
-  };
-
-  return (
-    <div
-      x-role="dock preview"
-      data-dock={props.dock}
-      class="pointer-events-none fixed border-2 border-blue-500 bg-blue-500/10"
-      style={{ ...style(), "z-index": layerItem.zIndex() }}
-    />
-  );
-}
-
 /**
  * Renders one framed application window and owns its local drag, resize, and
  * pointer-interaction state.
@@ -93,10 +77,14 @@ export default function Window(props: { entry: WindowEntry }) {
   let interaction: Interaction | undefined;
 
   const windowManager = useWindowManager();
-  const layerItem = useLayerItem("windowing");
+  const layerItem = useLayerItem(props.entry.pinned ? "windowing:pinned" : "windowing");
+  createEffect(() => {
+    layerItem.moveToLayer(props.entry.pinned ? "windowing:pinned" : "windowing");
+  });
 
   const [dockPreview, setDockPreview] = createSignal<WindowDock>(null);
   const dockAtPointer = (event: PointerEvent): WindowDock => {
+    const dockActivationDistance = 24;
     if (event.clientY <= dockActivationDistance) return "dock-full";
     if (event.clientX <= dockActivationDistance) return "dock-left";
     if (event.clientX >= window.innerWidth - dockActivationDistance) return "dock-right";
@@ -154,6 +142,8 @@ export default function Window(props: { entry: WindowEntry }) {
         "border-left-width": 0,
         "border-top-left-radius": 0,
         "border-top-right-radius": 0,
+        "border-bottom-left-radius": 0,
+        "border-bottom-right-radius": 0,
       };
     }
 
@@ -163,6 +153,7 @@ export default function Window(props: { entry: WindowEntry }) {
         "border-top-width": 0,
         "border-left-width": 0,
         "border-top-left-radius": 0,
+        "border-bottom-left-radius": 0,
       };
     }
 
@@ -172,6 +163,7 @@ export default function Window(props: { entry: WindowEntry }) {
         "border-top-width": 0,
         "border-right-width": 0,
         "border-top-right-radius": 0,
+        "border-bottom-right-radius": 0,
       };
     }
 
@@ -363,57 +355,22 @@ export default function Window(props: { entry: WindowEntry }) {
           <h1 class="ml-1">{props.entry.title}</h1>
           <div class="ml-auto inline-flex gap-0.5">
             <button
+              aria-label="Pin window"
+              class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => windowManager.setPinned(props.entry.id, !props.entry.pinned)}
+            >
+              <CarbonIcon icon={props.entry.pinned ? PinFilled16 : Pin16} />
+            </button>
+            <button
               aria-label="Minimize window"
               class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
               type="button"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => windowManager.setMinimized(props.entry.id, true)}
             >
-              <CarbonIcon icon={Minimize16} />
-            </button>
-            <button
-              aria-label="Dock window left"
-              class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() =>
-                windowManager.setDock(
-                  props.entry.id,
-                  props.entry.dock === "dock-left" ? null : "dock-left",
-                )
-              }
-            >
-              <CarbonIcon icon={SidePanelOpen16} />
-            </button>
-            <button
-              aria-label="Dock window right"
-              class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() =>
-                windowManager.setDock(
-                  props.entry.id,
-                  props.entry.dock === "dock-right" ? null : "dock-right",
-                )
-              }
-            >
-              <span class="scale-x-[-1]">
-                <CarbonIcon icon={SidePanelOpen16} />
-              </span>
-            </button>
-            <button
-              aria-label="Maximize window"
-              class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() =>
-                windowManager.setDock(
-                  props.entry.id,
-                  props.entry.dock === "dock-full" ? null : "dock-full",
-                )
-              }
-            >
-              <CarbonIcon icon={Maximize16} />
+              <CarbonIcon icon={ChevronDown16} />
             </button>
             <button
               class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
@@ -445,7 +402,9 @@ export default function Window(props: { entry: WindowEntry }) {
           </For>
         </Show>
       </div>
-      <Show when={dockPreview()}>{(dock) => <DockPreview dock={dock()} />}</Show>
+      <Show when={dockPreview()}>
+        {(dock) => <DockPreview dock={dock()} taskbarHeight={taskbarHeight} />}
+      </Show>
     </>
   );
 }
