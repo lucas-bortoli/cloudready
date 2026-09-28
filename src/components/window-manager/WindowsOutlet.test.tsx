@@ -32,6 +32,16 @@ function pointerEvent(type: string, clientX: number, clientY: number) {
   return new PointerEvent(type, { bubbles: true, clientX, clientY, pointerId: 1 });
 }
 
+function windowControl(window: HTMLElement, label: string) {
+  const control = window.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
+
+  if (!control) {
+    throw new Error(`Window control ${label} did not render.`);
+  }
+
+  return control;
+}
+
 function TestDesktop(props: { onManager: (windowManager: WindowManager) => void }) {
   const windowManager = useWindowManager();
 
@@ -154,6 +164,43 @@ describe("WindowsOutlet", () => {
     restoreDescriptor("offsetLeft", originalOffsetLeft);
   });
 
+  it("creates and updates manager-owned presentation state", () => {
+    const windowManager = new WindowManager();
+    const windowId = windowManager.createWindow();
+
+    expect(windowManager.getWindows()[0]).toMatchObject({
+      position: null,
+      dock: null,
+      isMinimized: false,
+    });
+
+    windowManager.setPosition(windowId, { x: 40, y: 20 });
+    windowManager.setDock(windowId, "dock-right");
+    windowManager.setMinimized(windowId, true);
+
+    expect(windowManager.getWindows()[0]).toMatchObject({
+      position: { x: 40, y: 20 },
+      dock: "dock-right",
+      isMinimized: true,
+    });
+  });
+
+  it("accepts initial presentation state when creating a window", () => {
+    const windowManager = new WindowManager();
+
+    windowManager.createWindow({
+      position: { x: 40, y: 20 },
+      dock: "dock-left",
+      isMinimized: true,
+    });
+
+    expect(windowManager.getWindows()[0]).toMatchObject({
+      position: { x: 40, y: 20 },
+      dock: "dock-left",
+      isMinimized: true,
+    });
+  });
+
   it("uses the requested size for the client area, excluding the frame", () => {
     const { client, dispose, window } = renderWindow();
 
@@ -198,6 +245,136 @@ describe("WindowsOutlet", () => {
     document.dispatchEvent(pointerEvent("pointerup", 100, -500));
 
     expect(windowManager.getWindows()[0].size).toEqual({ width: 200, height: 150 });
+
+    dispose();
+  });
+
+  it("minimizes locally without changing the managed client size", () => {
+    const { dispose, window, windowManager } = renderWindow();
+
+    windowControl(window, "Minimize window").click();
+
+    expect(window.style.display).toBe("none");
+    expect(windowManager.getWindows()[0]).toMatchObject({
+      size: { width: 400, height: 300 },
+      isMinimized: true,
+    });
+
+    dispose();
+  });
+
+  it.each([
+    ["Dock window left", "50%", "0px", "dock-left"],
+    ["Dock window right", "0px", "50%", "dock-right"],
+    ["Maximize window", "0px", "0px", "dock-full"],
+  ])("docks through %s without changing the managed client size", (label, right, left, dock) => {
+    const { client, dispose, window, windowManager } = renderWindow();
+
+    windowControl(window, label).click();
+
+    expect(window.style.top).toBe("0px");
+    expect(window.style.right).toBe(right);
+    expect(window.style.bottom).toBe("48px");
+    expect(window.style.left).toBe(left);
+    expect(window.dataset.dock).toBe(dock);
+    expect(window.querySelectorAll('[x-role="resize handle"]')).toHaveLength(0);
+    expect(client.classList).toContain("flex-1");
+    expect(client.style.height).toBe("");
+    expect(client.style.minHeight).toBe("");
+    expect(windowManager.getWindows()[0]).toMatchObject({
+      size: { width: 400, height: 300 },
+      dock,
+    });
+
+    dispose();
+  });
+
+  it("toggles a dock control back to its floating presentation", () => {
+    const { dispose, window, windowManager } = renderWindow();
+    const dockLeft = windowControl(window, "Dock window left");
+
+    dockLeft.click();
+    dockLeft.click();
+
+    expect(window.style.width).toBe("400px");
+    expect(window.classList).toContain("box-content");
+    expect(window.querySelectorAll('[x-role="resize handle"]')).toHaveLength(8);
+    expect(windowManager.getWindows()[0].dock).toBeNull();
+
+    dispose();
+  });
+
+  it("docks when a titlebar drag ends at a viewport edge", () => {
+    const { dispose, window, windowManager } = renderWindow();
+    const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
+
+    titlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+    document.dispatchEvent(pointerEvent("pointermove", 0, 100));
+
+    const preview = document.querySelector<HTMLElement>('[x-role="dock preview"]');
+    expect(preview?.dataset.dock).toBe("dock-left");
+    expect(preview?.style.right).toBe("50%");
+
+    document.dispatchEvent(pointerEvent("pointerup", 0, 100));
+
+    expect(window.style.right).toBe("50%");
+    expect(window.style.bottom).toBe("48px");
+    expect(document.querySelector('[x-role="dock preview"]')).toBeNull();
+    expect(windowManager.getWindows()[0]).toMatchObject({
+      size: { width: 400, height: 300 },
+      dock: "dock-left",
+    });
+
+    dispose();
+  });
+
+  it.each([
+    [12, 12],
+    [window.innerWidth - 12, 12],
+  ])("docks full-screen when a titlebar drag ends at top corner (%i, %i)", (x, y) => {
+    const { dispose, window, windowManager } = renderWindow();
+    const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
+
+    titlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+    document.dispatchEvent(pointerEvent("pointermove", x, y));
+    document.dispatchEvent(pointerEvent("pointerup", x, y));
+
+    expect(windowManager.getWindows()[0].dock).toBe("dock-full");
+
+    dispose();
+  });
+
+  it.each([
+    ["dock-left", 12, 100],
+    ["dock-right", window.innerWidth - 12, 100],
+  ])("docks %s when a titlebar drag ends in its edge zone", (dock, x, y) => {
+    const { dispose, window, windowManager } = renderWindow();
+    const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
+
+    titlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+    document.dispatchEvent(pointerEvent("pointermove", x, y));
+    document.dispatchEvent(pointerEvent("pointerup", x, y));
+
+    expect(windowManager.getWindows()[0].dock).toBe(dock);
+
+    dispose();
+  });
+
+  it("restores a docked window to floating when its titlebar is dragged away", () => {
+    const { dispose, window, windowManager } = renderWindow();
+    const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
+
+    windowControl(window, "Dock window left").click();
+    titlebar.dispatchEvent(pointerEvent("pointerdown", 10, 20));
+
+    expect(window.style.top).toBe("4px");
+    expect(window.style.left).toBe("-190px");
+
+    document.dispatchEvent(pointerEvent("pointerup", 200, 200));
+
+    expect(window.style.width).toBe("400px");
+    expect(window.querySelectorAll('[x-role="resize handle"]')).toHaveLength(8);
+    expect(windowManager.getWindows()[0].dock).toBeNull();
 
     dispose();
   });

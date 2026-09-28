@@ -1,6 +1,6 @@
 import { type Accessor, type JSX } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
-import type { Size2d } from "../../lib/math";
+import type { Point2d, Size2d } from "../../lib/math";
 import generateUuid from "../../lib/uuid";
 
 const makeWindowId = () => generateUuid<"WindowId">();
@@ -8,9 +8,18 @@ const makeWindowId = () => generateUuid<"WindowId">();
 /** A stable identifier for a window managed by {@link WindowManager}. */
 export type WindowId = ReturnType<typeof makeWindowId>;
 
+/** The viewport layout applied to a window, or `null` when it floats freely. */
+export type WindowDock = "dock-full" | "dock-left" | "dock-right" | null;
+
 interface WindowState {
   id: WindowId;
   title: string;
+  /** The floating window frame's top-left position, or `null` before initial placement. */
+  position: Point2d | null;
+  /** The viewport layout currently applied to the window. */
+  dock: WindowDock;
+  /** Whether the window is currently hidden from the desktop. */
+  isMinimized: boolean;
   /** The usable client content area's width and height, excluding window frame chrome. */
   size: Size2d;
   /** The minimum usable client content area, excluding window frame chrome. */
@@ -25,6 +34,12 @@ export type WindowEntry = Readonly<WindowState>;
 export interface CreateWindowOptions {
   /** Text displayed in the window's title bar. Defaults to `"Untitled"`. */
   title?: string;
+  /** Initial floating frame position. Defaults to automatic centered placement. */
+  position?: Point2d;
+  /** Initial viewport layout. Defaults to a floating window. */
+  dock?: WindowDock;
+  /** Whether the window is initially hidden. Defaults to `false`. */
+  isMinimized?: boolean;
   /** The usable client content area's width and height, excluding window frame chrome. */
   size?: Size2d;
   /** The minimum usable client content area, excluding window frame chrome. */
@@ -37,7 +52,7 @@ export interface CreateWindowOptions {
  * Owns the reactive collection of application windows.
  *
  * Window size values always describe client content, not the titlebar or frame.
- * Position and pointer-interaction state remain local to the rendered window.
+ * Pointer-interaction state remains local to the rendered window.
  */
 export default class WindowManager {
   /** Reactive, read-only list of managed windows. */
@@ -62,6 +77,9 @@ export default class WindowManager {
     this.setWindows(this.windows.length, {
       id,
       title: options?.title ?? "Untitled",
+      position: options?.position ?? null,
+      dock: options?.dock ?? null,
+      isMinimized: options?.isMinimized ?? false,
       size: options?.size ?? { width: 400, height: 300 },
       minimumSize: options?.minimumSize ?? { width: 200, height: 150 },
       content: options?.content ?? (() => undefined),
@@ -96,6 +114,33 @@ export default class WindowManager {
    */
   public setTitle(windowId: WindowId, newTitle: string) {
     this.setWindows((window) => window.id === windowId, "title", newTitle);
+  }
+
+  /**
+   * Updates a window's floating frame position.
+   * @param windowId The ID of the window to update.
+   * @param position New top-left position, or `null` to request automatic placement.
+   */
+  public setPosition(windowId: WindowId, position: Point2d | null) {
+    this.setWindows((window) => window.id === windowId, "position", position);
+  }
+
+  /**
+   * Updates the viewport layout applied to a window.
+   * @param windowId The ID of the window to update.
+   * @param dock New dock layout, or `null` for a floating window.
+   */
+  public setDock(windowId: WindowId, dock: WindowDock) {
+    this.setWindows((window) => window.id === windowId, "dock", dock);
+  }
+
+  /**
+   * Updates whether a window is hidden from the desktop.
+   * @param windowId The ID of the window to update.
+   * @param isMinimized Whether the window should be minimized.
+   */
+  public setMinimized(windowId: WindowId, isMinimized: boolean) {
+    this.setWindows((window) => window.id === windowId, "isMinimized", isMinimized);
   }
 
   /**
