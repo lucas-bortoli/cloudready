@@ -5,6 +5,7 @@ import Search16 from "@carbon/icons/es/search/16.js";
 import Settings16 from "@carbon/icons/es/settings/16.js";
 import { createSignal, For, onMount, Show } from "solid-js";
 
+import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "./CarbonIcon";
 
 const applications = [
@@ -25,6 +26,7 @@ interface StartMenuProps {
 }
 
 export default function StartMenu(props: StartMenuProps) {
+  const layerItem = useLayerItem("shell");
   const [query, setQuery] = createSignal("");
   let searchInput: HTMLInputElement | undefined;
 
@@ -44,7 +46,8 @@ export default function StartMenu(props: StartMenuProps) {
     <section
       id="start-menu"
       x-role="start menu"
-      class="absolute bottom-14 left-2 z-20 w-80 overflow-hidden rounded-xl border border-neutral-300 bg-white text-neutral-800 shadow-2xl"
+      class="absolute bottom-14 left-2 w-80 overflow-hidden rounded-xl border border-neutral-300 bg-white text-neutral-800 shadow-2xl"
+      style={{ "z-index": layerItem.zIndex() }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           props.onClose();

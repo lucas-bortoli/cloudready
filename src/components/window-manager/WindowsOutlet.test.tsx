@@ -3,6 +3,7 @@
 import { onMount } from "solid-js";
 import { render } from "solid-js/web";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { LayerProvider } from "../layer-manager/LayerContext";
 import WindowManager from "./WindowManager";
 import { WindowManagerProvider, useWindowManager } from "./WindowManagerContext";
 import WindowsOutlet from "./WindowsOutlet";
@@ -42,29 +43,39 @@ function windowControl(window: HTMLElement, label: string) {
   return control;
 }
 
-function TestDesktop(props: { onManager: (windowManager: WindowManager) => void }) {
+function TestDesktop(props: {
+  onManager: (windowManager: WindowManager) => void;
+  windowCount?: number;
+}) {
   const windowManager = useWindowManager();
 
   onMount(() => {
     props.onManager(windowManager);
-    windowManager.createWindow({
-      size: { width: 400, height: 300 },
-      minimumSize: { width: 200, height: 150 },
-    });
+    for (let index = 0; index < (props.windowCount ?? 1); index += 1) {
+      windowManager.createWindow({
+        size: { width: 400, height: 300 },
+        minimumSize: { width: 200, height: 150 },
+      });
+    }
   });
 
   return <WindowsOutlet />;
 }
 
-function renderWindow() {
+function renderWindow(windowCount = 1) {
   const container = document.createElement("div");
   document.body.append(container);
   let windowManager: WindowManager | undefined;
   const dispose = render(
     () => (
-      <WindowManagerProvider>
-        <TestDesktop onManager={(manager) => (windowManager = manager)} />
-      </WindowManagerProvider>
+      <LayerProvider>
+        <WindowManagerProvider>
+          <TestDesktop
+            onManager={(manager) => (windowManager = manager)}
+            windowCount={windowCount}
+          />
+        </WindowManagerProvider>
+      </LayerProvider>
     ),
     container,
   );
@@ -212,6 +223,19 @@ describe("WindowsOutlet", () => {
     expect(window.offsetWidth).toBeGreaterThan(client.clientWidth);
     expect(window.offsetHeight).toBeGreaterThan(client.clientHeight);
 
+    dispose();
+  });
+
+  it("brings a window to the front when its titlebar interaction begins", () => {
+    const { dispose } = renderWindow(2);
+    const windows = document.querySelectorAll<HTMLDivElement>('[x-role="window"]');
+    const firstTitlebar = windows[0].querySelector<HTMLElement>('[x-role="titlebar"]')!;
+
+    expect([windows[0].style.zIndex, windows[1].style.zIndex]).toEqual(["0", "1"]);
+    firstTitlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+
+    expect([windows[0].style.zIndex, windows[1].style.zIndex]).toEqual(["1", "0"]);
+    document.dispatchEvent(pointerEvent("pointerup", 100, 100));
     dispose();
   });
 
