@@ -4,6 +4,7 @@ import Minimize16 from "@carbon/icons/es/minimize/16.js";
 import SidePanelOpen16 from "@carbon/icons/es/side-panel--open/16.js";
 import { batch, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
 import focusTrap from "../../lib/focus-trap";
+import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "../taskbar/CarbonIcon";
 import ResizeHandle, { type ResizeDirection } from "./ResizeHandle";
 import type { WindowDock, WindowEntry } from "./WindowManager";
@@ -56,6 +57,31 @@ interface ResizeInteraction extends PointerInteraction {
 type Interaction = DragInteraction | ResizeInteraction;
 type InteractionStart = Omit<DragInteraction, "pointerId"> | Omit<ResizeInteraction, "pointerId">;
 
+/** Renders the pinned viewport preview shown while a window is dragged to a dock zone. */
+function DockPreview(props: { dock: Exclude<WindowDock, null> }) {
+  const layerItem = useLayerItem("windowing:pinned");
+  const style = (): JSX.CSSProperties => {
+    if (props.dock === "dock-full") {
+      return { top: 0, right: 0, bottom: integerPixels(taskbarHeight), left: 0 };
+    }
+
+    if (props.dock === "dock-left") {
+      return { top: 0, right: "50%", bottom: integerPixels(taskbarHeight), left: 0 };
+    }
+
+    return { top: 0, right: 0, bottom: integerPixels(taskbarHeight), left: "50%" };
+  };
+
+  return (
+    <div
+      x-role="dock preview"
+      data-dock={props.dock}
+      class="pointer-events-none fixed border-2 border-blue-500 bg-blue-500/10"
+      style={{ ...style(), "z-index": layerItem.zIndex() }}
+    />
+  );
+}
+
 /**
  * Renders one framed application window and owns its local drag, resize, and
  * pointer-interaction state.
@@ -67,6 +93,8 @@ export default function Window(props: { entry: WindowEntry }) {
   let interaction: Interaction | undefined;
 
   const windowManager = useWindowManager();
+  const layerItem = useLayerItem("windowing");
+
   const [dockPreview, setDockPreview] = createSignal<WindowDock>(null);
   const dockAtPointer = (event: PointerEvent): WindowDock => {
     if (event.clientY <= dockActivationDistance) return "dock-full";
@@ -115,18 +143,6 @@ export default function Window(props: { entry: WindowEntry }) {
       "min-width": integerPixels(props.entry.minimumSize.width),
       display: props.entry.isMinimized ? "none" : undefined,
     };
-  };
-
-  const dockPreviewStyle = (): JSX.CSSProperties => {
-    if (dockPreview() === "dock-full") {
-      return { top: 0, right: 0, bottom: integerPixels(taskbarHeight), left: 0 };
-    }
-
-    if (dockPreview() === "dock-left") {
-      return { top: 0, right: "50%", bottom: integerPixels(taskbarHeight), left: 0 };
-    }
-
-    return { top: 0, right: 0, bottom: integerPixels(taskbarHeight), left: "50%" };
   };
 
   const frameStyle = (): JSX.CSSProperties => {
@@ -295,6 +311,8 @@ export default function Window(props: { entry: WindowEntry }) {
       return;
     }
 
+    layerItem.bringToTop();
+
     startInteraction(event, {
       type: "resize",
       ...resizeAxes[direction],
@@ -305,6 +323,10 @@ export default function Window(props: { entry: WindowEntry }) {
       startWidth: clientElement.clientWidth,
       startHeight: clientElement.clientHeight,
     });
+  };
+
+  const onWindowPointerDown = () => {
+    layerItem.bringToTop();
   };
 
   onCleanup(() => stopInteraction());
@@ -327,10 +349,11 @@ export default function Window(props: { entry: WindowEntry }) {
       <div
         x-role="window"
         ref={windowElement}
-        class="group/window absolute z-0 box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl"
+        class="group/window absolute box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl"
         data-dock={props.entry.dock ?? undefined}
-        style={{ ...windowStyle(), ...frameStyle() }}
+        style={{ ...windowStyle(), ...frameStyle(), "z-index": layerItem.zIndex() }}
         tabIndex={-1}
+        onPointerDown={onWindowPointerDown}
       >
         <header
           x-role="titlebar"
@@ -422,14 +445,7 @@ export default function Window(props: { entry: WindowEntry }) {
           </For>
         </Show>
       </div>
-      <Show when={dockPreview()}>
-        <div
-          x-role="dock preview"
-          data-dock={dockPreview()}
-          class="pointer-events-none fixed z-10 border-2 border-blue-500 bg-blue-500/10"
-          style={dockPreviewStyle()}
-        />
-      </Show>
+      <Show when={dockPreview()}>{(dock) => <DockPreview dock={dock()} />}</Show>
     </>
   );
 }
