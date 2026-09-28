@@ -68,3 +68,53 @@
   --text-9xl: 96px;
   --text-9xl--line-height: 96px;
 }
+
+@keyframes kodekai-editor-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes kodekai-editor-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+}
+
+@keyframes kodekai-editor-backdrop-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes kodekai-editor-dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+}
+
+.kodekai-editor-backdrop {
+  animation: kodekai-editor-backdrop-in 150ms ease-out both;
+}
+
+.kodekai-editor-dialog {
+  animation: kodekai-editor-dialog-in 180ms ease-out both;
+}
+
+.kodekai-editor-backdrop.kodekai-editor-closing {
+  animation: kodekai-editor-backdrop-out 180ms ease-in both;
+  pointer-events: none;
+}
+
+.kodekai-editor-dialog.kodekai-editor-closing {
+  animation: kodekai-editor-dialog-out 180ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kodekai-editor-backdrop,
+  .kodekai-editor-dialog {
+    animation: none;
+  }
+}

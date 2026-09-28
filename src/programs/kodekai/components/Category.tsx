@@ -1,4 +1,5 @@
 import { createMemo, For, type Accessor } from "solid-js";
+import { cn } from "../../../lib/dom";
 import { useKodekai } from "../KodekaiContext";
 import type { DropTarget } from "../lib/useCardDrag";
 import type { Bucket, Card as CardData, CardId, ProjectId } from "../model/model";
@@ -38,13 +39,22 @@ export default function Category(props: CategoryProps) {
 
   return (
     <section class="flex w-64 flex-col gap-1">
-      <h2>
+      <h2
+        class={cn(
+          "border-b-2 pb-2 font-medium",
+          props.bucket === "icebox" && "border-neutral-700 text-neutral-700",
+          props.bucket === "in-progress" && "border-sky-700 text-sky-700",
+          props.bucket === "blocked" && "border-red-700 text-red-700",
+          props.bucket === "revision" && "border-yellow-700 text-yellow-700",
+          props.bucket === "done" && "border-green-700 text-green-700",
+        )}
+      >
         {labels[props.bucket]} {cards().length > 0 && `(${cards().length})`}
       </h2>
       <ul
         ref={(element) => props.onListElement(props.bucket, element)}
         data-kodekai-bucket={props.bucket}
-        class="relative flex min-h-full flex-col gap-2 pb-8"
+        class="relative flex min-h-full flex-col gap-1 pb-8"
       >
         <For
           each={cards()}

@@ -81,7 +81,7 @@ export default function Card(props: CardProps) {
       data-kodekai-card={props.card.id}
       role="button"
       tabIndex={0}
-      class="flex max-h-32 touch-none flex-col gap-1 overflow-hidden rounded-sm border border-neutral-400 bg-white p-2 shadow-md **:pointer-events-none focus:outline-2 focus:outline-offset-2 focus:outline-blue-600"
+      class="flex max-h-32 shrink-0 touch-none flex-col gap-1 overflow-hidden rounded-xs border border-neutral-400 bg-white p-2 shadow-sm **:pointer-events-none focus:outline-2 focus:outline-offset-2 focus:outline-blue-600"
       classList={{
         "opacity-0": props.draggingCardId() === props.card.id,
       }}
@@ -101,13 +101,13 @@ export default function Card(props: CardProps) {
         }
       }}
     >
-      <h2 ref={titleRef} class="max-h-10 shrink-0 overflow-hidden leading-snug font-medium">
+      <h2 ref={titleRef} class="max-h-10 shrink-0 overflow-hidden leading-tight font-medium">
         {visibleTitle()}
       </h2>
-      <p ref={contentRef} class="overflow-hidden leading-snug text-neutral-400">
+      <p ref={contentRef} class="overflow-hidden leading-tight text-neutral-600">
         {visibleContent()}
       </p>
-      <footer class="flex shrink-0 flex-wrap gap-1">
+      <footer class="mt-1 flex shrink-0 flex-wrap gap-1">
         <span
           class={cn(
             "rounded-xs px-2 py-0.5 text-sm",

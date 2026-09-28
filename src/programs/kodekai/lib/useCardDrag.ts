@@ -239,7 +239,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     preview.style.margin = "0";
     preview.style.pointerEvents = "none";
     preview.style.cursor = "grabbing";
-    preview.style.opacity = "0.9";
+    preview.style.opacity = "1";
     rootElement.append(preview);
     setDraggingCardId(pendingDrag.card.id);
     updatePreview(event);
