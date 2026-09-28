@@ -1,6 +1,7 @@
 import Apps16 from "@carbon/icons/es/apps/16.js";
 import { createSignal, Show } from "solid-js";
 
+import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "./CarbonIcon";
 import Clock from "./Clock";
 import StartMenu from "./StartMenu";
@@ -11,6 +12,7 @@ interface TaskbarProps {
 }
 
 export default function Taskbar(props: TaskbarProps) {
+  const layerItem = useLayerItem("shell");
   const [isStartMenuOpen, setIsStartMenuOpen] = createSignal(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = createSignal(false);
   const session = useSession();
@@ -19,6 +21,7 @@ export default function Taskbar(props: TaskbarProps) {
     <section
       x-role="taskbar"
       class="absolute right-0 bottom-0 left-0 flex h-12 items-center bg-neutral-800 p-1 text-neutral-100"
+      style={{ "z-index": layerItem.zIndex() }}
     >
       <button
         aria-controls="start-menu"
