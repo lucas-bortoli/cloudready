@@ -1,5 +1,7 @@
+import ChevronDown16 from "@carbon/icons/es/chevron--down/16.js";
 import { createEffect, For, splitProps, type JSX } from "solid-js";
 import { cn } from "../../lib/dom";
+import CarbonIcon from "../taskbar/CarbonIcon";
 
 type NativeSelectProps = Omit<
   JSX.SelectHTMLAttributes<HTMLSelectElement>,
@@ -77,10 +79,10 @@ export default function Dropdown(props: DropdownProps) {
   let select: HTMLSelectElement | undefined;
   const isInactive = () => local.disabled ?? false;
 
-  const synchronizeSelection = () => {
+  const synchronizeSelection = (options = local.options) => {
     if (!select) return;
 
-    if (local.value == null) {
+    if (local.value == null || !options.some((option) => option.value === local.value)) {
       select.selectedIndex = -1;
     } else {
       select.value = local.value;
@@ -88,7 +90,7 @@ export default function Dropdown(props: DropdownProps) {
   };
 
   createEffect(() => {
-    synchronizeSelection();
+    synchronizeSelection(local.options);
   });
 
   const handleChange: JSX.EventHandler<HTMLSelectElement, Event> = (event) => {
@@ -133,14 +135,10 @@ export default function Dropdown(props: DropdownProps) {
           )}
         </For>
       </select>
-      <svg
-        aria-hidden="true"
-        class="pointer-events-none absolute top-1/2 right-2 z-10 size-4 -translate-y-1/2 text-neutral-500"
-        fill="none"
-        viewBox="0 0 12 12"
-      >
-        <path d="m3 4.5 3 3 3-3" stroke="currentColor" stroke-linecap="round" stroke-width="1.25" />
-      </svg>
+      <CarbonIcon
+        class="pointer-events-none absolute top-1/2 right-2 z-10 size-4 -translate-y-1/2 text-neutral-600"
+        icon={ChevronDown16}
+      />
     </div>
   );
 }

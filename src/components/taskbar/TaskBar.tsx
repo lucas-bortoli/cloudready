@@ -5,7 +5,11 @@ import CarbonIcon from "./CarbonIcon";
 import Clock from "./Clock";
 import StartMenu from "./StartMenu";
 
-export default function Taskbar() {
+interface TaskbarProps {
+  onLaunchFiles: () => void;
+}
+
+export default function Taskbar(props: TaskbarProps) {
   const [isStartMenuOpen, setIsStartMenuOpen] = createSignal(false);
 
   return (
@@ -28,7 +32,7 @@ export default function Taskbar() {
       <section x-role="window list" />
       <Clock />
       <Show when={isStartMenuOpen()}>
-        <StartMenu onClose={() => setIsStartMenuOpen(false)} />
+        <StartMenu onClose={() => setIsStartMenuOpen(false)} onLaunchFiles={props.onLaunchFiles} />
       </Show>
     </section>
   );

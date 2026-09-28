@@ -64,7 +64,7 @@ export default function ResizeHandle(props: {
   return (
     <div
       x-role="resize handle"
-      class="absolute bg-black opacity-0 transition-opacity delay-75 hover:opacity-20"
+      class="absolute z-10 bg-black opacity-0 transition-opacity delay-75 hover:opacity-20"
       style={style()}
       onPointerDown={(event) => props.onPointerDown(props.direction, event)}
     />
