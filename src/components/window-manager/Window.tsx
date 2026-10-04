@@ -2,18 +2,8 @@ import ChevronDown16 from "@carbon/icons/es/chevron--down/16.js";
 import Close16 from "@carbon/icons/es/close/16.js";
 import PinFilled16 from "@carbon/icons/es/pin--filled/16.js";
 import Pin16 from "@carbon/icons/es/pin/16.js";
-import {
-  batch,
-  createEffect,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-  type JSX,
-} from "solid-js";
+import { batch, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
 import focusTrap from "../../lib/focus-trap";
-import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "../taskbar/CarbonIcon";
 import DockPreview from "./DockPreview";
 import ResizeHandle, { type ResizeDirection } from "./ResizeHandle";
@@ -77,10 +67,6 @@ export default function Window(props: { entry: WindowEntry }) {
   let interaction: Interaction | undefined;
 
   const windowManager = useWindowManager();
-  const layerItem = useLayerItem(props.entry.pinned ? "windowing:pinned" : "windowing");
-  createEffect(() => {
-    layerItem.moveToLayer(props.entry.pinned ? "windowing:pinned" : "windowing");
-  });
 
   const [dockPreview, setDockPreview] = createSignal<WindowDock>(null);
   const dockAtPointer = (event: PointerEvent): WindowDock => {
@@ -303,7 +289,7 @@ export default function Window(props: { entry: WindowEntry }) {
       return;
     }
 
-    layerItem.bringToTop();
+    windowManager.bringToTop(props.entry.id);
 
     startInteraction(event, {
       type: "resize",
@@ -318,7 +304,7 @@ export default function Window(props: { entry: WindowEntry }) {
   };
 
   const onWindowPointerDown = () => {
-    layerItem.bringToTop();
+    windowManager.bringToTop(props.entry.id);
   };
 
   onCleanup(() => stopInteraction());
@@ -343,7 +329,7 @@ export default function Window(props: { entry: WindowEntry }) {
         ref={windowElement}
         class="group/window absolute box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl"
         data-dock={props.entry.dock ?? undefined}
-        style={{ ...windowStyle(), ...frameStyle(), "z-index": layerItem.zIndex() }}
+        style={{ ...windowStyle(), ...frameStyle(), "z-index": props.entry.zIndex() }}
         tabIndex={-1}
         onPointerDown={onWindowPointerDown}
       >

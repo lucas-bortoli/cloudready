@@ -2,6 +2,7 @@ import { type Accessor, type JSX } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
 import type { Point2d, Size2d } from "../../lib/math";
 import generateUuid from "../../lib/uuid";
+import LayerManager, { type LayerItem } from "../layer-manager/LayerManager";
 
 const makeWindowId = () => generateUuid<"WindowId">();
 
@@ -22,15 +23,18 @@ interface WindowState {
   isMinimized: boolean;
   /** Whether the window remains above ordinary application windows. */
   pinned: boolean;
+  /** Reactive CSS z-index assigned by the window's layer item. */
+  zIndex: Accessor<number>;
   /** The usable client content area's width and height, excluding window frame chrome. */
   size: Size2d;
   /** The minimum usable client content area, excluding window frame chrome. */
   minimumSize: Size2d;
   content: () => JSX.Element;
+  layerItem: LayerItem;
 }
 
 /** An immutable view of a window managed by {@link WindowManager}. */
-export type WindowEntry = Readonly<WindowState>;
+export type WindowEntry = Readonly<Omit<WindowState, "layerItem">>;
 
 /** Optional properties used when creating a window. */
 export interface CreateWindowOptions {
@@ -63,12 +67,14 @@ export default class WindowManager {
   public readonly getWindows: Accessor<readonly WindowEntry[]>;
   private readonly windows: WindowState[];
   private readonly setWindows: SetStoreFunction<WindowState[]>;
+  private readonly layerManager: LayerManager;
 
-  public constructor() {
+  public constructor(layerManager = new LayerManager()) {
     const [windows, setWindows] = createStore<WindowState[]>([]);
     this.windows = windows;
     this.getWindows = () => windows;
     this.setWindows = setWindows;
+    this.layerManager = layerManager;
   }
 
   /**
@@ -78,16 +84,20 @@ export default class WindowManager {
    */
   public createWindow(options?: CreateWindowOptions): WindowId {
     const id = makeWindowId();
+    const pinned = options?.pinned ?? false;
+    const layerItem = this.layerManager.createItem(pinned ? "windowing:pinned" : "windowing");
     this.setWindows(this.windows.length, {
       id,
       title: options?.title ?? "Untitled",
       position: options?.position ?? null,
       dock: options?.dock ?? null,
       isMinimized: options?.isMinimized ?? false,
-      pinned: options?.pinned ?? false,
+      pinned,
+      zIndex: layerItem.zIndex,
       size: options?.size ?? { width: 400, height: 300 },
       minimumSize: options?.minimumSize ?? { width: 200, height: 150 },
       content: options?.content ?? (() => undefined),
+      layerItem,
     });
     return id;
   }
@@ -104,6 +114,7 @@ export default class WindowManager {
       return false;
     }
 
+    this.windows[windowIndex].layerItem.dispose();
     this.setWindows(
       produce((windows) => {
         windows.splice(windowIndex, 1);
@@ -154,7 +165,30 @@ export default class WindowManager {
    * @param pinned Whether the window should use the pinned stacking layer.
    */
   public setPinned(windowId: WindowId, pinned: boolean) {
+    const window = this.findWindow(windowId);
+    if (!window) return;
+    window.layerItem.moveToLayer(pinned ? "windowing:pinned" : "windowing");
     this.setWindows((window) => window.id === windowId, "pinned", pinned);
+  }
+
+  /** Moves a window one position toward the back of its current stacking layer. */
+  public sendBack(windowId: WindowId) {
+    this.findWindow(windowId)?.layerItem.sendBack();
+  }
+
+  /** Moves a window one position toward the front of its current stacking layer. */
+  public sendForward(windowId: WindowId) {
+    this.findWindow(windowId)?.layerItem.sendForward();
+  }
+
+  /** Moves a window to the front of its current stacking layer. */
+  public bringToTop(windowId: WindowId) {
+    this.findWindow(windowId)?.layerItem.bringToTop();
+  }
+
+  /** Moves a window to the back of its current stacking layer. */
+  public sendToBottom(windowId: WindowId) {
+    this.findWindow(windowId)?.layerItem.sendToBottom();
   }
 
   /**
@@ -173,5 +207,9 @@ export default class WindowManager {
    */
   public setMinimumSize(windowId: WindowId, minimumSize: Size2d) {
     this.setWindows((window) => window.id === windowId, "minimumSize", minimumSize);
+  }
+
+  private findWindow(windowId: WindowId): WindowState | undefined {
+    return this.windows.find((window) => window.id === windowId);
   }
 }

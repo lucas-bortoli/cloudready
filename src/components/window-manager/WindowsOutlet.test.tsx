@@ -216,6 +216,29 @@ describe("WindowsOutlet", () => {
     });
   });
 
+  it("owns each window's layer order and releases it on removal", () => {
+    const windowManager = new WindowManager();
+    const firstId = windowManager.createWindow();
+    const secondId = windowManager.createWindow();
+    const thirdId = windowManager.createWindow();
+    const zIndexes = () => windowManager.getWindows().map((window) => window.zIndex());
+
+    expect(zIndexes()).toEqual([0, 1, 2]);
+    windowManager.sendBack(thirdId);
+    expect(zIndexes()).toEqual([0, 2, 1]);
+    windowManager.sendForward(thirdId);
+    expect(zIndexes()).toEqual([0, 1, 2]);
+    windowManager.bringToTop(firstId);
+    expect(zIndexes()).toEqual([2, 0, 1]);
+    windowManager.sendToBottom(firstId);
+    expect(zIndexes()).toEqual([0, 1, 2]);
+
+    windowManager.setPinned(secondId, true);
+    expect(zIndexes()).toEqual([0, 2, 1]);
+    windowManager.removeWindow(firstId);
+    expect(zIndexes()).toEqual([1, 0]);
+  });
+
   it("uses the requested size for the client area, excluding the frame", () => {
     const { client, dispose, window } = renderWindow();
 
@@ -305,13 +328,13 @@ describe("WindowsOutlet", () => {
   });
 
   it.each([
-    ["Dock window left", "50%", "0px", "dock-left"],
-    ["Dock window right", "0px", "50%", "dock-right"],
-    ["Maximize window", "0px", "0px", "dock-full"],
-  ])("docks through %s without changing the managed client size", (label, right, left, dock) => {
+    ["dock-left", "50%", "0px"],
+    ["dock-right", "0px", "50%"],
+    ["dock-full", "0px", "0px"],
+  ])("renders %s without changing the managed client size", (dock, right, left) => {
     const { client, dispose, window, windowManager } = renderWindow();
 
-    windowControl(window, label).click();
+    windowManager.setDock(windowManager.getWindows()[0].id, dock);
 
     expect(window.style.top).toBe("0px");
     expect(window.style.right).toBe(right);
@@ -330,12 +353,11 @@ describe("WindowsOutlet", () => {
     dispose();
   });
 
-  it("toggles a dock control back to its floating presentation", () => {
+  it("returns a docked window to its floating presentation", () => {
     const { dispose, window, windowManager } = renderWindow();
-    const dockLeft = windowControl(window, "Dock window left");
 
-    dockLeft.click();
-    dockLeft.click();
+    windowManager.setDock(windowManager.getWindows()[0].id, "dock-left");
+    windowManager.setDock(windowManager.getWindows()[0].id, null);
 
     expect(window.style.width).toBe("400px");
     expect(window.classList).toContain("box-content");
@@ -405,7 +427,7 @@ describe("WindowsOutlet", () => {
     const { dispose, window, windowManager } = renderWindow();
     const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
 
-    windowControl(window, "Dock window left").click();
+    windowManager.setDock(windowManager.getWindows()[0].id, "dock-left");
     titlebar.dispatchEvent(pointerEvent("pointerdown", 10, 20));
 
     expect(window.style.top).toBe("4px");

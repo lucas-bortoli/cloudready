@@ -1,4 +1,5 @@
 import { createContext, useContext, type ParentProps } from "solid-js";
+import { useLayerManager } from "../layer-manager/LayerContext";
 import WindowManager from "./WindowManager";
 
 const WindowManagerContext = createContext<WindowManager>();
@@ -9,7 +10,7 @@ const WindowManagerContext = createContext<WindowManager>();
  * The manager is created once for each mounted provider.
  */
 export function WindowManagerProvider(props: ParentProps) {
-  const windowManager = new WindowManager();
+  const windowManager = new WindowManager(useLayerManager());
 
   return (
     <WindowManagerContext.Provider value={windowManager}>

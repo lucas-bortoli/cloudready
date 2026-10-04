@@ -1,10 +1,10 @@
 import Folder16 from "@carbon/icons/es/folder/16.js";
 import Globe16 from "@carbon/icons/es/globe/16.js";
 import Image16 from "@carbon/icons/es/image/16.js";
+import Power16 from "@carbon/icons/es/power/16.js";
 import Search16 from "@carbon/icons/es/search/16.js";
 import Settings16 from "@carbon/icons/es/settings/16.js";
 import { createSignal, For, onMount, Show } from "solid-js";
-
 import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "./CarbonIcon";
 
@@ -46,7 +46,7 @@ export default function StartMenu(props: StartMenuProps) {
     <section
       id="start-menu"
       x-role="start menu"
-      class="absolute bottom-14 left-2 w-80 overflow-hidden rounded-xl border border-neutral-300 bg-white text-neutral-800 shadow-2xl"
+      class="absolute bottom-13 left-1 w-lg overflow-hidden rounded-xl border border-neutral-600 bg-neutral-900/80 text-neutral-100 shadow-2xl backdrop-blur-lg"
       style={{ "z-index": layerItem.zIndex() }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
@@ -57,7 +57,7 @@ export default function StartMenu(props: StartMenuProps) {
       <div class="p-1">
         <label
           x-role="launcher search"
-          class="flex items-center gap-2 rounded-lg rounded-b-none border border-neutral-300 bg-neutral-50 px-3 text-neutral-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
+          class="flex items-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 text-neutral-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
         >
           <span class="grid size-4 shrink-0 place-items-center">
             <CarbonIcon icon={Search16} />
@@ -72,43 +72,44 @@ export default function StartMenu(props: StartMenuProps) {
           />
         </label>
       </div>
-
-      <div x-role="application grid" class="grid grid-cols-1 gap-1 p-1 pt-0">
-        <For each={matchingApplications()}>
-          {(application) => (
-            <button
-              x-role="launcher application"
-              class="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-lg p-1 text-left leading-3 transition-colors hover:bg-blue-100 focus-visible:bg-blue-100 focus-visible:outline-none"
-              type="button"
-              onClick={() => {
-                if (application.name === "Files") props.onLaunchFiles();
-                props.onClose();
-              }}
-            >
-              <span
-                class={`grid size-8 shrink-0 place-items-center rounded-md text-white shadow-sm ${application.color}`}
+      <Show
+        when={matchingApplications().length > 0}
+        fallback={
+          <p class="flex h-65 items-center justify-center text-center text-neutral-500">
+            No matching apps
+          </p>
+        }
+      >
+        <div x-role="application grid" class="grid grid-cols-5 grid-rows-4 gap-1 p-1">
+          <For each={matchingApplications()}>
+            {(application) => (
+              <button
+                x-role="launcher application"
+                class="flex cursor-pointer flex-col items-center gap-2 rounded-lg p-1 text-left leading-3 transition-colors hover:bg-neutral-600 focus-visible:bg-neutral-600 focus-visible:outline-none"
+                type="button"
+                onClick={() => {
+                  if (application.name === "Files") props.onLaunchFiles();
+                  props.onClose();
+                }}
               >
-                <CarbonIcon icon={application.icon} />
-              </span>
-              <span class="min-w-0">
-                <span class="block font-medium" title={application.name}>
-                  {application.name}
-                </span>
                 <span
-                  class="block truncate text-base text-neutral-500"
-                  title={application.description}
+                  class={`grid size-8 shrink-0 place-items-center rounded-md text-white shadow-sm ${application.color}`}
                 >
-                  {application.description}
+                  <CarbonIcon icon={application.icon} />
                 </span>
-              </span>
-            </button>
-          )}
-        </For>
-      </div>
-
-      <Show when={matchingApplications().length === 0}>
-        <p class="px-5 py-8 text-center text-neutral-500">No matching apps</p>
+                <span title={application.description}>{application.name}</span>
+              </button>
+            )}
+          </For>
+        </div>
       </Show>
+      <footer class="flex w-full items-center bg-neutral-800 p-4">
+        <div class="flex items-center gap-2">
+          <i class="inline-block size-6 rounded-full bg-white" />
+          <span>User</span>
+        </div>
+        <CarbonIcon icon={Power16} class="ml-auto" />
+      </footer>
     </section>
   );
 }

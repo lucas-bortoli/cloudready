@@ -1,6 +1,8 @@
 import Apps16 from "@carbon/icons/es/apps/16.js";
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { useLayerItem } from "../layer-manager/LayerContext";
+import type { WindowId } from "../window-manager/WindowManager";
+import { useWindowManager } from "../window-manager/WindowManagerContext";
 import CarbonIcon from "./CarbonIcon";
 import Clock from "./Clock";
 import StartMenu from "./StartMenu";
@@ -12,6 +14,20 @@ interface TaskbarProps {
 export default function Taskbar(props: TaskbarProps) {
   const layerItem = useLayerItem("shell");
   const [isStartMenuOpen, setIsStartMenuOpen] = createSignal(false);
+
+  const windowManager = useWindowManager();
+
+  const handleWindowButton = (windowId: WindowId) => {
+    const window = windowManager.getWindows().find((w) => w.id === windowId);
+    if (!window) return;
+
+    if (window.isMinimized) {
+      windowManager.setMinimized(windowId, false);
+      windowManager.bringToTop(windowId);
+    } else {
+      windowManager.bringToTop(windowId);
+    }
+  };
 
   return (
     <section
@@ -31,7 +47,19 @@ export default function Taskbar(props: TaskbarProps) {
         </span>
         Apps
       </button>
-      <section x-role="window list" />
+      <section x-role="window list">
+        <For
+          each={windowManager.getWindows()}
+          children={(window) => (
+            <button
+              class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-neutral-800 px-3 transition-colors hover:bg-neutral-700"
+              onClick={handleWindowButton.bind(null, window.id)}
+            >
+              {window.title}
+            </button>
+          )}
+        />
+      </section>
       <Clock />
       <Show when={isStartMenuOpen()}>
         <StartMenu onClose={() => setIsStartMenuOpen(false)} onLaunchFiles={props.onLaunchFiles} />
