@@ -5,6 +5,7 @@ use tiny_http::{Header, Method, Response, Server, StatusCode};
 use uuid::Uuid;
 
 mod chromium;
+mod database;
 mod filesystem;
 
 // The build script enables this module only for release builds.
@@ -17,7 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let address = std::env::var("KERNEL_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());
     let server = Server::http(&address)?;
     let database_path = database_path()?;
-    let mut filesystem = filesystem::FileSystem::open(&database_path)?;
+    let database = database::Database::open(&database_path)?;
+    let mut filesystem = filesystem::FileSystem::new(&database);
     println!("Listening on http://{}", server.server_addr());
     // Debug kernels are paired with Vite; release kernels serve the embedded frontend.
     #[cfg(not(embedded_frontend))]
