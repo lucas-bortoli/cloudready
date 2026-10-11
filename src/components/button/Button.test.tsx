@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import type { JSX } from "solid-js";
+import { createSignal, type JSX } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
 import Button from "./Button";
@@ -74,6 +74,18 @@ describe("Button", () => {
     expect(element.getAttribute("aria-busy")).toBe("true");
     expect(element.getAttribute("aria-disabled")).toBe("true");
     expect(element.hasAttribute("disabled")).toBe(false);
+    expect(element.querySelector("svg")).not.toBeNull();
+
+    dispose();
+  });
+
+  it("reacts to loading changes after it renders", () => {
+    const [loading, setLoading] = createSignal(false);
+    const { dispose, element } = renderButton(() => <Button loading={loading()}>Save</Button>);
+
+    expect(element.getAttribute("aria-busy")).toBeNull();
+    setLoading(true);
+    expect(element.getAttribute("aria-busy")).toBe("true");
     expect(element.querySelector("svg")).not.toBeNull();
 
     dispose();

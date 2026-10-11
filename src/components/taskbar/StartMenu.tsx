@@ -22,7 +22,6 @@ const applications = [
 
 interface StartMenuProps {
   onClose: () => void;
-  onLaunchFiles: () => void;
 }
 
 export default function StartMenu(props: StartMenuProps) {
@@ -88,7 +87,6 @@ export default function StartMenu(props: StartMenuProps) {
                 class="flex cursor-pointer flex-col items-center gap-2 rounded-lg p-1 text-left leading-3 transition-colors hover:bg-neutral-600 focus-visible:bg-neutral-600 focus-visible:outline-none"
                 type="button"
                 onClick={() => {
-                  if (application.name === "Files") props.onLaunchFiles();
                   props.onClose();
                 }}
               >

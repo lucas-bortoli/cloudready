@@ -21,11 +21,14 @@ export class SessionSetupCompleteError extends SessionClientError {}
 /** A profile display name is malformed. */
 export class InvalidProfileDisplayNameError extends SessionClientError {}
 
-/** The session service could not be reached. */
-export class SessionNetworkError extends SessionClientError {}
+/** The supplied picture is not a supported image format. */
+export class InvalidProfilePictureError extends SessionClientError {}
 
-/** The session service returned malformed JSON. */
-export class SessionProtocolError extends SessionClientError {}
+/** The supplied picture exceeds the profile-picture size limit. */
+export class ProfilePictureTooLargeError extends SessionClientError {}
+
+/** The profile does not have an uploaded picture. */
+export class ProfilePictureMissingError extends SessionClientError {}
 
 /** The session service returned an unexpected server failure. */
 export class SessionServerError extends SessionClientError {}

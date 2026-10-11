@@ -24,7 +24,13 @@ const directoryEntry = v.object({
   updated_at: timestamp,
 });
 const entry = v.variant("kind", [fileEntry, directoryEntry]);
-const user = v.object({ id: uuid, display_name: v.string(), created_at: timestamp });
+const profilePicture = v.object({ mime_type: v.string(), size: nonNegativeInteger });
+const user = v.object({
+  id: uuid,
+  display_name: v.string(),
+  created_at: timestamp,
+  profile_picture: v.nullable(profilePicture),
+});
 const version = v.object({
   id: uuid,
   size: nonNegativeInteger,
@@ -81,6 +87,27 @@ const routes = {
   sessionEnd: route("DELETE", "/api/session", emptyInput, okOutput),
   sessionListUsers: route("GET", "/api/users", emptyInput, v.array(user)),
   sessionCreateFirstUser: route("POST", "/api/users", displayNameInput, user, (body) => ({ body })),
+  sessionGetProfilePicture: route(
+    "GET",
+    "/api/profile-picture",
+    emptyInput,
+    emptyOutput,
+    undefined,
+    true,
+  ),
+  sessionPutProfilePicture: route(
+    "PUT",
+    "/api/profile-picture",
+    v.object({
+      content: v.union([
+        v.instance(ArrayBuffer),
+        v.instance(Blob),
+        v.custom<ArrayBufferView>((value) => ArrayBuffer.isView(value)),
+      ]),
+    }),
+    profilePicture,
+    ({ content }) => ({ body: content }),
+  ),
   filesystemList: route("GET", "/api/fs/list", pathInput, v.array(entry), (input) => ({
     query: input,
   })),
@@ -415,6 +442,33 @@ export const sessionListUsers = (input: Input<typeof routes.sessionListUsers.inp
  */
 export const sessionCreateFirstUser = (input: Input<typeof routes.sessionCreateFirstUser.input>) =>
   makeCall(routes.sessionCreateFirstUser, input);
+
+/**
+ * Downloads the active profile's picture bytes.
+ *
+ * @returns The profile picture as an ArrayBuffer.
+ * @throws {KernelRpcInputError} When the input is malformed.
+ * @throws {KernelRpcNetworkError}
+ * @throws {KernelRpcProtocolError}
+ * @throws {KernelRpcApiError}
+ */
+export const sessionGetProfilePicture = (
+  input: Input<typeof routes.sessionGetProfilePicture.input> = {},
+) => makeCall(routes.sessionGetProfilePicture, input);
+
+/**
+ * Replaces the active profile's picture with a supported image.
+ *
+ * @param input.content Image bytes in JPEG, PNG, GIF, or WebP format, up to 5 MiB.
+ * @returns The stored picture's MIME type and size.
+ * @throws {KernelRpcInputError} When the input is malformed.
+ * @throws {KernelRpcNetworkError}
+ * @throws {KernelRpcProtocolError}
+ * @throws {KernelRpcApiError}
+ */
+export const sessionPutProfilePicture = (
+  input: Input<typeof routes.sessionPutProfilePicture.input>,
+) => makeCall(routes.sessionPutProfilePicture, input);
 
 /**
  * Lists the immediate children of a directory in the current profile's filesystem.

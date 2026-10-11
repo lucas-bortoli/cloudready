@@ -70,7 +70,10 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             continue;
         }
         // Session endpoints establish the cookie required by every filesystem endpoint.
-        if path.starts_with("/api/session") || path == "/api/users" {
+        if path.starts_with("/api/session")
+            || path == "/api/users"
+            || path == "/api/profile-picture"
+        {
             let method = request.method().clone();
             let session_token = cookie(&request, session::COOKIE);
             let response = session_response(
@@ -249,6 +252,28 @@ fn session_response(
                 Some(clear_session_cookie()),
             ))
         }
+        (&Method::Get, "/api/profile-picture") => (|| {
+            let user = store.current(token)?;
+            let picture = store.profile_picture(user.id)?;
+            Ok((
+                Response::from_data(picture.content)
+                    .with_header(header("Content-Type", &picture.mime_type))
+                    // A browser can change profiles without changing this endpoint URL.
+                    .with_header(header("Cache-Control", "no-store"))
+                    .with_header(header("X-Content-Type-Options", "nosniff")),
+                None,
+            ))
+        })(),
+        (&Method::Put, "/api/profile-picture") => (|| {
+            let user = store.current(token)?;
+            let mut content = Vec::new();
+            // Read one extra byte so an oversized upload cannot be written to SQLite.
+            body.take(5 * 1024 * 1024 + 1)
+                .read_to_end(&mut content)
+                .map_err(|_| session::Error::InvalidProfilePicture)?;
+            let metadata = store.save_profile_picture(user.id, content)?;
+            session_json(metadata).map(|response| (response, None))
+        })(),
         _ => Ok((
             Response::from_string(r#"{"error":"Not found"}"#)
                 .with_status_code(StatusCode(404))
@@ -288,6 +313,9 @@ fn session_error_response(error: session::Error) -> Response<std::io::Cursor<Vec
         session::Error::UserNotFound => (404, "profile-not-found"),
         session::Error::SetupComplete => (409, "setup-complete"),
         session::Error::InvalidDisplayName => (400, "invalid-display-name"),
+        session::Error::InvalidProfilePicture => (400, "invalid-profile-picture"),
+        session::Error::ProfilePictureTooLarge => (413, "profile-picture-too-large"),
+        session::Error::ProfilePictureMissing => (404, "profile-picture-missing"),
         session::Error::Database(_) => (500, "server-error"),
     };
     Response::from_string(format!(

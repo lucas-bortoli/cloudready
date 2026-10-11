@@ -1,17 +1,17 @@
 import { render } from "solid-js/web";
-import App from "./App";
+import { LayerProvider } from "./components/layer-manager/LayerContext";
+import { SessionProvider } from "./components/session/SessionContext";
 import { WindowManagerProvider } from "./components/window-manager/WindowManagerContext";
-import { SessionProvider } from "./session/SessionContext";
 import "./style.css";
 
 /** Mounts the application with its window-management context. */
 render(
   () => (
-    <WindowManagerProvider>
-      <SessionProvider>
-        <App />
-      </SessionProvider>
-    </WindowManagerProvider>
+    <LayerProvider>
+      <WindowManagerProvider>
+        <SessionProvider />
+      </WindowManagerProvider>
+    </LayerProvider>
   ),
   document.getElementById("app")!,
 );

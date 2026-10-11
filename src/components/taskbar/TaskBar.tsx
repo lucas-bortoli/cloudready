@@ -4,15 +4,11 @@ import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "./CarbonIcon";
 import Clock from "./Clock";
 import StartMenu from "./StartMenu";
-import { useSession } from "../../session/SessionContext";
-import { type WindowId } from "../window-manager/WindowManager";
+import { useSession } from "../session/SessionContext";
+import type { WindowId } from "../window-manager/WindowManager";
 import { useWindowManager } from "../window-manager/WindowManagerContext";
 
-interface TaskbarProps {
-  onLaunchFiles: () => void;
-}
-
-export default function Taskbar(props: TaskbarProps) {
+export default function Taskbar() {
   const layerItem = useLayerItem("shell");
   const [isStartMenuOpen, setIsStartMenuOpen] = createSignal(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = createSignal(false);
@@ -89,7 +85,7 @@ export default function Taskbar(props: TaskbarProps) {
       </div>
       <Clock />
       <Show when={isStartMenuOpen()}>
-        <StartMenu onClose={() => setIsStartMenuOpen(false)} onLaunchFiles={props.onLaunchFiles} />
+        <StartMenu onClose={() => setIsStartMenuOpen(false)} />
       </Show>
     </section>
   );

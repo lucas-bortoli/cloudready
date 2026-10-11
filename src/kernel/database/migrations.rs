@@ -17,6 +17,11 @@ pub(super) const ALL: &[Migration] = &[
         name: "guard filesystem schema from older kernels",
         apply: guard_against_older_kernels,
     },
+    Migration {
+        version: 3,
+        name: "profile pictures",
+        apply: profile_pictures,
+    },
 ];
 
 fn initial_filesystem_schema(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
@@ -29,5 +34,12 @@ fn guard_against_older_kernels(transaction: &Transaction<'_>) -> rusqlite::Resul
         ALTER TABLE nodes RENAME TO filesystem_nodes;
         CREATE VIEW nodes AS SELECT NULL AS id WHERE 0;
         ",
+    )
+}
+
+fn profile_pictures(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
+    // A missing row deliberately represents a NULL picture, preserving existing profiles.
+    transaction.execute_batch(
+        "CREATE TABLE profile_pictures (user_id BLOB PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, mime_type TEXT NOT NULL, content BLOB NOT NULL);",
     )
 }

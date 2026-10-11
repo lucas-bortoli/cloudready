@@ -1,0 +1,21 @@
+PRIVACY POLICY
+
+CloudReady is deeply interested in your privacy, mostly because it is a very
+private matter. Your local profile, display name, and chosen picture belong to
+your little corner of this machine.
+
+We may remember the things you ask CloudReady to remember so that it can
+continue being useful. We do not peer over your shoulder, read your diary, or
+form opinions about the naming conventions of your folders. A directory called
+"final-final-really-final" is between you and history.
+
+From time to time, CloudReady may store small pieces of information so the
+world looks the same when you return. This is not surveillance. It is furniture
+placement.
+
+By continuing, you acknowledge that privacy is a shared project: we will mind
+our business, and you will try not to paste secrets into places designed for
+demonstrations. If something feels too personal, treat it as too personal.
+
+This policy may evolve as CloudReady discovers new and interesting ways to be a
+computer. Should that happen, we will endeavor to remain suitably [redacted].
