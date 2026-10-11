@@ -9,10 +9,12 @@ import { createSignal } from "solid-js";
 import Button from "../../components/button/Button";
 import CarbonIcon from "../../components/taskbar/CarbonIcon";
 import TextInput from "../../components/text-input/TextInput";
+import useWindowCloser from "../../components/window-manager/useWindowCloser";
 import PathBar from "./components/PathBar";
 
 /** Browses the local kernel filesystem and exposes common file actions. */
 export default function FileManager() {
+  useWindowCloser(() => true);
   const [path, setPath] = createSignal("/");
 
   return (
