@@ -1,4 +1,5 @@
 import { onCleanup, onMount } from "solid-js";
+import useDialog from "./components/dialog/Dialog";
 import Taskbar from "./components/taskbar/TaskBar";
 import type { WindowId } from "./components/window-manager/WindowManager";
 import { useWindowManager } from "./components/window-manager/WindowManagerContext";
@@ -35,19 +36,38 @@ export default function App() {
     openKodekai();
   });
 
+  let t: number | null = null;
+
+  const showDialog = useDialog();
+
+  onMount(() => {
+    showDialog({
+      icon: "info",
+      title: "Olá",
+      content: () => <p>Welcome to CloudReady!</p>,
+      actions: { ok: "OK" },
+    })
+      .then((r) => console.info("Dialog result:", r))
+      .catch((e) => console.warn("Dialog failed:", e));
+  });
+
   onCleanup(() => {
+    if (t !== null) {
+      clearTimeout(t);
+      t = null;
+    }
     if (windowId) {
-      windowManager.removeWindow(windowId);
+      windowManager.destroyWindow(windowId);
       windowId = undefined;
     }
     if (kodekaiWindowId) {
-      windowManager.removeWindow(kodekaiWindowId);
+      windowManager.destroyWindow(kodekaiWindowId);
       kodekaiWindowId = undefined;
     }
   });
 
   return (
-    <div x-role="desktop root" class="relative h-full w-full text-base">
+    <div x-role="desktop root" class="relative h-full w-full overflow-hidden text-base">
       <WindowsOutlet />
       <Taskbar onLaunchFiles={openFiles} />
     </div>
