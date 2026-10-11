@@ -1,7 +1,7 @@
-import { createMemo, type JSX } from "solid-js";
+import { createMemo, For, type JSX } from "solid-js";
+import type { ResizeDirection } from "./useWindowInteraction";
 
-/** A window edge or corner that can initiate a resize interaction. */
-export type ResizeDirection = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+const resizeDirections: ResizeDirection[] = ["n", "e", "s", "w", "nw", "ne", "se", "sw"];
 
 /**
  * An invisible pointer target placed over one edge or corner of a window frame.
@@ -9,7 +9,7 @@ export type ResizeDirection = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
  * @param direction Frame edge or corner controlled by this handle.
  * @param onPointerDown Starts the owning window's resize interaction.
  */
-export default function ResizeHandle(props: {
+function ResizeHandle(props: {
   direction: ResizeDirection;
   onPointerDown: (direction: ResizeDirection, event: PointerEvent) => void;
 }) {
@@ -68,5 +68,22 @@ export default function ResizeHandle(props: {
       style={style()}
       onPointerDown={(event) => props.onPointerDown(props.direction, event)}
     />
+  );
+}
+
+/**
+ * All eight invisible pointer target placed over the edges and corners of a window frame.
+ *
+ * @param onPointerDown Starts the owning window's resize interaction.
+ */
+export default function ResizeHandles(props: {
+  onResizePointerDown: (direction: ResizeDirection, event: PointerEvent) => void;
+}) {
+  return (
+    <For each={resizeDirections}>
+      {(direction) => (
+        <ResizeHandle direction={direction} onPointerDown={props.onResizePointerDown} />
+      )}
+    </For>
   );
 }

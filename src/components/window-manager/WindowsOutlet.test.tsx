@@ -172,6 +172,7 @@ describe("WindowsOutlet", () => {
       position: null,
       dock: null,
       isMinimized: false,
+      isPinned: false,
     });
 
     windowManager.setPosition(windowId, { x: 40, y: 20 });
@@ -192,12 +193,14 @@ describe("WindowsOutlet", () => {
       position: { x: 40, y: 20 },
       dock: "dock-left",
       isMinimized: true,
+      isPinned: true,
     });
 
     expect(windowManager.getWindows()[0]).toMatchObject({
       position: { x: 40, y: 20 },
       dock: "dock-left",
       isMinimized: true,
+      isPinned: true,
     });
   });
 
