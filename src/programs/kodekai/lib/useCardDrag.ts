@@ -1,4 +1,6 @@
-import { createSignal, onCleanup, type Accessor } from "solid-js";
+import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
+import { useLayerManager } from "../../../components/layer-manager/LayerContext";
+import type { LayerItem } from "../../../components/layer-manager/LayerManager";
 import type { Bucket, Card, CardId, Model } from "../model/model";
 
 const dragThreshold = 5;
@@ -44,13 +46,21 @@ interface PendingDrag {
  * every repositioned card without changing list layout during the drag.
  */
 export default function useCardDrag(options: UseCardDragOptions): CardDragController {
+  const layerManager = useLayerManager();
   const [draggingCardId, setDraggingCardId] = createSignal<CardId>();
   const [dropTarget, setDropTarget] = createSignal<DropTarget>();
+  const [draggingLayerItem, setDraggingLayerItem] = createSignal<LayerItem>();
+  const [preview, setPreview] = createSignal<HTMLLIElement>();
   const bucketLists = new Map<Bucket, HTMLUListElement>();
   let pendingDrag: PendingDrag | undefined;
-  let preview: HTMLLIElement | undefined;
   let suppressNextCardClick = false;
   let cancelCardRepositionAnimation: (() => void) | undefined;
+
+  createEffect(() => {
+    const element = preview();
+    const layerItem = draggingLayerItem();
+    if (element && layerItem) element.style.zIndex = String(layerItem.zIndex());
+  });
 
   const removeDocumentListeners = () => {
     document.removeEventListener("pointermove", onDocumentPointerMove);
@@ -144,12 +154,15 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
   const endDrag = (commit: boolean, suppressClick = false) => {
     const drag = pendingDrag;
     const target = dropTarget();
-    const previewPosition = preview?.getBoundingClientRect();
-    const wasDragging = Boolean(preview);
+    const currentPreview = preview();
+    const previewPosition = currentPreview?.getBoundingClientRect();
+    const wasDragging = Boolean(currentPreview);
 
     removeDocumentListeners();
-    preview?.remove();
-    preview = undefined;
+    currentPreview?.remove();
+    setPreview();
+    draggingLayerItem()?.dispose();
+    setDraggingLayerItem();
     pendingDrag = undefined;
     setDraggingCardId();
     setDropTarget();
@@ -174,9 +187,10 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
   };
 
   const updatePreview = (event: PointerEvent) => {
-    if (!preview || !pendingDrag) return;
-    preview.style.left = `${event.clientX - (pendingDrag.startX - pendingDrag.source.getBoundingClientRect().left)}px`;
-    preview.style.top = `${event.clientY - (pendingDrag.startY - pendingDrag.source.getBoundingClientRect().top)}px`;
+    const element = preview();
+    if (!element || !pendingDrag) return;
+    element.style.left = `${event.clientX - (pendingDrag.startX - pendingDrag.source.getBoundingClientRect().left)}px`;
+    element.style.top = `${event.clientY - (pendingDrag.startY - pendingDrag.source.getBoundingClientRect().top)}px`;
   };
 
   const updateDropTarget = (event: PointerEvent) => {
@@ -229,18 +243,21 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     if (!pendingDrag || !rootElement) return;
 
     const sourceRect = pendingDrag.source.getBoundingClientRect();
-    preview = pendingDrag.source.cloneNode(true) as HTMLLIElement;
-    preview.removeAttribute("data-kodekai-card");
-    preview.setAttribute("aria-hidden", "true");
-    preview.style.position = "fixed";
-    preview.style.zIndex = "50";
-    preview.style.width = `${sourceRect.width}px`;
-    preview.style.height = `${sourceRect.height}px`;
-    preview.style.margin = "0";
-    preview.style.pointerEvents = "none";
-    preview.style.cursor = "grabbing";
-    preview.style.opacity = "1";
-    rootElement.append(preview);
+    const sourceFont = getComputedStyle(pendingDrag.source).font;
+    const dragPreview = pendingDrag.source.cloneNode(true) as HTMLLIElement;
+    dragPreview.removeAttribute("data-kodekai-card");
+    dragPreview.setAttribute("aria-hidden", "true");
+    dragPreview.style.position = "fixed";
+    dragPreview.style.width = `${sourceRect.width}px`;
+    dragPreview.style.height = `${sourceRect.height}px`;
+    dragPreview.style.margin = "0";
+    dragPreview.style.font = sourceFont;
+    dragPreview.style.pointerEvents = "none";
+    dragPreview.style.cursor = "grabbing";
+    dragPreview.style.opacity = "1";
+    setDraggingLayerItem(layerManager.createItem("dragging-items"));
+    setPreview(dragPreview);
+    document.body.append(dragPreview);
     setDraggingCardId(pendingDrag.card.id);
     updatePreview(event);
     updateDropTarget(event);
@@ -250,7 +267,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     const drag = pendingDrag;
     if (!drag || event.pointerId !== drag.pointerId) return;
 
-    if (!preview) {
+    if (!preview()) {
       const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
       if (distance < dragThreshold) return;
       beginDragging(event);
@@ -263,7 +280,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
 
   const onDocumentPointerUp = (event: PointerEvent) => {
     if (pendingDrag?.pointerId === event.pointerId) {
-      endDrag(Boolean(preview && dropTarget()), true);
+      endDrag(Boolean(preview() && dropTarget()), true);
     }
   };
 
