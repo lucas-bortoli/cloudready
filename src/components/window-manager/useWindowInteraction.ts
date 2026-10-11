@@ -1,5 +1,5 @@
 import { batch, createSignal, onCleanup, onMount } from "solid-js";
-import { integerPixels } from "./window-layout";
+import { integerPixels, taskbarHeight } from "./window-layout";
 import type { WindowDock, WindowEntry } from "./WindowManager";
 import { useWindowManager } from "./WindowManagerContext";
 
@@ -53,13 +53,14 @@ export default function useWindowInteraction(entry: WindowEntry) {
   let clientElement: HTMLElement | undefined;
   let activePointerId: number | undefined;
   let interaction: Interaction | undefined;
+  let sizeObserver: ResizeObserver | undefined;
 
   const windowManager = useWindowManager();
   const [dockPreview, setDockPreview] = createSignal<WindowDock>(null);
 
   const dockAtPointer = (event: PointerEvent): WindowDock => {
     if (!entry.isResizable) return null;
-    if (event.clientY <= dockActivationDistance) return "dock-full";
+    if (event.clientY <= taskbarHeight + dockActivationDistance) return "dock-full";
     if (event.clientX <= dockActivationDistance) return "dock-left";
     if (event.clientX >= window.innerWidth - dockActivationDistance) return "dock-right";
     return null;
@@ -167,7 +168,7 @@ export default function useWindowInteraction(entry: WindowEntry) {
   };
 
   const onTitlebarPointerDown = (event: PointerEvent) => {
-    if (!windowElement) {
+    if (!windowElement || entry.isClosing) {
       return;
     }
 
@@ -183,6 +184,7 @@ export default function useWindowInteraction(entry: WindowEntry) {
 
       batch(() => {
         windowManager.setPosition(entry.id, position);
+        windowManager.suppressNextDockAnimation(entry.id);
         windowManager.setDock(entry.id, null);
       });
       startInteraction(event, {
@@ -201,6 +203,10 @@ export default function useWindowInteraction(entry: WindowEntry) {
       startY: event.clientY,
       startTop: windowElement.offsetTop,
       startLeft: windowElement.offsetLeft,
+    });
+    windowManager.setPosition(entry.id, {
+      x: windowElement.offsetLeft,
+      y: windowElement.offsetTop,
     });
   };
 
@@ -221,19 +227,29 @@ export default function useWindowInteraction(entry: WindowEntry) {
     });
   };
 
-  onCleanup(() => stopInteraction());
+  onCleanup(() => {
+    stopInteraction();
+    sizeObserver?.disconnect();
+    window.removeEventListener("resize", centerWindow);
+  });
 
-  onMount(() => {
-    if (!windowElement || entry.position !== null) {
-      return;
-    }
-
+  const centerWindow = () => {
+    if (!windowElement || !entry.isAutoPositioned || entry.dock || entry.isMinimized) return;
     const edgePadding = 12;
-    const usableHeight = window.innerHeight - 48;
-    windowManager.setPosition(entry.id, {
-      y: Math.max(edgePadding, Math.round((usableHeight - windowElement.offsetHeight) / 2)),
+    const usableHeight = window.innerHeight - taskbarHeight;
+    windowManager.setAutoPosition(entry.id, {
+      y: Math.max(taskbarHeight + edgePadding, Math.round(taskbarHeight + (usableHeight - windowElement.offsetHeight) / 2)),
       x: Math.max(edgePadding, Math.round((window.innerWidth - windowElement.offsetWidth) / 2)),
     });
+  };
+
+  onMount(() => {
+    centerWindow();
+    if (windowElement && typeof ResizeObserver !== "undefined") {
+      sizeObserver = new ResizeObserver(centerWindow);
+      sizeObserver.observe(windowElement);
+    }
+    window.addEventListener("resize", centerWindow);
   });
 
   return {

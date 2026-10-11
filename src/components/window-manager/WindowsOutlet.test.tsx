@@ -68,8 +68,8 @@ function renderWindow(windowCount = 1) {
   let windowManager: WindowManager | undefined;
   const dispose = render(
     () => (
-      <LayerProvider>
-        <WindowManagerProvider>
+    <LayerProvider>
+      <WindowManagerProvider>
           <TestDesktop
             onManager={(manager) => (windowManager = manager)}
             windowCount={windowCount}
@@ -229,6 +229,168 @@ describe("WindowsOutlet", () => {
     dispose();
   });
 
+  it("keeps a closing pinned window until motion completes", () => {
+    const { dispose, windowManager } = renderWindow(2);
+    const [first, second] = windowManager.getWindows();
+    windowManager.setPinned(second.id, true);
+    expect(second.zIndex()).toBeGreaterThan(first.zIndex());
+    expect(windowManager.destroyWindow(first.id)).toBe(true);
+    expect(first.isClosing).toBe(true);
+    expect(windowManager.destroyWindow(first.id)).toBe(false);
+    windowManager.finishDestroyWindow(first.id);
+    expect(windowManager.getWindows()).toHaveLength(1);
+    dispose();
+  });
+
+  it("keeps automatic placement until an explicit position is set", () => {
+    const windowManager = new WindowManager();
+    const windowId = windowManager.createWindow();
+
+    expect(windowManager.getWindows()[0].isAutoPositioned).toBe(true);
+    windowManager.setAutoPosition(windowId, { x: 100, y: 80 });
+    expect(windowManager.getWindows()[0].position).toEqual({ x: 100, y: 80 });
+
+    windowManager.setPosition(windowId, { x: 30, y: 20 });
+    windowManager.setAutoPosition(windowId, { x: 200, y: 160 });
+    expect(windowManager.getWindows()[0].position).toEqual({ x: 30, y: 20 });
+
+    windowManager.setPosition(windowId, null);
+    windowManager.setAutoPosition(windowId, { x: 200, y: 160 });
+    expect(windowManager.getWindows()[0].position).toEqual({ x: 200, y: 160 });
+  });
+
+  it("centers a rendered window and stops recentering after a drag", () => {
+    const { dispose, window, windowManager } = renderWindow();
+    const entry = windowManager.getWindows()[0];
+    expect(entry.position).toEqual({
+      x: Math.round((globalThis.window.innerWidth - window.offsetWidth) / 2),
+      y: Math.max(60, Math.round(48 + (globalThis.window.innerHeight - 48 - window.offsetHeight) / 2)),
+    });
+    expect(window.dataset.windowMotion).toBe("opening");
+
+    window
+      .querySelector<HTMLElement>('[x-role="titlebar"]')!
+      .dispatchEvent(pointerEvent("pointerdown", 100, 100));
+    document.dispatchEvent(pointerEvent("pointerup", 110, 110));
+    expect(entry.isAutoPositioned).toBe(false);
+    dispose();
+  });
+
+  it("removes a closing rendered window after its animation", () => {
+    const { dispose, window, windowManager } = renderWindow();
+    const id = windowManager.getWindows()[0].id;
+    expect(windowManager.destroyWindow(id)).toBe(true);
+    expect(window.dataset.windowMotion).toBe("closing");
+    window.dispatchEvent(new Event("animationend", { bubbles: true }));
+    expect(windowManager.getWindows()).toHaveLength(0);
+    dispose();
+  });
+
+  it("removes immediately when reduced motion is requested", () => {
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = () => ({ matches: true }) as MediaQueryList;
+    try {
+      const windowManager = new WindowManager();
+      const id = windowManager.createWindow();
+      expect(windowManager.destroyWindow(id)).toBe(true);
+      expect(windowManager.getWindows()).toHaveLength(0);
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it("keeps a minimizing frame visible until motion finishes and restores it", () => {
+    const { dispose, window, windowManager } = renderWindow();
+    const id = windowManager.getWindows()[0].id;
+    const taskbarButton = document.createElement("button");
+    taskbarButton.dataset.windowTaskbarId = id;
+    document.body.append(taskbarButton);
+    const animations: Array<{ onfinish: (() => void) | null; cancel: () => void }> = [];
+    const originalAnimate = window.animate;
+    window.animate = (() => {
+      const animation = { onfinish: null, cancel: () => undefined };
+      animations.push(animation);
+      return animation as unknown as Animation;
+    }) as typeof window.animate;
+    try {
+      windowManager.setMinimized(id, true);
+      expect(window.style.display).not.toBe("none");
+      expect(windowManager.isMinimizing(id)).toBe(true);
+      animations[0].onfinish?.();
+      expect(window.style.display).toBe("none");
+
+      windowManager.setMinimized(id, false);
+      expect(window.style.display).not.toBe("none");
+      expect(animations).toHaveLength(2);
+      animations[1].onfinish?.();
+      expect(windowManager.getWindows()[0].isMinimized).toBe(false);
+    } finally {
+      window.animate = originalAnimate;
+      taskbarButton.remove();
+      dispose();
+    }
+  });
+
+  it("morphs a docked frame and skips the morph when dragging it away", async () => {
+    const { dispose, window, windowManager } = renderWindow();
+    const id = windowManager.getWindows()[0].id;
+    const keyframes: Keyframe[][] = [];
+    const originalAnimate = window.animate;
+    const originalRect = window.getBoundingClientRect;
+    window.getBoundingClientRect = (() => ({
+      left: pixels(window.style.left),
+      top: pixels(window.style.top),
+      width: window.dataset.dock ? 500 : 402,
+      height: window.dataset.dock ? 700 : 334,
+    })) as typeof window.getBoundingClientRect;
+    window.animate = ((frames: Keyframe[]) => {
+      keyframes.push(frames);
+      return { onfinish: null, cancel: () => undefined } as unknown as Animation;
+    }) as typeof window.animate;
+    try {
+      windowManager.setDock(id, "dock-left");
+      await Promise.resolve();
+      expect(keyframes).toHaveLength(1);
+      expect(keyframes[0][0].transform).toContain("scale(");
+
+      windowManager.suppressNextDockAnimation(id);
+      windowManager.setDock(id, null);
+      await Promise.resolve();
+      expect(keyframes).toHaveLength(1);
+    } finally {
+      window.animate = originalAnimate;
+      window.getBoundingClientRect = originalRect;
+      dispose();
+    }
+  });
+
+  it("changes minimize and dock state immediately with reduced motion", async () => {
+    const { dispose, window, windowManager } = renderWindow();
+    const id = windowManager.getWindows()[0].id;
+    const originalMatchMedia = globalThis.window.matchMedia;
+    const originalAnimate = window.animate;
+    let calls = 0;
+    globalThis.window.matchMedia = () => ({ matches: true }) as MediaQueryList;
+    window.animate = (() => {
+      calls += 1;
+      return { cancel: () => undefined } as unknown as Animation;
+    }) as typeof window.animate;
+    try {
+      windowManager.setMinimized(id, true);
+      expect(window.style.display).toBe("none");
+      windowManager.setMinimized(id, false);
+      windowManager.setDock(id, "dock-full");
+      await Promise.resolve();
+      expect(window.style.display).not.toBe("none");
+      expect(windowManager.getWindows()[0].dock).toBe("dock-full");
+      expect(calls).toBe(0);
+    } finally {
+      globalThis.window.matchMedia = originalMatchMedia;
+      window.animate = originalAnimate;
+      dispose();
+    }
+  });
+
   it("uses the requested size for the client area, excluding the frame", () => {
     const { client, dispose, window } = renderWindow();
 
@@ -359,6 +521,7 @@ describe("WindowsOutlet", () => {
     document.dispatchEvent(pointerEvent("pointerup", 0, 100));
 
     expect(window.style.right).toBe("50%");
+    expect(window.style.top).toBe("0px");
     expect(window.style.bottom).toBe("48px");
     expect(document.querySelector('[x-role="dock preview"]')).toBeNull();
     expect(windowManager.getWindows()[0]).toMatchObject({

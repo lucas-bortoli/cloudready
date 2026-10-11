@@ -3,6 +3,7 @@
 import { onMount } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it } from "vitest";
+import { LayerProvider } from "../layer-manager/LayerContext";
 import WindowManager from "../window-manager/WindowManager";
 import { WindowManagerProvider, useWindowManager } from "../window-manager/WindowManagerContext";
 import WindowsOutlet from "../window-manager/WindowsOutlet";
@@ -43,12 +44,14 @@ function renderDialog() {
   let windowManager: WindowManager | undefined;
   const dispose = render(
     () => (
-      <WindowManagerProvider>
-        <DialogLauncher
-          onDialogCreated={(createdDialog) => (dialog = createdDialog)}
-          onWindowManager={(manager) => (windowManager = manager)}
-        />
-      </WindowManagerProvider>
+      <LayerProvider>
+        <WindowManagerProvider>
+          <DialogLauncher
+            onDialogCreated={(createdDialog) => (dialog = createdDialog)}
+            onWindowManager={(manager) => (windowManager = manager)}
+          />
+        </WindowManagerProvider>
+      </LayerProvider>
     ),
     container,
   );

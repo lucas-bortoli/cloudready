@@ -1,4 +1,4 @@
-import { Show, untrack } from "solid-js";
+import { createSignal, onCleanup, Show, untrack } from "solid-js";
 import focusTrap from "../../lib/focus-trap";
 import { CurrentWindowProvider } from "./CurrentWindowContext";
 import DockPreview from "./DockPreview";
@@ -6,6 +6,7 @@ import ResizeHandles from "./ResizeHandles";
 import Titlebar from "./Titlebar";
 import useWindowInteraction from "./useWindowInteraction";
 import { getFrameStyle, getWindowStyle, integerPixels } from "./window-layout";
+import "./Window.css";
 import type { WindowDock, WindowEntry } from "./WindowManager";
 import { useWindowManager } from "./WindowManagerContext";
 
@@ -26,17 +27,38 @@ export default function Window(props: { entry: WindowEntry }) {
     event.preventDefault();
     windowManager.setDock(props.entry.id, dock as WindowDock);
   };
+  const [hasOpened, setHasOpened] = createSignal(false);
+  onCleanup(() => windowManager.motion.unregisterFrame(props.entry.id));
+
+  const handleAnimationEnd = (event: AnimationEvent) => {
+    if (event.target !== event.currentTarget) return;
+    if (props.entry.isClosing) windowManager.finishDestroyWindow(props.entry.id);
+    else setHasOpened(true);
+  };
 
   return (
     <div
       x-role="window"
-      ref={interaction.setWindowElement}
-      class="group/window absolute box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl"
+      ref={(element) => {
+        interaction.setWindowElement(element);
+        windowManager.motion.registerFrame(props.entry.id, element);
+      }}
+      class="group/window absolute box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl outline-none"
       data-dock={props.entry.dock ?? undefined}
+      data-window-motion={
+        props.entry.isClosing
+          ? "closing"
+          : !props.entry.dock && props.entry.position === null && props.entry.isAutoPositioned
+            ? "pending"
+            : hasOpened()
+              ? "idle"
+              : "opening"
+      }
       style={{ ...getWindowStyle(props.entry), ...getFrameStyle(props.entry.dock), "z-index": props.entry.zIndex() }}
       tabIndex={-1}
       onPointerDown={handlePointerDown}
       onKeyDown={handleKeyDown}
+      onAnimationEnd={handleAnimationEnd}
     >
       <Titlebar entry={props.entry} onPointerDown={interaction.onTitlebarPointerDown} />
       <main
