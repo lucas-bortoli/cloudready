@@ -1,12 +1,5 @@
 import type { Uuid } from "../lib/uuid";
-import {
-  createKernelRpcApiError,
-  KernelRpcEntryConflictError,
-  KernelRpcEntryNotFoundError,
-  KernelRpcInvalidOperationError,
-  KernelRpcInvalidPathError,
-  KernelRpcInvalidRangeError,
-} from "../lib/kernel-rpc";
+import { KernelRpcApiError } from "../lib/kernel-rpc";
 import {
   FileSystemEntryConflictError,
   FileSystemEntryNotFoundError,
@@ -389,27 +382,22 @@ export class FileSystemClient {
         } catch {
           throw new FileSystemServerError(message, response.status);
         }
-        const kernelError = createKernelRpcApiError(
-          message,
-          response.status,
-          code ?? "server-error",
-        );
-        if (kernelError instanceof KernelRpcInvalidPathError)
-          throw new InvalidFileSystemPathError(message);
-        if (kernelError instanceof KernelRpcInvalidRangeError)
-          throw new InvalidFileRangeError(message);
-        if (kernelError instanceof KernelRpcEntryNotFoundError)
-          throw new FileSystemEntryNotFoundError(message);
-        if (kernelError instanceof KernelRpcEntryConflictError)
-          throw new FileSystemEntryConflictError(message);
-        if (kernelError instanceof KernelRpcInvalidOperationError)
-          throw new InvalidFileSystemOperationError(message);
-        throw new FileSystemServerError(kernelError.message, kernelError.status, {
-          cause: kernelError,
-        });
+        throw new KernelRpcApiError(message, response.status, code ?? "server-error");
       }
       return response;
     } catch (error) {
+      if (error instanceof KernelRpcApiError && error.code === "invalid-path")
+        throw new InvalidFileSystemPathError(error.message, { cause: error });
+      if (error instanceof KernelRpcApiError && error.code === "invalid-range")
+        throw new InvalidFileRangeError(error.message, { cause: error });
+      if (error instanceof KernelRpcApiError && error.code === "entry-not-found")
+        throw new FileSystemEntryNotFoundError(error.message, { cause: error });
+      if (error instanceof KernelRpcApiError && error.code === "entry-conflict")
+        throw new FileSystemEntryConflictError(error.message, { cause: error });
+      if (error instanceof KernelRpcApiError && error.code === "invalid-operation")
+        throw new InvalidFileSystemOperationError(error.message, { cause: error });
+      if (error instanceof KernelRpcApiError)
+        throw new FileSystemServerError(error.message, error.status, { cause: error });
       if (
         error instanceof FileSystemNetworkError ||
         error instanceof FileSystemProtocolError ||
