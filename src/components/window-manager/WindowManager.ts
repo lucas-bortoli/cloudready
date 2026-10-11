@@ -115,11 +115,11 @@ export default class WindowManager {
   }
 
   /**
-   * Removes a window by ID.
+   * Destroys a window by ID without consulting its closer.
    * @param windowId The ID of the window to remove.
    * @returns Whether a window was removed.
    */
-  public removeWindow(windowId: WindowId): boolean {
+  public destroyWindow(windowId: WindowId): boolean {
     const windowIndex = this.getWindows().findIndex((window) => window.id === windowId);
 
     if (windowIndex < 0) {
