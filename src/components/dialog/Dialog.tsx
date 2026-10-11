@@ -129,7 +129,7 @@ export default function useDialog() {
   function handleConfirm(id: DialogId, action: string) {
     const dialog = dialogs().get(id)!;
     dialog.deferred.resolve(action);
-    windowManager.finishDestroyWindow(dialog.windowId);
+    windowManager.destroyWindow(dialog.windowId);
     setDialogs((old) => {
       const newMap = new Map(old);
       if (newMap.has(id)) newMap.delete(id);
@@ -141,7 +141,7 @@ export default function useDialog() {
   function handleCancel(id: DialogId) {
     const dialog = dialogs().get(id)!;
     dialog.deferred.reject(RejectReasonDialogCancelled);
-    windowManager.finishDestroyWindow(dialog.windowId);
+    windowManager.destroyWindow(dialog.windowId);
     setDialogs((old) => {
       const newMap = new Map(old);
       if (newMap.has(id)) newMap.delete(id);

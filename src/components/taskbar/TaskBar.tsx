@@ -1,10 +1,12 @@
 import Apps16 from "@carbon/icons/es/apps/16.js";
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { useLayerItem } from "../layer-manager/LayerContext";
 import CarbonIcon from "./CarbonIcon";
 import Clock from "./Clock";
 import StartMenu from "./StartMenu";
 import { useSession } from "../../session/SessionContext";
+import { type WindowId } from "../window-manager/WindowManager";
+import { useWindowManager } from "../window-manager/WindowManagerContext";
 
 interface TaskbarProps {
   onLaunchFiles: () => void;
@@ -15,7 +17,19 @@ export default function Taskbar(props: TaskbarProps) {
   const [isStartMenuOpen, setIsStartMenuOpen] = createSignal(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = createSignal(false);
   const session = useSession();
+  const windowManager = useWindowManager();
 
+  const handleWindowButton = (windowId: WindowId) => {
+    const window = windowManager.getWindows().find((w) => w.id === windowId);
+    if (!window) return;
+
+    if (window.isMinimized || windowManager.motion.isMinimizing(windowId)) {
+      windowManager.setMinimized(windowId, false);
+      windowManager.bringToTop(windowId);
+    } else if (window.isMinimizable) {
+      windowManager.setMinimized(windowId, true);
+    }
+  };
   return (
     <section
       x-role="taskbar"
@@ -34,7 +48,20 @@ export default function Taskbar(props: TaskbarProps) {
         </span>
         Apps
       </button>
-      <section x-role="window list" />
+      <section x-role="window list">
+        <For
+          each={windowManager.getWindows()}
+          children={(window) => (
+            <button
+              data-window-taskbar-id={window.id}
+              class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-neutral-800 px-3 transition-colors hover:bg-neutral-700"
+              onClick={handleWindowButton.bind(null, window.id)}
+            >
+              {window.title}
+            </button>
+          )}
+        />
+      </section>
       <div class="relative">
         <button
           aria-expanded={isAccountMenuOpen()}

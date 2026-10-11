@@ -184,7 +184,7 @@ export default function useWindowInteraction(entry: WindowEntry) {
 
       batch(() => {
         windowManager.setPosition(entry.id, position);
-        windowManager.suppressNextDockAnimation(entry.id);
+        windowManager.motion.suppressNextDockAnimation(entry.id);
         windowManager.setDock(entry.id, null);
       });
       startInteraction(event, {
@@ -211,10 +211,17 @@ export default function useWindowInteraction(entry: WindowEntry) {
   };
 
   const onResizePointerDown = (direction: ResizeDirection, event: PointerEvent) => {
-    if (!entry.isResizable || entry.dock || !windowElement || !clientElement) {
+    if (
+      !entry.isResizable ||
+      entry.dock ||
+      !windowElement ||
+      !clientElement ||
+      activePointerId !== undefined
+    ) {
       return;
     }
 
+    const position = { x: windowElement.offsetLeft, y: windowElement.offsetTop };
     startInteraction(event, {
       type: "resize",
       ...resizeAxes[direction],
@@ -225,6 +232,8 @@ export default function useWindowInteraction(entry: WindowEntry) {
       startWidth: clientElement.clientWidth,
       startHeight: clientElement.clientHeight,
     });
+    /* Resizing makes the rendered position explicit so later size changes do not recenter it. */
+    windowManager.setPosition(entry.id, position);
   };
 
   onCleanup(() => {

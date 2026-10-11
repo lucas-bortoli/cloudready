@@ -315,7 +315,7 @@ describe("WindowsOutlet", () => {
     try {
       windowManager.setMinimized(id, true);
       expect(window.style.display).not.toBe("none");
-      expect(windowManager.isMinimizing(id)).toBe(true);
+      expect(windowManager.motion.isMinimizing(id)).toBe(true);
       animations[0].onfinish?.();
       expect(window.style.display).toBe("none");
 
@@ -353,7 +353,7 @@ describe("WindowsOutlet", () => {
       expect(keyframes).toHaveLength(1);
       expect(keyframes[0][0].transform).toContain("scale(");
 
-      windowManager.suppressNextDockAnimation(id);
+      windowManager.motion.suppressNextDockAnimation(id);
       windowManager.setDock(id, null);
       await Promise.resolve();
       expect(keyframes).toHaveLength(1);
@@ -434,6 +434,29 @@ describe("WindowsOutlet", () => {
 
     dispose();
   });
+
+  it.each(["e", "nw"] as const)(
+    "keeps an auto-placed window anchored while resizing from %s",
+    (direction) => {
+      const { dispose, window, windowManager } = renderWindow();
+      const entry = windowManager.getWindows()[0];
+      const start = { ...entry.position! };
+      const handle = window.querySelectorAll<HTMLElement>('[x-role="resize handle"]')[
+        HANDLE_DIRECTIONS.indexOf(direction)
+      ];
+
+      handle.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+      expect(entry.isAutoPositioned).toBe(false);
+      document.dispatchEvent(pointerEvent("pointermove", 120, 120));
+      globalThis.window.dispatchEvent(new Event("resize"));
+
+      expect(entry.position).toEqual(start);
+      expect(window.offsetLeft).toBe(start.x + (direction === "nw" ? 20 : 0));
+      document.dispatchEvent(pointerEvent("pointerup", 120, 120));
+      expect(entry.position).toEqual({ x: window.offsetLeft, y: window.offsetTop });
+      dispose();
+    },
+  );
 
   it("clamps the resized client area to its client minimum", () => {
     const { dispose, window, windowManager } = renderWindow();
