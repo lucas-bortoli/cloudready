@@ -88,7 +88,7 @@ export default function Titlebar(props: {
             onClick={() => {
               const closer = props.entry.closer;
 
-              if (closer?.()) windowManager.removeWindow(props.entry.id);
+              if (closer?.()) windowManager.destroyWindow(props.entry.id);
             }}
           >
             <CarbonIcon icon={Close16} />
