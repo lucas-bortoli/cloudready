@@ -7,6 +7,7 @@ use uuid::Uuid;
 mod chromium;
 mod database;
 mod filesystem;
+mod session;
 
 // The build script enables this module only for release builds.
 #[cfg(embedded_frontend)]
@@ -19,7 +20,6 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let server = Server::http(&address)?;
     let database_path = database_path()?;
     let database = database::Database::open(&database_path)?;
-    let mut filesystem = filesystem::FileSystem::new(&database);
     println!("Listening on http://{}", server.server_addr());
     // Debug kernels are paired with Vite; release kernels serve the embedded frontend.
     #[cfg(not(embedded_frontend))]
@@ -49,19 +49,42 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
         if path.starts_with("/api/fs/") {
             let method = request.method().clone();
-            let response = filesystem_response(
-                &mut filesystem,
+            // Filesystem instances receive the server-authenticated owner ID, never a client ID.
+            // This keeps path traversal, revisions, and deleted entries inside one profile namespace.
+            let response = match session::SessionStore::new(&database)
+                .current(cookie(&request, session::COOKIE).as_deref())
+            {
+                Ok(user) => filesystem_response(
+                    &database,
+                    user.id,
+                    &method,
+                    &path,
+                    &url,
+                    &mut request.as_reader(),
+                ),
+                Err(error) => session_error_response(error),
+            };
+            if let Err(error) = request.respond(response) {
+                eprintln!("Failed to send response: {error}");
+            }
+            continue;
+        }
+        // Session endpoints establish the cookie required by every filesystem endpoint.
+        if path.starts_with("/api/session") || path == "/api/users" {
+            let method = request.method().clone();
+            let session_token = cookie(&request, session::COOKIE);
+            let response = session_response(
+                &database,
                 &method,
                 &path,
-                &url,
                 &mut request.as_reader(),
+                session_token.as_deref(),
             );
             if let Err(error) = request.respond(response) {
                 eprintln!("Failed to send response: {error}");
             }
             continue;
         }
-        // Distinguish unsupported methods on known endpoints from unknown routes.
         let (status, body) = match (request.method(), path.as_str()) {
             (&Method::Get, "/api/health") => (200, r#"{"status":"ok"}"#),
             (&Method::Get, "/api/hello") => (200, r#"{"message":"Hello from Rust!"}"#),
@@ -102,12 +125,14 @@ fn database_path() -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> 
 }
 
 fn filesystem_response(
-    fs: &mut filesystem::FileSystem,
+    database: &database::Database,
+    user_id: Uuid,
     method: &Method,
     path: &str,
     url: &str,
     body: &mut impl Read,
 ) -> Response<std::io::Cursor<Vec<u8>>> {
+    let mut fs = filesystem::FileSystem::new(database, user_id);
     let query = query(url);
     let result: Result<Response<std::io::Cursor<Vec<u8>>>, filesystem::Error> =
         (|| match (method, path) {
@@ -182,6 +207,128 @@ fn filesystem_response(
     }
 }
 
+fn session_response(
+    database: &database::Database,
+    method: &Method,
+    path: &str,
+    body: &mut impl Read,
+    token: Option<&str>,
+) -> Response<std::io::Cursor<Vec<u8>>> {
+    let store = session::SessionStore::new(database);
+
+    // Keep session transport in one match so success and error responses share one wire format.
+    let result = match (method, path) {
+        (&Method::Get, "/api/session") => store
+            .current(token)
+            .and_then(|user| session_json(user).map(|response| (response, None))),
+        (&Method::Get, "/api/users") => store
+            .users()
+            .and_then(|users| session_json(users).map(|response| (response, None))),
+        (&Method::Post, "/api/users") => (|| {
+            // The store enforces that this can succeed only during first-run setup.
+            let input: CreateUserInput = read_session_json(body)?;
+            let user = store.create_first_user(&input.display_name)?;
+            let (user, token) = store.start(user.id)?;
+            Ok((session_json(user)?, Some(session_cookie(&token))))
+        })(),
+        (&Method::Post, "/api/session") => (|| {
+            let input: StartSessionInput = read_session_json(body)?;
+            let user_id =
+                Uuid::parse_str(&input.user_id).map_err(|_| session::Error::UserNotFound)?;
+            let (user, token) = store.start(user_id)?;
+            Ok((session_json(user)?, Some(session_cookie(&token))))
+        })(),
+        (&Method::Delete, "/api/session") => {
+            // Sign-out should still clear the browser cookie if its server record is already gone.
+            if let Some(token) = token {
+                let _ = store.end(token);
+            }
+            Ok((
+                Response::from_string(r#"{"ok":true}"#)
+                    .with_header(header("Content-Type", "application/json; charset=utf-8")),
+                Some(clear_session_cookie()),
+            ))
+        }
+        _ => Ok((
+            Response::from_string(r#"{"error":"Not found"}"#)
+                .with_status_code(StatusCode(404))
+                .with_header(header("Content-Type", "application/json; charset=utf-8")),
+            None,
+        )),
+    };
+    match result {
+        Ok((mut response, cookie)) => {
+            if let Some(cookie) = cookie {
+                response.add_header(header("Set-Cookie", &cookie));
+            }
+            response
+        }
+        Err(error) => session_error_response(error),
+    }
+}
+
+fn session_json(
+    value: impl serde::Serialize,
+) -> session::Result<Response<std::io::Cursor<Vec<u8>>>> {
+    Ok(Response::from_string(
+        serde_json::to_string(&value).map_err(|_| session::Error::InvalidDisplayName)?,
+    )
+    .with_header(header("Content-Type", "application/json; charset=utf-8")))
+}
+
+fn read_session_json<T: for<'de> Deserialize<'de>>(body: &mut impl Read) -> session::Result<T> {
+    serde_json::from_reader(body).map_err(|_| session::Error::InvalidDisplayName)
+}
+
+fn session_error_response(error: session::Error) -> Response<std::io::Cursor<Vec<u8>>> {
+    // These codes are the stable boundary consumed by SessionClient's named error classes.
+    let (status, code) = match error {
+        session::Error::Missing => (401, "session-missing"),
+        session::Error::Expired => (401, "session-expired"),
+        session::Error::UserNotFound => (404, "profile-not-found"),
+        session::Error::SetupComplete => (409, "setup-complete"),
+        session::Error::InvalidDisplayName => (400, "invalid-display-name"),
+        session::Error::Database(_) => (500, "server-error"),
+    };
+    Response::from_string(format!(
+        r#"{{"error":{{"code":{},"message":{}}}}}"#,
+        serde_json::to_string(code).unwrap(),
+        serde_json::to_string(&error.to_string()).unwrap()
+    ))
+    .with_status_code(StatusCode(status))
+    .with_header(header("Content-Type", "application/json; charset=utf-8"))
+}
+
+fn session_cookie(token: &str) -> String {
+    // JavaScript cannot read this HttpOnly cookie; the browser attaches it only to same-site calls.
+    format!(
+        "{}={}; Path=/; Max-Age={}; HttpOnly; SameSite=Strict",
+        session::COOKIE,
+        token,
+        30 * 24 * 60 * 60
+    )
+}
+fn clear_session_cookie() -> String {
+    format!(
+        "{}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict",
+        session::COOKIE
+    )
+}
+fn cookie(request: &tiny_http::Request, name: &str) -> Option<String> {
+    request
+        .headers()
+        .iter()
+        .find(|header| header.field.equiv("Cookie"))
+        .and_then(|header| {
+            header.value.as_str().split(';').find_map(|part| {
+                part.trim()
+                    .split_once('=')
+                    .filter(|(key, _)| *key == name)
+                    .map(|(_, value)| value.to_owned())
+            })
+        })
+}
+
 fn json(value: impl serde::Serialize) -> filesystem::Result<Response<std::io::Cursor<Vec<u8>>>> {
     Ok(Response::from_string(
         serde_json::to_string(&value).map_err(|_| filesystem::Error::Invalid)?,
@@ -207,12 +354,12 @@ fn error_response(error: filesystem::Error) -> Response<std::io::Cursor<Vec<u8>>
 }
 fn error_code(error: &filesystem::Error) -> &'static str {
     match error {
-        filesystem::Error::Invalid => "invalid_path",
-        filesystem::Error::InvalidRange => "invalid_range",
-        filesystem::Error::NotFound => "entry_not_found",
-        filesystem::Error::Conflict => "entry_conflict",
-        filesystem::Error::InvalidOperation => "invalid_operation",
-        filesystem::Error::Database(_) | filesystem::Error::Io(_) => "server_error",
+        filesystem::Error::Invalid => "invalid-path",
+        filesystem::Error::InvalidRange => "invalid-range",
+        filesystem::Error::NotFound => "entry-not-found",
+        filesystem::Error::Conflict => "entry-conflict",
+        filesystem::Error::InvalidOperation => "invalid-operation",
+        filesystem::Error::Database(_) | filesystem::Error::Io(_) => "server-error",
     }
 }
 fn header(name: &str, value: &str) -> Header {
@@ -298,4 +445,12 @@ struct RevisionInput {
 #[derive(Deserialize)]
 struct DeletionInput {
     deletion_id: String,
+}
+#[derive(Deserialize)]
+struct CreateUserInput {
+    display_name: String,
+}
+#[derive(Deserialize)]
+struct StartSessionInput {
+    user_id: String,
 }

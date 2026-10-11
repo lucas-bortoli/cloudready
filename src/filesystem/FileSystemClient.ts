@@ -1,5 +1,13 @@
 import type { Uuid } from "../lib/uuid";
 import {
+  createKernelRpcApiError,
+  KernelRpcEntryConflictError,
+  KernelRpcEntryNotFoundError,
+  KernelRpcInvalidOperationError,
+  KernelRpcInvalidPathError,
+  KernelRpcInvalidRangeError,
+} from "../lib/kernel-rpc";
+import {
   FileSystemEntryConflictError,
   FileSystemEntryNotFoundError,
   FileSystemNetworkError,
@@ -381,20 +389,24 @@ export class FileSystemClient {
         } catch {
           throw new FileSystemServerError(message, response.status);
         }
-        switch (code) {
-          case "invalid_path":
-            throw new InvalidFileSystemPathError(message);
-          case "invalid_range":
-            throw new InvalidFileRangeError(message);
-          case "entry_not_found":
-            throw new FileSystemEntryNotFoundError(message);
-          case "entry_conflict":
-            throw new FileSystemEntryConflictError(message);
-          case "invalid_operation":
-            throw new InvalidFileSystemOperationError(message);
-          default:
-            throw new FileSystemServerError(message, response.status);
-        }
+        const kernelError = createKernelRpcApiError(
+          message,
+          response.status,
+          code ?? "server-error",
+        );
+        if (kernelError instanceof KernelRpcInvalidPathError)
+          throw new InvalidFileSystemPathError(message);
+        if (kernelError instanceof KernelRpcInvalidRangeError)
+          throw new InvalidFileRangeError(message);
+        if (kernelError instanceof KernelRpcEntryNotFoundError)
+          throw new FileSystemEntryNotFoundError(message);
+        if (kernelError instanceof KernelRpcEntryConflictError)
+          throw new FileSystemEntryConflictError(message);
+        if (kernelError instanceof KernelRpcInvalidOperationError)
+          throw new InvalidFileSystemOperationError(message);
+        throw new FileSystemServerError(kernelError.message, kernelError.status, {
+          cause: kernelError,
+        });
       }
       return response;
     } catch (error) {
