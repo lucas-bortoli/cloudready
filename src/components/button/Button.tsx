@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import { splitProps, type JSX } from "solid-js";
 import { cn } from "../../lib/dom";
 
 /** Visual emphasis applied to a {@link Button}. */
@@ -71,22 +71,24 @@ export type ButtonProps = ButtonCommonProps & {
  * forwarded only when a caller supplies it. This component never throws.
  */
 export default function Button(props: ButtonProps) {
-  const {
-    "aria-label": ariaLabel,
-    children,
-    class: className,
-    disabled = false,
-    endIcon,
-    loading = false,
-    onClick,
-    startIcon,
-    title,
-    type = "button",
-    variant = "secondary",
-    "x-role": xRole,
-    ...nativeProps
-  } = props;
-  const isInactive = () => disabled || loading;
+  const [button, nativeProps] = splitProps(props, [
+    "aria-label",
+    "children",
+    "class",
+    "disabled",
+    "endIcon",
+    "loading",
+    "onClick",
+    "startIcon",
+    "title",
+    "type",
+    "variant",
+    "x-role",
+  ]);
+  const isDisabled = () => button.disabled ?? false;
+  const isLoading = () => button.loading ?? false;
+  const isInactive = () => isDisabled() || isLoading();
+  const variant = () => button.variant ?? "secondary";
 
   const handleClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (event) => {
     // Unlike native disabled buttons, inactive buttons remain reachable by keyboard navigation.
@@ -95,47 +97,47 @@ export default function Button(props: ButtonProps) {
       return;
     }
 
-    onClick?.(event);
+    button.onClick?.(event);
   };
 
   return (
     <button
       {...nativeProps}
-      aria-busy={loading || undefined}
+      aria-busy={isLoading() || undefined}
       aria-disabled={isInactive() || undefined}
-      aria-label={ariaLabel ?? title}
+      aria-label={button["aria-label"] ?? button.title}
       class={cn(
         "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xs font-medium shadow transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
-        variant === "primary" &&
+        variant() === "primary" &&
           "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700 focus:bg-neutral-700 active:bg-neutral-900",
-        variant === "secondary" &&
+        variant() === "secondary" &&
           "border border-neutral-400 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 focus:bg-neutral-200 active:bg-neutral-300",
-        variant === "ghost" &&
+        variant() === "ghost" &&
           "border border-transparent bg-transparent text-neutral-700 shadow-none hover:bg-neutral-100 focus:bg-neutral-100 active:bg-neutral-200",
-        variant === "danger" &&
+        variant() === "danger" &&
           "border border-neutral-400 bg-neutral-100 text-neutral-800 hover:border-red-400 hover:bg-red-50 hover:text-red-700 focus:border-red-400 focus:bg-red-50 focus:text-red-700 active:bg-red-100",
         "h-7 gap-1.5 px-4",
-        className,
+        button.class,
       )}
-      title={title}
-      type={type}
-      x-role={xRole}
+      title={button.title}
+      type={button.type ?? "button"}
+      x-role={button["x-role"]}
       onClick={handleClick}
     >
-      <span class={loading ? "invisible contents" : "contents"}>
-        {startIcon && (
+      <span class={isLoading() ? "invisible contents" : "contents"}>
+        {button.startIcon && (
           <span aria-hidden="true" class="inline-flex shrink-0">
-            {startIcon}
+            {button.startIcon}
           </span>
         )}
-        {children}
-        {endIcon && (
+        {button.children}
+        {button.endIcon && (
           <span aria-hidden="true" class="inline-flex shrink-0">
-            {endIcon}
+            {button.endIcon}
           </span>
         )}
       </span>
-      {loading && (
+      {isLoading() && (
         <svg
           aria-hidden="true"
           class="absolute size-4 animate-spin"

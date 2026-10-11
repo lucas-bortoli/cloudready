@@ -9,30 +9,50 @@ use crate::database::Database;
 /// The browser cookie contains only an opaque session token, never user data.
 pub const COOKIE: &str = "cloudready_session";
 const LIFETIME: i64 = 30 * 24 * 60 * 60 * 1000;
+const MAX_PROFILE_PICTURE_BYTES: usize = 5 * 1024 * 1024;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("no active session")]
+    #[error("No active session")]
     Missing,
-    #[error("session has expired")]
+    #[error("Session has expired")]
     Expired,
-    #[error("profile was not found")]
+    #[error("Profile was not found")]
     UserNotFound,
-    #[error("initial setup has already completed")]
+    #[error("Initial setup has already completed")]
     SetupComplete,
-    #[error("display name is invalid")]
+    #[error("Display name is invalid")]
     InvalidDisplayName,
+    #[error("Profile picture is not a supported image")]
+    InvalidProfilePicture,
+    #[error("Profile picture exceeds the 5 MiB limit")]
+    ProfilePictureTooLarge,
+    #[error("Profile picture was not found")]
+    ProfilePictureMissing,
     #[error(transparent)]
     Database(#[from] rusqlite::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct User {
     pub id: Uuid,
     pub display_name: String,
     pub created_at: i64,
+    pub profile_picture: Option<ProfilePictureMetadata>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProfilePictureMetadata {
+    pub mime_type: String,
+    pub size: u64,
+}
+
+#[derive(Debug)]
+pub struct ProfilePicture {
+    pub mime_type: String,
+    pub content: Vec<u8>,
 }
 
 /// Owns profile selection and durable browser-session records.
@@ -50,7 +70,7 @@ impl<'a> SessionStore<'a> {
         let mut statement = self
             .database
             .connection()
-            .prepare("SELECT id, display_name, created_at FROM users ORDER BY created_at")?;
+            .prepare("SELECT u.id, u.display_name, u.created_at, p.mime_type, length(p.content) FROM users u LEFT JOIN profile_pictures p ON p.user_id = u.id ORDER BY u.created_at")?;
         statement
             .query_map([], user)?
             .collect::<std::result::Result<Vec<_>, _>>()
@@ -75,6 +95,7 @@ impl<'a> SessionStore<'a> {
             id: Uuid::new_v4(),
             display_name,
             created_at: now(),
+            profile_picture: None,
         };
         transaction.execute(
             "INSERT INTO users(id,display_name,created_at) VALUES (?1,?2,?3)",
@@ -108,16 +129,17 @@ impl<'a> SessionStore<'a> {
     /// Resolves a browser token, removing expired records when they are encountered.
     pub fn current(&self, token: Option<&str>) -> Result<User> {
         let token = token.ok_or(Error::Missing)?;
-        let row: Option<(Vec<u8>, String, i64, i64)> = self
+        let row: Option<(Vec<u8>, String, i64, Option<String>, Option<i64>, i64)> = self
             .database
             .connection()
             .query_row(
-                "SELECT u.id,u.display_name,u.created_at,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_digest=?1",
+                "SELECT u.id,u.display_name,u.created_at,p.mime_type,length(p.content),s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN profile_pictures p ON p.user_id=u.id WHERE s.token_digest=?1",
                 params![digest(token)],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
             )
             .optional()?;
-        let (id, display_name, created_at, expires_at) = row.ok_or(Error::Missing)?;
+        let (id, display_name, created_at, mime_type, size, expires_at) =
+            row.ok_or(Error::Missing)?;
 
         // The kernel enforces expiry instead of trusting the cookie Max-Age alone.
         if expires_at <= now() {
@@ -129,7 +151,54 @@ impl<'a> SessionStore<'a> {
             id: Uuid::from_slice(&id).map_err(|_| rusqlite::Error::InvalidQuery)?,
             display_name,
             created_at,
+            profile_picture: picture_metadata(mime_type, size)?,
         })
+    }
+
+    /// Replaces a profile's image after validating that its bytes are a supported raster image.
+    pub fn save_profile_picture(
+        &self,
+        user_id: Uuid,
+        content: Vec<u8>,
+    ) -> Result<ProfilePictureMetadata> {
+        if content.len() > MAX_PROFILE_PICTURE_BYTES {
+            return Err(Error::ProfilePictureTooLarge);
+        }
+        let mime_type = infer::get(&content)
+            .map(|kind| kind.mime_type())
+            .filter(|mime_type| {
+                matches!(
+                    *mime_type,
+                    "image/jpeg" | "image/png" | "image/gif" | "image/webp"
+                )
+            })
+            .ok_or(Error::InvalidProfilePicture)?;
+        self.database.connection().execute(
+            "INSERT INTO profile_pictures(user_id,mime_type,content) VALUES (?1,?2,?3) ON CONFLICT(user_id) DO UPDATE SET mime_type=excluded.mime_type,content=excluded.content",
+            params![user_id.as_bytes(), mime_type, content],
+        )?;
+        Ok(ProfilePictureMetadata {
+            mime_type: mime_type.into(),
+            size: content.len() as u64,
+        })
+    }
+
+    /// Loads the current image for an authenticated profile.
+    pub fn profile_picture(&self, user_id: Uuid) -> Result<ProfilePicture> {
+        self.database
+            .connection()
+            .query_row(
+                "SELECT mime_type, content FROM profile_pictures WHERE user_id=?1",
+                params![user_id.as_bytes()],
+                |row| {
+                    Ok(ProfilePicture {
+                        mime_type: row.get(0)?,
+                        content: row.get(1)?,
+                    })
+                },
+            )
+            .optional()?
+            .ok_or(Error::ProfilePictureMissing)
     }
 
     /// Revokes a token immediately; deleting an absent token is harmless.
@@ -145,7 +214,7 @@ impl<'a> SessionStore<'a> {
         self.database
             .connection()
             .query_row(
-                "SELECT id,display_name,created_at FROM users WHERE id=?1",
+                "SELECT u.id,u.display_name,u.created_at,p.mime_type,length(p.content) FROM users u LEFT JOIN profile_pictures p ON p.user_id=u.id WHERE u.id=?1",
                 params![id.as_bytes()],
                 user,
             )
@@ -160,7 +229,22 @@ fn user(row: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
             .map_err(|_| rusqlite::Error::InvalidQuery)?,
         display_name: row.get(1)?,
         created_at: row.get(2)?,
+        profile_picture: picture_metadata(row.get(3)?, row.get(4)?)?,
     })
+}
+
+fn picture_metadata(
+    mime_type: Option<String>,
+    size: Option<i64>,
+) -> rusqlite::Result<Option<ProfilePictureMetadata>> {
+    match (mime_type, size) {
+        (None, None) => Ok(None),
+        (Some(mime_type), Some(size)) if size >= 0 => Ok(Some(ProfilePictureMetadata {
+            mime_type,
+            size: size as u64,
+        })),
+        _ => Err(rusqlite::Error::InvalidQuery),
+    }
 }
 
 fn digest(token: &str) -> Vec<u8> {
@@ -205,5 +289,39 @@ mod tests {
 
         store.end(&token).unwrap();
         assert!(matches!(store.current(Some(&token)), Err(Error::Missing)));
+    }
+
+    #[test]
+    fn saves_and_returns_an_uploaded_profile_picture() {
+        let path =
+            std::env::temp_dir().join(format!("cloudready-picture-{}.sqlite", Uuid::new_v4()));
+        let database = Database::open(&path).unwrap();
+        let store = SessionStore::new(&database);
+        let user = store.create_first_user("Ada").unwrap();
+        assert!(
+            store
+                .find_user(user.id)
+                .unwrap()
+                .unwrap()
+                .profile_picture
+                .is_none()
+        );
+
+        let metadata = store
+            .save_profile_picture(user.id, b"GIF89a".to_vec())
+            .unwrap();
+        assert_eq!(metadata.mime_type, "image/gif");
+        assert_eq!(metadata.size, 6);
+        let picture = store.profile_picture(user.id).unwrap();
+        assert_eq!(picture.mime_type, "image/gif");
+        assert_eq!(picture.content, b"GIF89a");
+        assert_eq!(
+            store.find_user(user.id).unwrap().unwrap().profile_picture,
+            Some(metadata)
+        );
+        assert!(matches!(
+            store.save_profile_picture(user.id, vec![0; MAX_PROFILE_PICTURE_BYTES + 1]),
+            Err(Error::ProfilePictureTooLarge)
+        ));
     }
 }
