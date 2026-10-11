@@ -3,6 +3,7 @@
 import { For, onCleanup, onMount, untrack, type JSX } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
+import { LayerProvider } from "../layer-manager/LayerContext";
 import WindowManager, { type WindowCloser } from "./WindowManager";
 import { WindowManagerProvider, useWindowManager } from "./WindowManagerContext";
 import Window from "./Window";
@@ -41,15 +42,17 @@ function renderWindow(options?: {
   let windowManager: WindowManager | undefined;
   const dispose = render(
     () => (
-      <WindowManagerProvider>
-        <TestWindow
-          closer={options?.closer}
-          content={options?.content}
-          isMinimizable={options?.isMinimizable}
-          isResizable={options?.isResizable}
-          onManager={(manager) => (windowManager = manager)}
-        />
-      </WindowManagerProvider>
+      <LayerProvider>
+        <WindowManagerProvider>
+          <TestWindow
+            closer={options?.closer}
+            content={options?.content}
+            isMinimizable={options?.isMinimizable}
+            isResizable={options?.isResizable}
+            onManager={(manager) => (windowManager = manager)}
+          />
+        </WindowManagerProvider>
+      </LayerProvider>
     ),
     container,
   );
@@ -216,6 +219,7 @@ describe("Window", () => {
     windowManager.setCloser(windowId, () => true);
     closeControl(window).click();
 
+    windowManager.finishDestroyWindow(windowId);
     expect(windowManager.getWindows()).toHaveLength(0);
     expect(window.isConnected).toBe(false);
     expect(contentCleanup).toHaveBeenCalledOnce();

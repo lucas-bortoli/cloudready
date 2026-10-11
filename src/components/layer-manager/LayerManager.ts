@@ -1,9 +1,17 @@
 import { createSignal, type Accessor } from "solid-js";
 
 /** The desktop stacking groups, ordered from the backmost to the foremost. */
-export type Layer = "background" | "windowing" | "windowing:pinned" | "shell" | "toasts";
+export type Layer =
+  "background" | "windowing" | "windowing:pinned" | "shell" | "toasts" | "dragging-items";
 
-const layers: readonly Layer[] = ["background", "windowing", "windowing:pinned", "shell", "toasts"];
+const layers: readonly Layer[] = [
+  "background",
+  "windowing",
+  "windowing:pinned",
+  "shell",
+  "toasts",
+  "dragging-items",
+];
 
 /** Thrown when an operation is attempted on a released layer item. */
 export class DisposedLayerItemError extends Error {
@@ -67,6 +75,7 @@ export default class LayerManager {
     "windowing:pinned": [],
     shell: [],
     toasts: [],
+    "dragging-items": [],
   };
 
   /**

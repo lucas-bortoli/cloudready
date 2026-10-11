@@ -3,6 +3,7 @@ import { createStore, produce, type SetStoreFunction } from "solid-js/store";
 import type { Point2d, Size2d } from "../../lib/math";
 import generateUuid from "../../lib/uuid";
 import LayerManager, { type LayerItem } from "../layer-manager/LayerManager";
+import WindowMotion from "./WindowMotion";
 
 /** Generates a stable identifier for a newly managed window. */
 const makeWindowId = () => generateUuid<"WindowId">();
@@ -23,6 +24,10 @@ interface WindowState {
   title: string;
   /** The floating window frame's top-left position, or `null` before initial placement. */
   position: Point2d | null;
+  /** Whether measured size changes should keep this window centered. */
+  isAutoPositioned: boolean;
+  /** Whether its exit animation is in progress. */
+  isClosing: boolean;
   /** The viewport layout currently applied to the window. */
   dock: WindowDock;
   /** Whether the window is currently hidden from the desktop. */
@@ -88,6 +93,20 @@ export default class WindowManager {
   /** Updates the reactive collection of managed windows. */
   private readonly setWindows: SetStoreFunction<WindowState[]>;
   private readonly layerManager: LayerManager;
+  public readonly motion = new WindowMotion();
+
+  public registerFrame(windowId: WindowId, frame: HTMLElement): void {
+    this.motion.registerFrame(windowId, frame);
+  }
+  public unregisterFrame(windowId: WindowId): void {
+    this.motion.unregisterFrame(windowId);
+  }
+  public suppressNextDockAnimation(windowId: WindowId): void {
+    this.motion.suppressNextDockAnimation(windowId);
+  }
+  public isMinimizing(windowId: WindowId): boolean {
+    return this.motion.isMinimizing(windowId);
+  }
 
   /** Creates an empty reactive collection of managed windows. */
   public constructor(layerManager = new LayerManager()) {
@@ -110,6 +129,8 @@ export default class WindowManager {
       id,
       title: options?.title ?? "Untitled",
       position: options?.position ?? null,
+      isAutoPositioned: options?.position === undefined,
+      isClosing: false,
       dock: options?.dock ?? null,
       isMinimized: options?.isMinimized ?? false,
       isMinimizable: options?.isMinimizable ?? true,
@@ -133,9 +154,25 @@ export default class WindowManager {
   public destroyWindow(windowId: WindowId): boolean {
     const windowIndex = this.getWindows().findIndex((window) => window.id === windowId);
 
-    if (windowIndex < 0) {
+    if (windowIndex < 0 || this.getWindows()[windowIndex].isClosing) {
       return false;
     }
+
+    this.motion.cancelTransition(windowId);
+    if (this.motion.prefersReducedMotion()) {
+      this.finishDestroyWindow(windowId);
+    } else {
+      this.setWindows(windowIndex, "isClosing", true);
+      this.motion.scheduleClose(windowId, () => this.finishDestroyWindow(windowId));
+    }
+    return true;
+  }
+
+  /** Completes removal after an exit animation, or immediately when motion is reduced. */
+  public finishDestroyWindow(windowId: WindowId): void {
+    this.motion.finishClose(windowId);
+    const windowIndex = this.getWindows().findIndex((window) => window.id === windowId);
+    if (windowIndex < 0) return;
 
     this.getWindows()[windowIndex].layerItem.dispose();
 
@@ -144,7 +181,6 @@ export default class WindowManager {
         windows.splice(windowIndex, 1);
       }),
     );
-    return true;
   }
 
   /**
@@ -162,7 +198,19 @@ export default class WindowManager {
    * @param position New top-left position, or `null` to request automatic placement.
    */
   public setPosition(windowId: WindowId, position: Point2d | null) {
-    this.setWindows((window) => window.id === windowId, "position", position);
+    this.setWindows((window) => window.id === windowId, {
+      position,
+      isAutoPositioned: position === null,
+    });
+  }
+
+  /** Updates measured automatic placement without disabling future recentering. */
+  public setAutoPosition(windowId: WindowId, position: Point2d): void {
+    this.setWindows(
+      (window) => window.id === windowId && window.isAutoPositioned,
+      "position",
+      position,
+    );
   }
 
   /**
@@ -171,7 +219,20 @@ export default class WindowManager {
    * @param dock New dock layout, or `null` for a floating window.
    */
   public setDock(windowId: WindowId, dock: WindowDock) {
-    this.setWindows((window) => window.id === windowId, "dock", dock);
+    const entry = this.getWindows().find((window) => window.id === windowId);
+    if (!entry || entry.dock === dock || entry.isClosing) return;
+    const before = this.motion.beforeDock(entry);
+    this.setWindows((window) => window.id === windowId, { dock, isAutoPositioned: false });
+    this.motion.afterDock(
+      windowId,
+      dock,
+      before,
+      () => this.getWindows().find((window) => window.id === windowId),
+    );
+  }
+
+  private findWindow(windowId: WindowId): WindowState | undefined {
+    return this.getWindows().find((window) => window.id === windowId);
   }
 
   /**
@@ -180,7 +241,11 @@ export default class WindowManager {
    * @param isMinimized Whether the window should be minimized.
    */
   public setMinimized(windowId: WindowId, isMinimized: boolean) {
-    this.setWindows((window) => window.id === windowId, "isMinimized", isMinimized);
+    const entry = this.getWindows().find((window) => window.id === windowId);
+    if (!entry || entry.isClosing) return;
+    this.motion.setMinimized(entry, isMinimized, (value) =>
+      this.setWindows((window) => window.id === windowId, "isMinimized", value),
+    );
   }
 
   /** Updates whether a window stays above ordinary application windows. */

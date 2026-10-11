@@ -15,6 +15,10 @@ export default function Titlebar(props: {
   onPointerDown: (event: PointerEvent) => void;
 }) {
   const windowManager = useWindowManager();
+  const handleDockLeft = () =>
+    windowManager.setDock(props.entry.id, props.entry.dock === "dock-left" ? null : "dock-left");
+  const handleDockRight = () =>
+    windowManager.setDock(props.entry.id, props.entry.dock === "dock-right" ? null : "dock-right");
 
   return (
     <header
@@ -42,7 +46,7 @@ export default function Titlebar(props: {
             onPointerDown={(event) => event.stopPropagation()}
             onClick={() => windowManager.setMinimized(props.entry.id, true)}
           >
-            <CarbonIcon icon={Minimize16} />
+            <i class="pointer-events-none size-3 rounded-full border border-yellow-300 bg-yellow-400" />
           </button>
         </Show>
         <Show when={props.entry.isResizable}>
@@ -51,12 +55,7 @@ export default function Titlebar(props: {
             class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={() =>
-              windowManager.setDock(
-                props.entry.id,
-                props.entry.dock === "dock-left" ? null : "dock-left",
-              )
-            }
+            onClick={handleDockLeft}
           >
             <CarbonIcon icon={SidePanelOpen16} />
           </button>
@@ -65,16 +64,9 @@ export default function Titlebar(props: {
             class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={() =>
-              windowManager.setDock(
-                props.entry.id,
-                props.entry.dock === "dock-right" ? null : "dock-right",
-              )
-            }
+            onClick={handleDockRight}
           >
-            <span class="scale-x-[-1]">
-              <CarbonIcon icon={SidePanelOpen16} />
-            </span>
+            <span class="scale-x-[-1]"><CarbonIcon icon={SidePanelOpen16} /></span>
           </button>
           <button
             aria-label="Maximize window"
@@ -88,7 +80,7 @@ export default function Titlebar(props: {
               )
             }
           >
-            <CarbonIcon icon={Maximize16} />
+            <i class="pointer-events-none size-3 rounded-full border border-green-300 bg-green-400" />
           </button>
         </Show>
         <Show when={props.entry.closer}>
@@ -103,7 +95,7 @@ export default function Titlebar(props: {
               if (closer?.()) windowManager.destroyWindow(props.entry.id);
             }}
           >
-            <CarbonIcon icon={Close16} />
+            <i class="pointer-events-none size-3 rounded-full border border-red-300 bg-red-400" />
           </button>
         </Show>
       </div>
