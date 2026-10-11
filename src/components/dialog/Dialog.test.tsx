@@ -26,6 +26,7 @@ function DialogLauncher(props: DialogLauncherProps) {
     props.onWindowManager(windowManager);
     props.onDialogCreated(
       createDialog({
+        icon: "question",
         title: "Delete document",
         content: () => <p>Delete this document?</p>,
         actions: { confirm: "Delete", cancel: "Keep" },
@@ -109,6 +110,9 @@ describe("useDialog", () => {
     close!.click();
 
     await rejection;
+    const closingWindow = container.querySelector<HTMLElement>('[x-role="window"]');
+    expect(closingWindow?.dataset.windowMotion).toBe("closing");
+    closingWindow?.dispatchEvent(new Event("animationend", { bubbles: true }));
     expect(container.querySelector('[x-role="window"]')).toBeNull();
 
     dispose();
@@ -125,6 +129,9 @@ describe("useDialog", () => {
     button(container, label).click();
 
     await resolution;
+    const closingWindow = container.querySelector<HTMLElement>('[x-role="window"]');
+    expect(closingWindow?.dataset.windowMotion).toBe("closing");
+    closingWindow?.dispatchEvent(new Event("animationend", { bubbles: true }));
     expect(container.querySelector('[x-role="window"]')).toBeNull();
 
     dispose();

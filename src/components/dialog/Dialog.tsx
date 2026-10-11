@@ -1,4 +1,4 @@
-import { createSignal, For, onCleanup, onMount, type JSX } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, onMount, type JSX } from "solid-js";
 import Deferred from "../../lib/deferred";
 import type { Size2d } from "../../lib/math";
 import generateUuid from "../../lib/uuid";
@@ -7,9 +7,16 @@ import { useCurrentWindowId } from "../window-manager/CurrentWindowContext";
 import type { WindowId } from "../window-manager/WindowManager";
 import WindowManager from "../window-manager/WindowManager";
 import { useWindowManager } from "../window-manager/WindowManagerContext";
+import iconError from "./DialogError32.png";
+import iconInfo from "./DialogInfo32.png";
+import iconQuestion from "./DialogQuestion32.png";
+import iconWarning from "./DialogWarning32.png";
+
+export type DialogIcon = "error" | "warning" | "question" | "info";
 
 /** Options used to create and show a dialog. */
 export interface DialogShowOptions<A extends string> {
+  icon: DialogIcon;
   /** Text displayed in the dialog window's title bar. */
   title: string;
   /** Lazily renders the dialog body. */
@@ -44,6 +51,7 @@ const DIALOG_WIDTH = 400;
 
 /** Properties accepted by {@link DialogContentWrapper}. */
 interface DialogContentWrapperProps {
+  icon: DialogIcon;
   /** Text displayed in the dialog window's title bar. */
   title: string;
   /** Lazily renders the dialog body. */
@@ -72,12 +80,28 @@ function DialogContentWrapper(props: DialogContentWrapperProps) {
     windowManager.setSize(windowId, size);
   });
 
+  const imageUrl = createMemo(() => {
+    if (props.icon === "error") {
+      return iconError;
+    } else if (props.icon === "warning") {
+      return iconWarning;
+    } else if (props.icon === "question") {
+      return iconQuestion;
+    } else {
+      return iconInfo;
+    }
+  });
+
   return (
-    <div x-role="dialog content wrapper" class="flex h-full w-full flex-col overflow-hidden">
-      <main class="shrink grow basis-0 overflow-y-auto p-1" ref={mainRef}>
+    <div
+      x-role="dialog content wrapper"
+      class="grid h-full w-full grid-cols-[64px_1fr] grid-rows-[1fr_auto] flex-col overflow-hidden"
+    >
+      <img src={imageUrl()} class="pointer-events-none m-4 inline-block size-8" />
+      <main class="shrink grow basis-0 overflow-y-auto p-4" ref={mainRef}>
         {props.content()}
       </main>
-      <footer class="flex justify-end gap-1 bg-neutral-50 p-1" ref={footerRef}>
+      <footer class="col-span-2 flex justify-end gap-1 bg-neutral-50 p-1" ref={footerRef}>
         <For
           each={Object.keys(props.actions)}
           children={(actionKey) => (
@@ -139,6 +163,7 @@ export default function useDialog() {
       isMinimizable: false,
       content: () => (
         <DialogContentWrapper
+          icon={options.icon}
           title={options.title}
           content={options.content}
           actions={options.actions}
@@ -167,7 +192,10 @@ export default function useDialog() {
   }
 
   onCleanup(() => {
-    dialogs().forEach((dialog) => handleCancel(dialog.id));
+    dialogs().forEach((dialog) => {
+      handleCancel(dialog.id);
+      windowManager.finishDestroyWindow(dialog.windowId);
+    });
     setDialogs(new Map());
   });
 
