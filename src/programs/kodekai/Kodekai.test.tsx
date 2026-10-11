@@ -2,6 +2,12 @@
 
 import { render } from "solid-js/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { LayerProvider } from "../../components/layer-manager/LayerContext";
+import { CurrentWindowProvider } from "../../components/window-manager/CurrentWindowContext";
+import {
+  WindowManagerProvider,
+  useWindowManager,
+} from "../../components/window-manager/WindowManagerContext";
 import { formatIsoDateTime } from "../../lib/iso-date-time";
 import { Model } from "./model/model";
 import Kodekai from "./Kodekai";
@@ -33,6 +39,15 @@ function findCard(container: ParentNode, cardId: string) {
   )!;
 }
 
+function TestKodekai(props: { model: Model }) {
+  const windowId = useWindowManager().createWindow();
+  return (
+    <CurrentWindowProvider windowId={windowId}>
+      <Kodekai model={props.model} />
+    </CurrentWindowProvider>
+  );
+}
+
 function renderBoard() {
   const model = Model.empty();
   const projectId = model.createProject({ title: "Cloudready" });
@@ -42,7 +57,16 @@ function renderBoard() {
   const thirdId = model.createCard({ projectId, title: "Third", expiration });
   const container = document.createElement("div");
   document.body.append(container);
-  const dispose = render(() => <Kodekai model={model} />, container);
+  const dispose = render(
+    () => (
+      <LayerProvider>
+        <WindowManagerProvider>
+          <TestKodekai model={model} />
+        </WindowManagerProvider>
+      </LayerProvider>
+    ),
+    container,
+  );
   const board = container.querySelector<HTMLElement>('[x-role="kodekai"]')!;
   const icebox = container.querySelector<HTMLUListElement>('[data-kodekai-bucket="icebox"]')!;
   const inProgress = container.querySelector<HTMLUListElement>(
@@ -102,9 +126,10 @@ describe("Kodekai card dragging", () => {
 
     document.dispatchEvent(pointerEvent("pointermove", 10, 180));
 
-    const preview = container.querySelector<HTMLLIElement>('li[aria-hidden="true"]');
+    const preview = document.querySelector<HTMLLIElement>('li[aria-hidden="true"]');
     expect(preview).not.toBeNull();
     expect(preview?.style.position).toBe("fixed");
+    expect(preview?.style.zIndex).toBe("1");
     expect(preview?.style.width).toBe("256px");
     expect(source.className).toContain("opacity-0");
     expect(source.getBoundingClientRect().top).toBe(20);
@@ -126,7 +151,7 @@ describe("Kodekai card dragging", () => {
       firstId,
     ]);
     expect(container.querySelector('[role="dialog"]')).toBeNull();
-    expect(container.querySelector('li[aria-hidden="true"]')).toBeNull();
+    expect(document.querySelector('li[aria-hidden="true"]')).toBeNull();
     expect(source.className).not.toContain("opacity-0");
     boundingRect.mockRestore();
     dispose();

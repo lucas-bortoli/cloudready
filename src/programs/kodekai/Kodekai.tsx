@@ -5,6 +5,7 @@ import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import Button from "../../components/button/Button";
 import Dropdown from "../../components/dropdown/Dropdown";
 import CarbonIcon from "../../components/taskbar/CarbonIcon";
+import useWindowCloser from "../../components/window-manager/useWindowCloser";
 import CardEditor from "./components/CardEditor";
 import Category from "./components/Category";
 import ProjectEditor from "./components/ProjectEditor";
@@ -182,6 +183,7 @@ export interface KodekaiProps {
 
 /** Provides and renders the Kodekai project board. */
 export default function Kodekai(props: KodekaiProps) {
+  useWindowCloser(() => true);
   const model = props.model ?? createMockModel();
 
   return (
