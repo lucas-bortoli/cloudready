@@ -1,14 +1,9 @@
 import type { Uuid } from "../lib/uuid";
 import {
   KernelRpcApiError,
-  KernelRpcInvalidDisplayNameError,
   KernelRpcInputError,
   KernelRpcNetworkError,
-  KernelRpcProfileNotFoundError,
   KernelRpcProtocolError,
-  KernelRpcSessionExpiredError,
-  KernelRpcSessionMissingError,
-  KernelRpcSetupCompleteError,
   sessionCreateFirstUser,
   sessionEnd,
   sessionGetCurrent,
@@ -108,18 +103,22 @@ export class SessionClient {
         throw new SessionProtocolError("Session kernel returned an invalid response.", {
           cause: error,
         });
-      if (error instanceof KernelRpcSessionMissingError)
-        throw new SessionMissingError(error.message, { cause: error });
-      if (error instanceof KernelRpcSessionExpiredError)
-        throw new SessionExpiredError(error.message, { cause: error });
-      if (error instanceof KernelRpcProfileNotFoundError)
-        throw new ProfileNotFoundError(error.message, { cause: error });
-      if (error instanceof KernelRpcSetupCompleteError)
-        throw new SessionSetupCompleteError(error.message, { cause: error });
-      if (error instanceof KernelRpcInvalidDisplayNameError)
-        throw new InvalidProfileDisplayNameError(error.message, { cause: error });
-      if (error instanceof KernelRpcApiError)
-        throw new SessionServerError(error.message, { cause: error });
+      if (error instanceof KernelRpcApiError) {
+        switch (error.code) {
+          case "session-missing":
+            throw new SessionMissingError(error.message, { cause: error });
+          case "session-expired":
+            throw new SessionExpiredError(error.message, { cause: error });
+          case "profile-not-found":
+            throw new ProfileNotFoundError(error.message, { cause: error });
+          case "setup-complete":
+            throw new SessionSetupCompleteError(error.message, { cause: error });
+          case "invalid-display-name":
+            throw new InvalidProfileDisplayNameError(error.message, { cause: error });
+          default:
+            throw new SessionServerError(error.message, { cause: error });
+        }
+      }
       throw error;
     }
   }

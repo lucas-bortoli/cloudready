@@ -235,89 +235,6 @@ export class KernelRpcApiError extends KernelRpcError {
   }
 }
 
-/**
- * A filesystem path or request parameter is invalid.
- */
-export class KernelRpcInvalidPathError extends KernelRpcApiError {}
-/**
- * A file byte range is invalid.
- */
-export class KernelRpcInvalidRangeError extends KernelRpcApiError {}
-/**
- * A requested filesystem entry, revision, or deletion does not exist.
- */
-export class KernelRpcEntryNotFoundError extends KernelRpcApiError {}
-/**
- * A filesystem operation would overwrite an existing entry.
- */
-export class KernelRpcEntryConflictError extends KernelRpcApiError {}
-/**
- * A filesystem operation is invalid for the target entry.
- */
-export class KernelRpcInvalidOperationError extends KernelRpcApiError {}
-/**
- * The current browser session is missing.
- */
-export class KernelRpcSessionMissingError extends KernelRpcApiError {}
-/**
- * The current browser session has expired.
- */
-export class KernelRpcSessionExpiredError extends KernelRpcApiError {}
-/**
- * The requested profile does not exist.
- */
-export class KernelRpcProfileNotFoundError extends KernelRpcApiError {}
-/**
- * Initial profile setup has already completed.
- */
-export class KernelRpcSetupCompleteError extends KernelRpcApiError {}
-/**
- * The supplied profile display name is invalid.
- */
-export class KernelRpcInvalidDisplayNameError extends KernelRpcApiError {}
-/**
- * The kernel reported an unclassified HTTP or server failure.
- */
-export class KernelRpcServerError extends KernelRpcApiError {}
-
-/**
- * Creates a typed error from a kernel HTTP error code.
- *
- * @param message Human-readable message returned by the kernel.
- * @param status HTTP response status.
- * @param code Stable machine-readable error code returned by the kernel.
- */
-export function createKernelRpcApiError(
-  message: string,
-  status: number,
-  code: string,
-): KernelRpcApiError {
-  switch (code) {
-    case "invalid-path":
-      return new KernelRpcInvalidPathError(message, status, code);
-    case "invalid-range":
-      return new KernelRpcInvalidRangeError(message, status, code);
-    case "entry-not-found":
-      return new KernelRpcEntryNotFoundError(message, status, code);
-    case "entry-conflict":
-      return new KernelRpcEntryConflictError(message, status, code);
-    case "invalid-operation":
-      return new KernelRpcInvalidOperationError(message, status, code);
-    case "session-missing":
-      return new KernelRpcSessionMissingError(message, status, code);
-    case "session-expired":
-      return new KernelRpcSessionExpiredError(message, status, code);
-    case "profile-not-found":
-      return new KernelRpcProfileNotFoundError(message, status, code);
-    case "setup-complete":
-      return new KernelRpcSetupCompleteError(message, status, code);
-    case "invalid-display-name":
-      return new KernelRpcInvalidDisplayNameError(message, status, code);
-    default:
-      return new KernelRpcServerError(message, status, code);
-  }
-}
-
 async function makeCall<I extends Schema, O extends Schema, B extends boolean>(
   operation: Route<I, O, B>,
   input: Input<I>,
@@ -388,7 +305,7 @@ async function makeCall<I extends Schema, O extends Schema, B extends boolean>(
     } catch {
       // Keep the status-based fallback for non-JSON error responses.
     }
-    throw createKernelRpcApiError(message, response.status, code);
+    throw new KernelRpcApiError(message, response.status, code);
   }
 
   if (operation.binaryResponse) {
