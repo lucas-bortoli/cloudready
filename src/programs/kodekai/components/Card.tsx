@@ -4,7 +4,8 @@ import {
   createSignal,
   onCleanup,
   onMount,
-  type Accessor, For,
+  type Accessor,
+  For,
 } from "solid-js";
 import { cn } from "../../../lib/dom";
 import { truncateTextToFit } from "../lib/truncateTextToFit";
@@ -15,8 +16,8 @@ export interface CardProps {
   card: CardData;
   tags: readonly Tag[];
   draggingCardId: Accessor<CardId | undefined>;
-  onPointerDown: (card: CardData, element: HTMLLIElement, event: PointerEvent) => void;
-  onKeyDown: (card: CardData, element: HTMLLIElement, event: KeyboardEvent) => void;
+  onPointerDown?: (card: CardData, element: HTMLLIElement, event: PointerEvent) => void;
+  onKeyDown?: (card: CardData, element: HTMLLIElement, event: KeyboardEvent) => void;
   onSelect: (card: CardData) => void;
   shouldSuppressClick: () => boolean;
 }
@@ -77,7 +78,7 @@ export default function Card(props: CardProps) {
   });
 
   const handlePointerDown = (event: PointerEvent) => {
-    if (cardRef) props.onPointerDown(props.card, cardRef, event);
+    if (cardRef) props.onPointerDown?.(props.card, cardRef, event);
   };
 
   const handleClick = () => {
@@ -85,7 +86,7 @@ export default function Card(props: CardProps) {
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (cardRef) props.onKeyDown(props.card, cardRef, event);
+    if (cardRef) props.onKeyDown?.(props.card, cardRef, event);
     if (event.defaultPrevented) return;
 
     if (event.key === "Enter" || event.key === " ") {
@@ -115,9 +116,9 @@ export default function Card(props: CardProps) {
         {visibleContent()}
       </p>
       <footer class="mt-1 flex shrink-0 flex-wrap gap-1">
-        <For each={props.tags}>{(tag) => (
-          <span class="rounded bg-sky-100 px-2 py-0.5 text-sm">{tag.name}</span>
-        )}</For>
+        <For each={props.tags}>
+          {(tag) => <span class="rounded bg-sky-100 px-2 py-0.5 text-sm">{tag.name}</span>}
+        </For>
         <span
           class={cn(
             "rounded-xs px-2 py-0.5 text-sm",

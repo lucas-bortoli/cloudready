@@ -313,7 +313,9 @@ describe("Kodekai card editor focus", () => {
     )!;
 
     newCardButton.click();
-    const title = document.querySelector<HTMLTextAreaElement>("textarea")!;
+    const title = document.querySelector<HTMLTextAreaElement>(
+      '[x-role="kodekai card editor"] textarea',
+    )!;
     title.value = "Created";
     title.dispatchEvent(new Event("input", { bubbles: true }));
     document
@@ -335,10 +337,12 @@ describe("Kodekai card editor focus", () => {
 
     source.focus();
     source.click();
-    expect(document.activeElement).toBe(document.querySelector("textarea"));
+    expect(document.activeElement).toBe(
+      document.querySelector('[x-role="kodekai card editor"] textarea'),
+    );
 
     document
-      .querySelector("textarea")!
+      .querySelector('[x-role="kodekai card editor"] textarea')!
       .dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
     vi.runAllTimers();
     await Promise.resolve();
@@ -353,7 +357,9 @@ describe("Kodekai card editor focus", () => {
 
     source.focus();
     source.click();
-    const title = document.querySelector<HTMLTextAreaElement>("textarea")!;
+    const title = document.querySelector<HTMLTextAreaElement>(
+      '[x-role="kodekai card editor"] textarea',
+    )!;
     title.value = "Updated";
     title.dispatchEvent(new Event("input", { bubbles: true }));
     document

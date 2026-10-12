@@ -1,14 +1,20 @@
 import { createMemo, For, type Accessor } from "solid-js";
 import { cn } from "../../../lib/dom";
 import { useKodekai } from "../KodekaiContext";
+import { visibleCards, type CardSort, type DueFilter } from "../lib/cardView";
 import type { DropTarget } from "../lib/useCardDrag";
-import type { Bucket, Card as CardData, CardId, ProjectId } from "../model/model";
+import type { Bucket, Card as CardData, CardId, Priority, ProjectId, TagId } from "../model/model";
 import Card from "./Card";
 
 /** Properties for one project bucket and its card list. */
 export interface CategoryProps {
   projectId: Accessor<ProjectId | undefined>;
   bucket: Bucket;
+  query: Accessor<string>;
+  priority: Accessor<Priority | "all">;
+  due: Accessor<DueFilter>;
+  tagId: Accessor<TagId | undefined>;
+  sort: Accessor<CardSort>;
   draggingCardId: Accessor<CardId | undefined>;
   indicator: Accessor<DropTarget | undefined>;
   onCardPointerDown: (card: CardData, element: HTMLLIElement, event: PointerEvent) => void;
@@ -34,8 +40,24 @@ export default function Category(props: CategoryProps) {
     if (!projectId) return [];
     const currentModel = model();
     if (!currentModel.listProjects().some((project) => project.id === projectId)) return [];
-    return currentModel.listCards(projectId).filter((card) => card.bucket === props.bucket);
+    return visibleCards(
+      currentModel.listCards(projectId).filter((card) => card.bucket === props.bucket),
+      {
+        query: props.query(),
+        priority: props.priority(),
+        due: props.due(),
+        tagId: props.tagId(),
+        sort: props.sort(),
+        today: new Date(),
+      },
+    );
   });
+  const canReorder = () =>
+    props.sort() === "manual" &&
+    !props.query().trim() &&
+    props.priority() === "all" &&
+    props.due() === "all" &&
+    !props.tagId();
 
   return (
     <section class="flex w-64 flex-col gap-1">
@@ -65,13 +87,20 @@ export default function Category(props: CategoryProps) {
                 .listTags(card.projectId)
                 .filter((tag) => card.tagIds.includes(tag.id))}
               draggingCardId={props.draggingCardId}
-              onPointerDown={props.onCardPointerDown}
-              onKeyDown={props.onCardKeyDown}
+              onPointerDown={canReorder() ? props.onCardPointerDown : undefined}
+              onKeyDown={canReorder() ? props.onCardKeyDown : undefined}
               onSelect={props.onCardSelect}
               shouldSuppressClick={props.shouldSuppressCardClick}
             />
           )}
         />
+        {cards().length === 0 &&
+          (props.query() ||
+            props.priority() !== "all" ||
+            props.due() !== "all" ||
+            props.tagId()) && (
+            <li class="py-3 text-center text-sm text-neutral-500">No matching cards</li>
+          )}
         {props.indicator()?.bucket === props.bucket && (
           <div
             data-kodekai-drop-indicator=""
