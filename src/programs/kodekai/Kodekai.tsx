@@ -14,6 +14,7 @@ import {
 import Button from "../../components/button/Button";
 import Dropdown from "../../components/dropdown/Dropdown";
 import CarbonIcon from "../../components/taskbar/CarbonIcon";
+import TextInput from "../../components/text-input/TextInput";
 import useWindowCloser from "../../components/window-manager/useWindowCloser";
 import CardEditor from "./components/CardEditor";
 import Category from "./components/Category";
@@ -21,7 +22,17 @@ import ProjectEditor from "./components/ProjectEditor";
 import TagEditor from "./components/TagEditor";
 import { KodekaiProvider, useKodekai } from "./KodekaiContext";
 import useCardDrag from "./lib/useCardDrag";
-import type { Bucket, Card as CardData, CardId, Model, Project, ProjectId } from "./model/model";
+import type { CardSort, DueFilter } from "./lib/cardView";
+import type {
+  Bucket,
+  Card as CardData,
+  CardId,
+  Model,
+  Priority,
+  Project,
+  ProjectId,
+  TagId,
+} from "./model/model";
 import { KodekaiStore } from "./model/persistence";
 
 /** Renders the Kodekai board for the model supplied by its provider. */
@@ -36,6 +47,11 @@ function KodekaiView() {
   const [projectEditorOpen, setProjectEditorOpen] = createSignal(false);
   const [editingProject, setEditingProject] = createSignal<Project>();
   const [tagEditorOpen, setTagEditorOpen] = createSignal(false);
+  const [query, setQuery] = createSignal("");
+  const [priorityFilter, setPriorityFilter] = createSignal<Priority | "all">("all");
+  const [dueFilter, setDueFilter] = createSignal<DueFilter>("all");
+  const [tagFilter, setTagFilter] = createSignal<TagId>();
+  const [sort, setSort] = createSignal<CardSort>("manual");
   let focusReturnTarget: HTMLElement | undefined;
   let focusReturnCardId: CardId | undefined;
   let projectFocusReturnTarget: HTMLElement | undefined;
@@ -96,6 +112,11 @@ function KodekaiView() {
     }
   });
 
+  createEffect(() => {
+    const tagId = tagFilter();
+    if (tagId && !tags().some((tag) => tag.id === tagId)) setTagFilter(undefined);
+  });
+
   const openSelectedProjectEditor: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (event) => {
     const projectId = selectedProject();
     if (projectId) openProjectEditor(model().getProject(projectId), event.currentTarget);
@@ -124,6 +145,10 @@ function KodekaiView() {
   const deleteTag = (id: Parameters<Model["deleteTag"]>[0]) => model().deleteTag(id);
   const openTagEditor = () => setTagEditorOpen(true);
   const closeTagEditor = () => setTagEditorOpen(false);
+  const changePriorityFilter = (value: string) => setPriorityFilter(value as Priority | "all");
+  const changeDueFilter = (value: string) => setDueFilter(value as DueFilter);
+  const changeTagFilter = (value: string) => setTagFilter(value ? (value as TagId) : undefined);
+  const changeSort = (value: string) => setSort(value as CardSort);
 
   return (
     <section
@@ -162,12 +187,79 @@ function KodekaiView() {
           Tags
         </Button>
       </header>
+      <section
+        x-role="kodekai board controls"
+        class="flex flex-wrap items-end gap-3 border-b border-neutral-200 px-8 py-3"
+      >
+        <label class="flex flex-col gap-1 text-sm">
+          Search
+          <TextInput
+            value={query()}
+            onValueChange={setQuery}
+            placeholder="Title or description"
+            class="w-48"
+          />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          Priority
+          <Dropdown
+            value={priorityFilter()}
+            onValueChange={changePriorityFilter}
+            options={[
+              { value: "all", label: "All priorities" },
+              { value: "urgent", label: "Urgent" },
+              { value: "normal", label: "Normal" },
+              { value: "low", label: "Low" },
+            ]}
+          />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          Due
+          <Dropdown
+            value={dueFilter()}
+            onValueChange={changeDueFilter}
+            options={[
+              { value: "all", label: "Any date" },
+              { value: "overdue", label: "Overdue" },
+              { value: "upcoming", label: "Today or later" },
+            ]}
+          />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          Tag
+          <Dropdown
+            value={tagFilter() ?? ""}
+            onValueChange={changeTagFilter}
+            options={[
+              { value: "", label: "All tags" },
+              ...tags().map((tag) => ({ value: tag.id, label: tag.name })),
+            ]}
+          />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          Sort
+          <Dropdown
+            value={sort()}
+            onValueChange={changeSort}
+            options={[
+              { value: "manual", label: "Manual order" },
+              { value: "due-date", label: "Due date" },
+              { value: "priority", label: "Priority" },
+            ]}
+          />
+        </label>
+      </section>
       <section class="flex min-h-0 min-w-0 grow basis-0 gap-1 overflow-auto p-8 pt-4 *:shrink-0">
         <For
           each={["icebox", "in-progress", "blocked", "revision", "done"] satisfies Bucket[]}
           children={(bucket: Bucket) => (
             <Category
               bucket={bucket}
+              query={query}
+              priority={priorityFilter}
+              due={dueFilter}
+              tagId={tagFilter}
+              sort={sort}
               projectId={selectedProject}
               draggingCardId={cardDrag.draggingCardId}
               indicator={cardDrag.dropTarget}
