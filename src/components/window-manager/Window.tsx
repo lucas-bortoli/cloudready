@@ -45,6 +45,7 @@ export default function Window(props: { entry: WindowEntry }) {
       }}
       class="group/window absolute box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl outline-none"
       data-dock={props.entry.dock ?? undefined}
+      data-window-id={props.entry.id}
       data-window-motion={
         props.entry.isClosing
           ? "closing"
@@ -64,7 +65,7 @@ export default function Window(props: { entry: WindowEntry }) {
       <main
         x-role="client content container"
         ref={interaction.setClientElement}
-        class={`relative z-0 w-full overflow-hidden bg-white ${props.entry.dock ? "min-h-0 flex-1" : "shrink-0"}`}
+        class={`relative z-0 w-full overflow-hidden bg-white text-neutral-600 ${props.entry.dock ? "min-h-0 flex-1" : "shrink-0"}`}
         style={{
           height: props.entry.dock ? undefined : integerPixels(props.entry.size.height),
           "min-height": props.entry.dock

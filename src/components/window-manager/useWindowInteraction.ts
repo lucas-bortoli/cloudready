@@ -1,6 +1,7 @@
 import { batch, createSignal, onCleanup, onMount } from "solid-js";
 import { integerPixels, taskbarHeight } from "./window-layout";
 import type { WindowDock, WindowEntry } from "./WindowManager";
+import { getTaskbarBounds } from "./window-layout";
 import { useWindowManager } from "./WindowManagerContext";
 
 /** A window edge or corner that can initiate a resize interaction. */
@@ -60,7 +61,14 @@ export default function useWindowInteraction(entry: WindowEntry) {
 
   const dockAtPointer = (event: PointerEvent): WindowDock => {
     if (!entry.isResizable) return null;
-    if (event.clientY <= taskbarHeight + dockActivationDistance) return "dock-full";
+    const taskbarBounds = getTaskbarBounds();
+    if (
+      (taskbarBounds.top > 0 && event.clientY <= taskbarHeight + dockActivationDistance) ||
+      (taskbarBounds.bottom > 0 &&
+        event.clientY >= window.innerHeight - taskbarHeight - dockActivationDistance)
+    ) {
+      return "dock-full";
+    }
     if (event.clientX <= dockActivationDistance) return "dock-left";
     if (event.clientX >= window.innerWidth - dockActivationDistance) return "dock-right";
     return null;
@@ -245,9 +253,13 @@ export default function useWindowInteraction(entry: WindowEntry) {
   const centerWindow = () => {
     if (!windowElement || !entry.isAutoPositioned || entry.dock || entry.isMinimized) return;
     const edgePadding = 12;
-    const usableHeight = window.innerHeight - taskbarHeight;
+    const taskbarBounds = getTaskbarBounds();
+    const usableHeight = window.innerHeight - taskbarBounds.top - taskbarBounds.bottom;
     windowManager.setAutoPosition(entry.id, {
-      y: Math.max(taskbarHeight + edgePadding, Math.round(taskbarHeight + (usableHeight - windowElement.offsetHeight) / 2)),
+      y: Math.max(
+        taskbarBounds.top + edgePadding,
+        Math.round(taskbarBounds.top + (usableHeight - windowElement.offsetHeight) / 2),
+      ),
       x: Math.max(edgePadding, Math.round((window.innerWidth - windowElement.offsetWidth) / 2)),
     });
   };

@@ -17,7 +17,7 @@ export type WindowDock = "dock-full" | "dock-left" | "dock-right" | null;
 /** Decides whether a window may be destroyed after its close control is clicked. */
 export type WindowCloser = () => boolean;
 
-interface WindowState {
+export interface WindowState {
   /** Stable identifier used to address this window. */
   id: WindowId;
   /** Text displayed in the window's title bar. */
