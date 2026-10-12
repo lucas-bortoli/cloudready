@@ -20,11 +20,22 @@ export default function Titlebar(props: {
   const handleDockRight = () =>
     windowManager.setDock(props.entry.id, props.entry.dock === "dock-right" ? null : "dock-right");
 
+  const handlePointerDown = (event: PointerEvent) => props.onPointerDown(event);
+  const stopPointerDown = (event: PointerEvent) => event.stopPropagation();
+  const togglePinned = () => windowManager.setPinned(props.entry.id, !props.entry.isPinned);
+  const minimize = () => windowManager.setMinimized(props.entry.id, true);
+  const toggleMaximized = () =>
+    windowManager.setDock(props.entry.id, props.entry.dock === "dock-full" ? null : "dock-full");
+  const close = () => {
+    const closer = props.entry.closer;
+    if (closer?.()) windowManager.destroyWindow(props.entry.id);
+  };
+
   return (
     <header
       x-role="titlebar"
       class="flex h-8 w-full shrink-0 items-center bg-neutral-600 px-1 text-neutral-50 group-focus-within/window:bg-neutral-800"
-      onPointerDown={(event) => props.onPointerDown(event)}
+      onPointerDown={handlePointerDown}
     >
       <h1 class="ml-1">{props.entry.title}</h1>
       <div class="ml-auto inline-flex gap-0.5">
@@ -33,8 +44,8 @@ export default function Titlebar(props: {
           aria-pressed={props.entry.isPinned}
           class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
           type="button"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => windowManager.setPinned(props.entry.id, !props.entry.isPinned)}
+          onPointerDown={stopPointerDown}
+          onClick={togglePinned}
         >
           <CarbonIcon icon={props.entry.isPinned ? PinFilled16 : Pin16} />
         </button>
@@ -43,8 +54,8 @@ export default function Titlebar(props: {
             aria-label="Minimize window"
             class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
             type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => windowManager.setMinimized(props.entry.id, true)}
+            onPointerDown={stopPointerDown}
+            onClick={minimize}
           >
             <i class="pointer-events-none size-3 rounded-full border border-yellow-300 bg-yellow-400" />
           </button>
@@ -72,13 +83,8 @@ export default function Titlebar(props: {
             aria-label="Maximize window"
             class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
             type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() =>
-              windowManager.setDock(
-                props.entry.id,
-                props.entry.dock === "dock-full" ? null : "dock-full",
-              )
-            }
+            onPointerDown={stopPointerDown}
+            onClick={toggleMaximized}
           >
             <i class="pointer-events-none size-3 rounded-full border border-green-300 bg-green-400" />
           </button>
@@ -88,12 +94,8 @@ export default function Titlebar(props: {
             aria-label="Close window"
             class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
             type="button"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => {
-              const closer = props.entry.closer;
-
-              if (closer?.()) windowManager.destroyWindow(props.entry.id);
-            }}
+            onPointerDown={stopPointerDown}
+            onClick={close}
           >
             <i class="pointer-events-none size-3 rounded-full border border-red-300 bg-red-400" />
           </button>

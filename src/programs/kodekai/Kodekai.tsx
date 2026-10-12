@@ -1,7 +1,7 @@
 import Edit16 from "@carbon/icons/es/edit/16.js";
 import FolderAdd16 from "@carbon/icons/es/folder--add/16.js";
 import TaskAdd16 from "@carbon/icons/es/task--add/16.js";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, type JSX } from "solid-js";
 import Button from "../../components/button/Button";
 import Dropdown from "../../components/dropdown/Dropdown";
 import CarbonIcon from "../../components/taskbar/CarbonIcon";
@@ -84,6 +84,29 @@ function KodekaiView() {
     }
   });
 
+  const openSelectedProjectEditor: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (event) => {
+    const projectId = selectedProject();
+    if (projectId) openProjectEditor(model().getProject(projectId), event.currentTarget);
+  };
+
+  const openNewProjectEditor: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (event) =>
+    openProjectEditor(undefined, event.currentTarget);
+  const openNewCardEditor = () => openEditor();
+  const createCard = (card: Omit<CardData, "id" | "displayIndex">) => model().createCard(card);
+  const deleteCard = (card: CardData) => model().deleteCard(card.id);
+  const updateCard = (card: CardData, changes: Parameters<Model["updateCard"]>[1]) =>
+    model().updateCard(card.id, changes);
+  const createProject = (title: string) => {
+    const projectId = model().createProject({ title });
+    setSelectedProject(projectId);
+  };
+  const deleteProject = (project: Project) => {
+    setSelectedProject(undefined);
+    model().deleteProject(project.id);
+  };
+  const updateProject = (project: Project, title: string) =>
+    model().renameProject(project.id, title);
+
   return (
     <section
       x-role="kodekai"
@@ -101,23 +124,20 @@ function KodekaiView() {
           class="ml-1 px-2!"
           disabled={!selectedProject()}
           title="Edit Project..."
-          onClick={(event) => {
-            const projectId = selectedProject();
-            if (projectId) openProjectEditor(model().getProject(projectId), event.currentTarget);
-          }}
+          onClick={openSelectedProjectEditor}
           startIcon={<CarbonIcon icon={Edit16} />}
         />
         <Button
           class="ml-1 px-2!"
           title="New Project..."
-          onClick={(event) => openProjectEditor(undefined, event.currentTarget)}
+          onClick={openNewProjectEditor}
           startIcon={<CarbonIcon icon={FolderAdd16} />}
         />
         <Button
           class="ml-4 px-2!"
           disabled={!selectedProject()}
           title="New Card..."
-          onClick={() => openEditor()}
+          onClick={openNewCardEditor}
           startIcon={<CarbonIcon icon={TaskAdd16} />}
         />
       </header>
@@ -145,13 +165,9 @@ function KodekaiView() {
             card={editingCard()}
             projectId={projectId()}
             onClose={closeEditor}
-            onCreate={(card) => model().createCard(card)}
-            onDelete={(card) => {
-              model().deleteCard(card.id);
-            }}
-            onUpdate={(card, changes) => {
-              model().updateCard(card.id, changes);
-            }}
+            onCreate={createCard}
+            onDelete={deleteCard}
+            onUpdate={updateCard}
           />
         )}
       </Show>
@@ -159,17 +175,9 @@ function KodekaiView() {
         <ProjectEditor
           project={editingProject()}
           onClose={closeProjectEditor}
-          onCreate={(title) => {
-            const projectId = model().createProject({ title });
-            setSelectedProject(projectId);
-          }}
-          onDelete={(project) => {
-            setSelectedProject(undefined);
-            model().deleteProject(project.id);
-          }}
-          onUpdate={(project, title) => {
-            model().renameProject(project.id, title);
-          }}
+          onCreate={createProject}
+          onDelete={deleteProject}
+          onUpdate={updateProject}
         />
       </Show>
     </section>

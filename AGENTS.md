@@ -46,13 +46,38 @@ Use `npm run build` for production builds.
   public API.
 - Declare an explicit `public`, `protected`, or `private` access modifier on every class method.
 
-## Markup roles
+### CSS outline rules
+
+For interactive controls, set the base outline color with `outline-sky-200`; apply only outline
+width and offset during focus, such as `focus:outline-2 focus:outline-offset-2`. This prevents
+a browser-default crappy outline from flashing before the custom focus outline appears.
+
+```tsx
+<button class="outline-sky-200 focus:outline-2 focus:outline-offset-2">Save</button>
+```
+
+### Markup roles
 
 - The `x-role` attribute is sacred: it defines stable semantic roles in the web OS markup.
   Preserve every existing `x-role` value verbatim. Never remove, rename, repurpose, or replace
   one without explicit user approval; add one to canonical structural elements when needed.
+- Keep event logic out of JSX: define a named local handler near the component's state and pass it
+  to the event property. Prefer `.bind(null, ...args)` whenever arguments must be supplied rather
+  than declaring an inline callback.
 
-## Comment rules
+```tsx
+const handleApplicationClick = (application: Application) => {
+  launch(application);
+};
+
+<For each={applications}>
+  {(application) => (
+    <button onClick={handleApplicationClick.bind(null, application)}>{application.name}</button>
+  )}
+</For>;
+```
+
+### Comment rules
 
 Use comments to explain intent, behavior, or constraints that are not obvious from the code. Keep inline comments brief and close to the code they explain; avoid narrating straightforward operations. Add JSDoc to exported classes and public methods when it helps callers understand their purpose, parameters, return values, examples, or failure modes. Write JSDoc as multiline blocks with a concise summary first, followed by relevant tags such as `@param`, `@returns`, `@example`, and `@throws`. Put the opening `/**` and closing `*/` delimiters on their own lines. Keep descriptions specific and useful, and update comments when behavior changes.
 

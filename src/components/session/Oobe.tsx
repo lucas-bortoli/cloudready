@@ -38,6 +38,14 @@ export default function Oobe(props: { onCreated: (user: UserProfile) => void }) 
     if (user) props.onCreated(user);
   };
 
+  const handleProfileCreated = (user: UserProfile) => {
+    setCreatedUser(user);
+    setPage(4);
+  };
+
+  const goBack = () => setPage(page() - 1);
+  const goForward = () => setPage(page() + 1);
+
   const canContinue = () =>
     page() === 0 ||
     (page() === 1 && eulaReady() && eulaAccepted()) ||
@@ -73,13 +81,7 @@ export default function Oobe(props: { onCreated: (user: UserProfile) => void }) 
             />
           </Show>
           <Show when={page() === 3}>
-            <ProfileCreationStep
-              onCreated={(user) => {
-                setCreatedUser(user);
-                setPage(4);
-              }}
-              onSavingChange={setSaving}
-            />
+            <ProfileCreationStep onCreated={handleProfileCreated} onSavingChange={setSaving} />
           </Show>
           <Show when={page() === 4}>
             <CompletionStep />
@@ -87,12 +89,12 @@ export default function Oobe(props: { onCreated: (user: UserProfile) => void }) 
         </div>
         <footer class="mt-8 flex w-full justify-between">
           <Show when={page() < 4}>
-            <Button disabled={page() === 0 || saving()} onClick={() => setPage(page() - 1)}>
+            <Button disabled={page() === 0 || saving()} onClick={goBack}>
               Back
             </Button>
           </Show>
           <Show when={page() < 3}>
-            <Button disabled={!canContinue()} variant="primary" onClick={() => setPage(page() + 1)}>
+            <Button disabled={!canContinue()} variant="primary" onClick={goForward}>
               Continue
             </Button>
           </Show>

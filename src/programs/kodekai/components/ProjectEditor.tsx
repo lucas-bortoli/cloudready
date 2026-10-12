@@ -56,6 +56,14 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     closeAfterTransition();
   };
 
+  const handleBackdropClick = (event: MouseEvent) => {
+    if (event.target === event.currentTarget) requestClose();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") requestClose();
+  };
+
   createEffect(() => {
     setTitle(props.project?.title ?? "");
   });
@@ -70,9 +78,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
       x-role="kodekai project editor backdrop"
       class="kodekai-editor-backdrop absolute inset-0 z-30 flex items-center justify-center overflow-auto bg-neutral-900/35 p-4"
       classList={{ "kodekai-editor-closing": isClosing() }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) requestClose();
-      }}
+      onClick={handleBackdropClick}
     >
       <section
         aria-labelledby="kodekai-project-editor-title"
@@ -82,9 +88,7 @@ export default function ProjectEditor(props: ProjectEditorProps) {
         x-role="kodekai project editor"
         role="dialog"
         use:focusTrap={focusTrap}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") requestClose();
-        }}
+        onKeyDown={handleKeyDown}
       >
         <h2 class="mb-4 text-lg font-semibold" id="kodekai-project-editor-title">
           {props.project ? "Editar projeto" : "Novo projeto"}

@@ -13,6 +13,8 @@ function ResizeHandle(props: {
   direction: ResizeDirection;
   onPointerDown: (direction: ResizeDirection, event: PointerEvent) => void;
 }) {
+  const handlePointerDown = (event: PointerEvent) => props.onPointerDown(props.direction, event);
+
   const style = createMemo<JSX.CSSProperties>(() => {
     if (props.direction === "nw") {
       return {
@@ -66,7 +68,7 @@ function ResizeHandle(props: {
       x-role="resize handle"
       class="absolute z-10 bg-black opacity-0 transition-opacity delay-75 hover:opacity-20"
       style={style()}
-      onPointerDown={(event) => props.onPointerDown(props.direction, event)}
+      onPointerDown={handlePointerDown}
     />
   );
 }
