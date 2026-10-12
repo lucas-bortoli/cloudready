@@ -107,15 +107,15 @@ export default function Button(props: ButtonProps) {
       aria-disabled={isInactive() || undefined}
       aria-label={button["aria-label"] ?? button.title}
       class={cn(
-        "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xs font-medium shadow transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
+        "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xs font-medium text-neutral-600 shadow outline-sky-200 transition-colors focus:outline-2 focus:outline-offset-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         variant() === "primary" &&
           "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700 focus:bg-neutral-700 active:bg-neutral-900",
         variant() === "secondary" &&
-          "border border-neutral-400 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 focus:bg-neutral-200 active:bg-neutral-300",
+          "border border-neutral-400 bg-neutral-100 text-neutral-600 hover:bg-neutral-200 focus:bg-neutral-200 active:bg-neutral-300",
         variant() === "ghost" &&
           "border border-transparent bg-transparent text-neutral-700 shadow-none hover:bg-neutral-100 focus:bg-neutral-100 active:bg-neutral-200",
         variant() === "danger" &&
-          "border border-neutral-400 bg-neutral-100 text-neutral-800 hover:border-red-400 hover:bg-red-50 hover:text-red-700 focus:border-red-400 focus:bg-red-50 focus:text-red-700 active:bg-red-100",
+          "border border-neutral-400 bg-neutral-100 text-neutral-600 hover:border-red-400 hover:bg-red-50 hover:text-red-700 focus:border-red-400 focus:bg-red-50 focus:text-red-700 active:bg-red-100",
         "h-7 gap-1.5 px-4",
         button.class,
       )}

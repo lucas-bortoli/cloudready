@@ -26,6 +26,11 @@ export default function Taskbar() {
       windowManager.setMinimized(windowId, true);
     }
   };
+
+  const toggleStartMenu = () => setIsStartMenuOpen(!isStartMenuOpen());
+  const toggleAccountMenu = () => setIsAccountMenuOpen(!isAccountMenuOpen());
+  const signOut = () => void session.signOut();
+  const closeStartMenu = () => setIsStartMenuOpen(false);
   return (
     <section
       x-role="taskbar"
@@ -35,9 +40,9 @@ export default function Taskbar() {
       <button
         aria-controls="start-menu"
         aria-expanded={isStartMenuOpen()}
-        class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-neutral-800 px-3 transition-colors hover:bg-neutral-700"
+        class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-neutral-800 px-3 transition-colors hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
         type="button"
-        onClick={() => setIsStartMenuOpen(!isStartMenuOpen())}
+        onClick={toggleStartMenu}
       >
         <span class="grid size-4 shrink-0 place-items-center">
           <CarbonIcon icon={Apps16} />
@@ -50,7 +55,7 @@ export default function Taskbar() {
           children={(window) => (
             <button
               data-window-taskbar-id={window.id}
-              class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-neutral-800 px-3 transition-colors hover:bg-neutral-700"
+              class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-neutral-800 px-3 transition-colors hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
               onClick={handleWindowButton.bind(null, window.id)}
             >
               {window.title}
@@ -61,9 +66,9 @@ export default function Taskbar() {
       <div class="relative">
         <button
           aria-expanded={isAccountMenuOpen()}
-          class="h-10 cursor-pointer rounded-full px-3 hover:bg-neutral-700"
+          class="h-10 cursor-pointer rounded-full px-3 hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
           type="button"
-          onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen())}
+          onClick={toggleAccountMenu}
         >
           {session.user().displayName}
         </button>
@@ -74,9 +79,9 @@ export default function Taskbar() {
           >
             <button
               x-role="sign out"
-              class="w-full cursor-pointer rounded px-3 py-2 text-left hover:bg-neutral-700"
+              class="w-full cursor-pointer rounded px-3 py-2 text-left hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200"
               type="button"
-              onClick={() => void session.signOut()}
+              onClick={signOut}
             >
               Sign out
             </button>
@@ -85,7 +90,7 @@ export default function Taskbar() {
       </div>
       <Clock />
       <Show when={isStartMenuOpen()}>
-        <StartMenu onClose={() => setIsStartMenuOpen(false)} />
+        <StartMenu onClose={closeStartMenu} />
       </Show>
     </section>
   );

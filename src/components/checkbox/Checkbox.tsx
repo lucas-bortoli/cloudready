@@ -105,7 +105,7 @@ export default function Checkbox(props: CheckboxProps) {
       />
       <span
         aria-hidden="true"
-        class="grid size-4 place-items-center rounded-xs border border-neutral-400 bg-neutral-50 shadow-sm transition-colors peer-hover:bg-neutral-200 peer-focus:bg-neutral-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue-600 peer-aria-disabled:cursor-not-allowed"
+        class="grid size-4 place-items-center rounded-xs border border-neutral-400 bg-neutral-50 shadow-sm transition-colors peer-hover:bg-neutral-200 peer-focus:bg-neutral-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky-200 peer-aria-disabled:cursor-not-allowed"
         data-state={isIndeterminate() ? "mixed" : local.checked ? "checked" : "unchecked"}
       >
         {isIndeterminate() ? (

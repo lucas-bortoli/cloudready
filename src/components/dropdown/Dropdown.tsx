@@ -113,7 +113,7 @@ export default function Dropdown(props: DropdownProps) {
   return (
     <div
       class={cn(
-        "relative inline-block h-7 min-w-0 cursor-pointer justify-self-start rounded-xs border border-neutral-400 bg-neutral-50 text-neutral-800 shadow transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-600 hover:bg-neutral-200 focus:bg-neutral-200 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
+        "relative inline-block h-7 min-w-0 cursor-pointer justify-self-start rounded-xs border border-neutral-400 bg-neutral-50 text-neutral-800 shadow transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-sky-200 hover:bg-neutral-200 focus:bg-neutral-200 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         props.class,
       )}
     >
