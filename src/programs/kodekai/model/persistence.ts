@@ -15,13 +15,14 @@ export class KodekaiStore {
   private readonly listeners = new Set<() => void>();
   private timer: number | undefined;
   private writes: Promise<void> = Promise.resolve();
-  private dirty = false;
+  private revision = 0;
+  private savedRevision = 0;
   private error: unknown;
 
   private constructor(model: Model) {
     this.model = model;
     model.subscribe(() => {
-      this.dirty = true;
+      this.revision += 1;
       this.error = undefined;
       this.notify();
       if (this.timer !== undefined) window.clearTimeout(this.timer);
@@ -54,7 +55,7 @@ export class KodekaiStore {
 
   /** Reports whether changes remain unsaved and the last write error, if any. */
   public getStatus(): { dirty: boolean; error: unknown } {
-    return { dirty: this.dirty, error: this.error };
+    return { dirty: this.revision > this.savedRevision, error: this.error };
   }
 
   /** Observes save status changes. */
@@ -68,7 +69,7 @@ export class KodekaiStore {
     if (this.timer !== undefined) window.clearTimeout(this.timer);
     this.timer = undefined;
     const snapshot = this.model.toJSON();
-    this.dirty = false;
+    const revision = this.revision;
     this.error = undefined;
     this.notify();
 
@@ -90,10 +91,14 @@ export class KodekaiStore {
     this.writes = write;
     try {
       await write;
-    } catch (error) {
-      this.dirty = true;
-      this.error = error;
+      this.savedRevision = Math.max(this.savedRevision, revision);
+      this.error = undefined;
       this.notify();
+    } catch (error) {
+      if (revision > this.savedRevision) {
+        this.error = error;
+        this.notify();
+      }
     }
   }
 
