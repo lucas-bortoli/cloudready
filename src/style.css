@@ -1,32 +1,5 @@
 @import "tailwindcss";
 
-@keyframes window-open {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes window-close {
-  to {
-    opacity: 0;
-    transform: scale(0);
-  }
-}
-
-@keyframes taskbar-enter {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
 @keyframes session-state-enter {
   from {
     opacity: 0;
@@ -55,25 +28,7 @@
   mix-blend-mode: normal;
 }
 
-[x-role="window"][data-window-motion="pending"] {
-  visibility: hidden;
-}
-[x-role="window"][data-window-motion="opening"] {
-  animation: window-open 180ms ease-out both;
-}
-[x-role="window"][data-window-motion="closing"] {
-  animation: window-close 180ms ease-in both;
-  pointer-events: none;
-}
-
-[x-role="taskbar"] {
-  animation: taskbar-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  [x-role="window"][data-window-motion="opening"],
-  [x-role="window"][data-window-motion="closing"],
-  [x-role="taskbar"],
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation: none;
@@ -205,54 +160,4 @@
   --text-8xl--line-height: 72px;
   --text-9xl: 96px;
   --text-9xl--line-height: 96px;
-}
-
-@keyframes kodekai-editor-backdrop-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes kodekai-editor-dialog-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.5rem) scale(0.98);
-  }
-}
-
-@keyframes kodekai-editor-backdrop-out {
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes kodekai-editor-dialog-out {
-  to {
-    opacity: 0;
-    transform: translateY(0.5rem) scale(0.98);
-  }
-}
-
-.kodekai-editor-backdrop {
-  animation: kodekai-editor-backdrop-in 150ms ease-out both;
-}
-
-.kodekai-editor-dialog {
-  animation: kodekai-editor-dialog-in 180ms ease-out both;
-}
-
-.kodekai-editor-backdrop.kodekai-editor-closing {
-  animation: kodekai-editor-backdrop-out 180ms ease-in both;
-  pointer-events: none;
-}
-
-.kodekai-editor-dialog.kodekai-editor-closing {
-  animation: kodekai-editor-dialog-out 180ms ease-in both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .kodekai-editor-backdrop,
-  .kodekai-editor-dialog {
-    animation: none;
-  }
 }

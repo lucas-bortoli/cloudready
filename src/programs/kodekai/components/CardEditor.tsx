@@ -2,6 +2,7 @@ import Checkmark16 from "@carbon/icons/es/checkmark/16.js";
 import Close16 from "@carbon/icons/es/close/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import "./Editor.css";
 import Button from "../../../components/button/Button";
 import DatePicker from "../../../components/date-picker/DatePicker";
 import Dropdown from "../../../components/dropdown/Dropdown";
