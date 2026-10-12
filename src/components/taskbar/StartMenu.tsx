@@ -4,6 +4,7 @@ import Search16 from "@carbon/icons/es/search/16.js";
 import Settings16 from "@carbon/icons/es/settings/16.js";
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import fallbackProfilePicture from "../../data/default-user-pictures/fallback-picture.png";
+import focusTrap from "../../lib/focus-trap";
 import FileManager from "../../programs/file-manager/FileManager";
 import Kodekai from "../../programs/kodekai/Kodekai";
 import { createMockModel } from "../../programs/kodekai/model/fixture";
@@ -50,6 +51,7 @@ const applications = [
 
 interface StartMenuProps {
   onClose: () => void;
+  shouldFocusSearch: boolean;
 }
 
 export default function StartMenu(props: StartMenuProps) {
@@ -101,15 +103,18 @@ export default function StartMenu(props: StartMenuProps) {
     if (event.key === "Escape") props.onClose();
   };
 
-  onMount(() => searchInput?.focus());
+  onMount(() => {
+    if (props.shouldFocusSearch) searchInput?.focus();
+  });
 
   return (
     <section
       id="start-menu"
       x-role="start menu"
-      class="absolute bottom-13 left-1 w-2xl overflow-hidden rounded-xs border border-neutral-200 bg-white text-neutral-600 shadow-2xl"
+      class="absolute top-13 left-1 w-2xl overflow-hidden rounded-xs border border-neutral-200 bg-white text-neutral-600 shadow-2xl"
       style={{ "z-index": layerItem.zIndex() }}
       onKeyDown={handleKeyDown}
+      use:focusTrap={focusTrap}
     >
       <header class="flex w-full items-center gap-1 border-b border-neutral-200 p-4">
         <div class="flex items-center gap-2">
@@ -134,24 +139,26 @@ export default function StartMenu(props: StartMenuProps) {
       <Show
         when={matchingApplications().length > 0}
         fallback={
-          <p class="flex h-65 items-center justify-center text-center text-neutral-500">
+          <p class="flex h-96 items-center justify-center text-center text-neutral-500">
             No matching apps
           </p>
         }
       >
-        <div x-role="application grid" class="grid grid-cols-5 grid-rows-3 gap-1 p-1">
+        <div x-role="application grid" class="flex h-96 flex-wrap gap-1 overflow-y-auto p-4">
           <For each={matchingApplications()}>
             {(application) => (
               <button
                 x-role="launcher application"
-                class="flex w-32 cursor-pointer flex-col items-center gap-2 rounded-sm p-6 text-left leading-3 outline-sky-200 transition-colors hover:bg-neutral-100 focus:outline-2 focus:outline-offset-2"
+                class="flex h-30 w-30 cursor-pointer flex-col items-center justify-center gap-2 rounded-sm text-left leading-3 outline-sky-200 transition-colors hover:bg-neutral-100 focus:outline-2 focus:outline-offset-2"
                 type="button"
                 onClick={handleApplicationClick.bind(null, application)}
               >
                 <span class="grid size-12 shrink-0 place-items-center rounded-xs bg-white shadow-sm">
                   <CarbonIcon icon={application.icon} />
                 </span>
-                <span title={application.description}>{application.name}</span>
+                <span title={application.description} class="line-clamp-2 w-full text-center">
+                  {application.name}
+                </span>
               </button>
             )}
           </For>

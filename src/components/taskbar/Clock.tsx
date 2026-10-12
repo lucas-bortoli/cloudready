@@ -26,7 +26,7 @@ export default function Clock() {
   });
 
   return (
-    <time class="ml-auto flex h-10 items-center px-3 tabular-nums" dateTime={time().toISOString()}>
+    <time class="flex h-10 items-center px-3 tabular-nums" dateTime={time().toISOString()}>
       {timeFormatter.format(time())}
     </time>
   );

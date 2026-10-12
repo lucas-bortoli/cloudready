@@ -1,6 +1,8 @@
 import { render } from "solid-js/web";
+import { HotkeyProvider } from "./components/hotkeys/HotkeyContext";
 import { LayerProvider } from "./components/layer-manager/LayerContext";
 import { SessionProvider } from "./components/session/SessionContext";
+import { ToastProvider } from "./components/toast/ToastContext";
 import { WindowManagerProvider } from "./components/window-manager/WindowManagerContext";
 import "./style.css";
 
@@ -8,9 +10,13 @@ import "./style.css";
 render(
   () => (
     <LayerProvider>
-      <WindowManagerProvider>
-        <SessionProvider />
-      </WindowManagerProvider>
+      <HotkeyProvider>
+        <ToastProvider>
+          <WindowManagerProvider>
+            <SessionProvider />
+          </WindowManagerProvider>
+        </ToastProvider>
+      </HotkeyProvider>
     </LayerProvider>
   ),
   document.getElementById("app")!,
