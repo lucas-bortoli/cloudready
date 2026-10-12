@@ -1,7 +1,16 @@
 import Edit16 from "@carbon/icons/es/edit/16.js";
 import FolderAdd16 from "@carbon/icons/es/folder--add/16.js";
 import TaskAdd16 from "@carbon/icons/es/task--add/16.js";
-import { createEffect, createMemo, createSignal, For, Show, type JSX } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+  type JSX,
+} from "solid-js";
 import Button from "../../components/button/Button";
 import Dropdown from "../../components/dropdown/Dropdown";
 import CarbonIcon from "../../components/taskbar/CarbonIcon";
@@ -11,8 +20,8 @@ import Category from "./components/Category";
 import ProjectEditor from "./components/ProjectEditor";
 import { KodekaiProvider, useKodekai } from "./KodekaiContext";
 import useCardDrag from "./lib/useCardDrag";
-import { createMockModel } from "./model/fixture";
 import type { Bucket, Card as CardData, CardId, Model, Project, ProjectId } from "./model/model";
+import { KodekaiStore } from "./model/persistence";
 
 /** Renders the Kodekai board for the model supplied by its provider. */
 function KodekaiView() {
@@ -187,16 +196,67 @@ function KodekaiView() {
 /** Optional model override for controlled rendering and integration tests. */
 export interface KodekaiProps {
   model?: Model;
+  userId?: string;
 }
 
 /** Provides and renders the Kodekai project board. */
 export default function Kodekai(props: KodekaiProps) {
   useWindowCloser(() => true);
-  const model = props.model ?? createMockModel();
+  const [store, setStore] = createSignal<KodekaiStore>();
+  const [loadError, setLoadError] = createSignal(false);
+  const [saveStatus, setSaveStatus] = createSignal<{ dirty: boolean; error: unknown }>({
+    dirty: false,
+    error: undefined,
+  });
+  let unsubscribe: (() => void) | undefined;
+  let disposed = false;
+
+  const load = async () => {
+    if (!props.userId) return;
+    setLoadError(false);
+    try {
+      const loaded = await KodekaiStore.open(props.userId);
+      if (disposed) return;
+      unsubscribe?.();
+      unsubscribe = loaded.subscribe(() => setSaveStatus(loaded.getStatus()));
+      setSaveStatus(loaded.getStatus());
+      setStore(loaded);
+    } catch {
+      if (!disposed) setLoadError(true);
+    }
+  };
+
+  onMount(() => void load());
+  onCleanup(() => {
+    disposed = true;
+    unsubscribe?.();
+  });
+  const retrySave = () => void store()?.save();
+  const retryLoad = () => void load();
+  const model = () => props.model ?? store()?.model;
 
   return (
-    <KodekaiProvider model={model}>
-      <KodekaiView />
-    </KodekaiProvider>
+    <Show
+      when={model()}
+      fallback={
+        <div class="p-8">
+          {loadError() ? "Could not load Kodekai." : "Loading Kodekai…"}
+          <Show when={loadError()}>
+            <Button onClick={retryLoad}>Retry</Button>
+          </Show>
+        </div>
+      }
+    >
+      {(loadedModel) => (
+        <KodekaiProvider model={loadedModel()}>
+          <KodekaiView />
+          <Show when={saveStatus().error}>
+            <div role="alert" class="absolute right-4 bottom-4 z-40 rounded bg-red-100 p-3">
+              Could not save Kodekai changes. <Button onClick={retrySave}>Retry</Button>
+            </div>
+          </Show>
+        </KodekaiProvider>
+      )}
+    </Show>
   );
 }

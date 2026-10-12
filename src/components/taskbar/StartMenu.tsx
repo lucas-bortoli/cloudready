@@ -7,7 +7,6 @@ import fallbackProfilePicture from "../../data/default-user-pictures/fallback-pi
 import focusTrap from "../../lib/focus-trap";
 import FileManager from "../../programs/file-manager/FileManager";
 import Kodekai from "../../programs/kodekai/Kodekai";
-import { createMockModel } from "../../programs/kodekai/model/fixture";
 import Button from "../button/Button";
 import { useLayerItem } from "../layer-manager/LayerContext";
 import { ProfilePictureMissingError } from "../session/errors";
@@ -34,12 +33,12 @@ const applications = [
     name: "Kodekai",
     description: "Organize projects and tasks",
     icon: Settings16,
-    launch: (windowManager: ReturnType<typeof useWindowManager>) =>
+    launch: (windowManager: ReturnType<typeof useWindowManager>, userId: string) =>
       windowManager.createWindow({
         title: "Kodekai",
         size: { width: 960, height: 600 },
         minimumSize: { width: 640, height: 400 },
-        content: () => <Kodekai model={createMockModel()} />,
+        content: () => <Kodekai userId={userId} />,
       }),
   },
   {
@@ -95,7 +94,7 @@ export default function StartMenu(props: StartMenuProps) {
   };
 
   const handleApplicationClick = (application: (typeof applications)[number]) => {
-    if ("launch" in application) application.launch(windowManager);
+    if ("launch" in application) application.launch(windowManager, session.user().id);
     props.onClose();
   };
 
