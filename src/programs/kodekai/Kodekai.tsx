@@ -344,6 +344,7 @@ export default function Kodekai(props: KodekaiProps) {
   onCleanup(() => {
     disposed = true;
     unsubscribe?.();
+    if (store()?.getStatus().dirty) void store()?.save();
   });
   const retrySave = () => void store()?.save();
   const retryLoad = () => void load();
@@ -364,6 +365,14 @@ export default function Kodekai(props: KodekaiProps) {
       {(loadedModel) => (
         <KodekaiProvider model={loadedModel()}>
           <KodekaiView />
+          <Show when={saveStatus().dirty && !saveStatus().error}>
+            <div
+              role="status"
+              class="pointer-events-none absolute right-4 bottom-4 rounded bg-white/90 px-2 py-1 text-sm text-neutral-600 shadow"
+            >
+              Saving…
+            </div>
+          </Show>
           <Show when={saveStatus().error}>
             <div role="alert" class="absolute right-4 bottom-4 z-40 rounded bg-red-100 p-3">
               Could not save Kodekai changes. <Button onClick={retrySave}>Retry</Button>
