@@ -8,6 +8,13 @@ export type Bucket = "icebox" | "in-progress" | "blocked" | "revision" | "done";
 export type CardId = Uuid<"Card">;
 
 export type ProjectId = Uuid<"Project">;
+export type TagId = Uuid<"Tag">;
+
+export interface Tag {
+  id: TagId;
+  projectId: ProjectId;
+  name: string;
+}
 
 export interface Project {
   id: ProjectId;
@@ -23,6 +30,7 @@ export interface Card {
   expiration: IsoDateTime;
   bucket: Bucket;
   displayIndex: number;
+  tagIds: TagId[];
 }
 
 export interface ProjectCreateOptions {
@@ -37,6 +45,7 @@ export interface CardCreateOptions {
   expiration?: IsoDateTime;
   bucket?: Bucket;
   displayIndex?: number;
+  tagIds?: TagId[];
 }
 
 export interface CardUpdateOptions {
@@ -44,6 +53,7 @@ export interface CardUpdateOptions {
   content?: string;
   priority?: Priority;
   expiration?: IsoDateTime;
+  tagIds?: TagId[];
 }
 
 export interface CardMoveOptions {
@@ -56,6 +66,9 @@ export class ProjectNotFoundError extends Error {}
 export class CardNotFoundError extends Error {}
 
 export class InvalidModelJsonError extends Error {}
+export class TagNotFoundError extends Error {}
+export class InvalidCardTagError extends Error {}
+export class TagNameConflictError extends Error {}
 
 export type ModelChangeListener = () => void;
 
@@ -63,6 +76,7 @@ export type ModelChangeListener = () => void;
 export class Model {
   private readonly projects = new Map<ProjectId, Project>();
   private readonly cards = new Map<CardId, Card>();
+  private readonly tags = new Map<TagId, Tag>();
   private readonly changeListeners = new Set<ModelChangeListener>();
 
   /**
@@ -112,6 +126,53 @@ export class Model {
     for (const [cardId, card] of this.cards) {
       if (card.projectId === id) this.cards.delete(cardId);
     }
+    for (const [tagId, tag] of this.tags) {
+      if (tag.projectId === id) this.tags.delete(tagId);
+    }
+    this.notifyChange();
+  }
+
+  /** Lists tags owned by a project.
+   * @throws {ProjectNotFoundError} If the project does not exist.
+   */
+  public listTags(projectId: ProjectId): readonly Tag[] {
+    this.requireProject(projectId);
+    return Array.from(this.tags.values())
+      .filter((tag) => tag.projectId === projectId)
+      .map((tag) => ({ ...tag }));
+  }
+
+  /** Creates a project-scoped tag.
+   * @throws {ProjectNotFoundError} If the project does not exist.
+   * @throws {TagNameConflictError} If the name is empty or already used in the project.
+   */
+  public createTag(projectId: ProjectId, name: string): TagId {
+    this.requireProject(projectId);
+    const cleanName = this.validateTagName(projectId, name);
+    const id = generateUuid<"Tag">();
+    this.tags.set(id, { id, projectId, name: cleanName });
+    this.notifyChange();
+    return id;
+  }
+
+  /** Renames a tag.
+   * @throws {TagNotFoundError} If the tag does not exist.
+   * @throws {TagNameConflictError} If the name is empty or already used in the project.
+   */
+  public renameTag(id: TagId, name: string): void {
+    const tag = this.requireTag(id);
+    tag.name = this.validateTagName(tag.projectId, name, id);
+    this.notifyChange();
+  }
+
+  /** Deletes a tag and removes it from cards.
+   * @throws {TagNotFoundError} If the tag does not exist.
+   */
+  public deleteTag(id: TagId): void {
+    this.requireTag(id);
+    this.tags.delete(id);
+    for (const card of this.cards.values())
+      card.tagIds = card.tagIds.filter((tagId) => tagId !== id);
     this.notifyChange();
   }
 
@@ -135,6 +196,7 @@ export class Model {
       expiration: options.expiration ?? formatIsoDateTime(new Date()),
       bucket,
       displayIndex: 0,
+      tagIds: this.validateCardTags(options.projectId, options.tagIds ?? []),
     };
 
     this.cards.set(id, card);
@@ -149,7 +211,8 @@ export class Model {
    * @throws {CardNotFoundError} If no card has `id`.
    */
   public getCard(id: CardId): Card {
-    return { ...this.requireCard(id) };
+    const card = this.requireCard(id);
+    return { ...card, tagIds: [...card.tagIds] };
   }
 
   /**
@@ -164,16 +227,21 @@ export class Model {
       .sort(
         (left, right) => left.displayIndex - right.displayIndex || left.id.localeCompare(right.id),
       )
-      .map((card) => ({ ...card }));
+      .map((card) => ({ ...card, tagIds: [...card.tagIds] }));
   }
 
   /**
    * Changes card content without moving it.
    *
    * @throws {CardNotFoundError} If no card has `id`.
+   * @throws {InvalidCardTagError} If a tag belongs to another project or is missing.
    */
   public updateCard(id: CardId, options: CardUpdateOptions): void {
-    Object.assign(this.requireCard(id), options);
+    const card = this.requireCard(id);
+    const changes = options.tagIds
+      ? { ...options, tagIds: this.validateCardTags(card.projectId, options.tagIds) }
+      : options;
+    Object.assign(card, changes);
     this.notifyChange();
   }
 
@@ -220,6 +288,7 @@ export class Model {
     return JSON.stringify({
       projects: Array.from(this.projects.values()),
       cards: Array.from(this.cards.values()),
+      tags: Array.from(this.tags.values()),
     });
   }
 
@@ -242,6 +311,10 @@ export class Model {
 
     const model = Model.empty();
     for (const project of value.projects) model.addSerializedProject(project);
+    if (value.tags !== undefined && !Array.isArray(value.tags)) {
+      throw new InvalidModelJsonError("Model JSON contains invalid tags.");
+    }
+    for (const tag of value.tags ?? []) model.addSerializedTag(tag);
     for (const card of value.cards) model.addSerializedCard(card);
     return model;
   }
@@ -263,6 +336,37 @@ export class Model {
     const card = this.cards.get(id);
     if (!card) throw new CardNotFoundError(`Card ${id} does not exist.`);
     return card;
+  }
+
+  private requireTag(id: TagId): Tag {
+    const tag = this.tags.get(id);
+    if (!tag) throw new TagNotFoundError(`Tag ${id} does not exist.`);
+    return tag;
+  }
+
+  private validateTagName(projectId: ProjectId, name: string, exceptId?: TagId): string {
+    const cleanName = name.trim();
+    if (
+      !cleanName ||
+      Array.from(this.tags.values()).some(
+        (tag) =>
+          tag.projectId === projectId &&
+          tag.id !== exceptId &&
+          tag.name.toLowerCase() === cleanName.toLowerCase(),
+      )
+    )
+      throw new TagNameConflictError("Tag names must be nonempty and unique within a project.");
+    return cleanName;
+  }
+
+  private validateCardTags(projectId: ProjectId, tagIds: readonly TagId[]): TagId[] {
+    if (
+      new Set(tagIds).size !== tagIds.length ||
+      tagIds.some((id) => this.tags.get(id)?.projectId !== projectId)
+    ) {
+      throw new InvalidCardTagError("Card tags must be unique and belong to the card's project.");
+    }
+    return [...tagIds];
   }
 
   private cardsInBucket(projectId: ProjectId, bucket: Bucket): Card[] {
@@ -303,6 +407,27 @@ export class Model {
     this.projects.set(id, { id, title: value.title });
   }
 
+  private addSerializedTag(value: unknown): void {
+    if (
+      !isRecord(value) ||
+      typeof value.id !== "string" ||
+      typeof value.projectId !== "string" ||
+      typeof value.name !== "string"
+    ) {
+      throw new InvalidModelJsonError("Model JSON contains an invalid tag.");
+    }
+    const id = value.id as TagId;
+    const projectId = value.projectId as ProjectId;
+    if (this.tags.has(id) || !this.projects.has(projectId))
+      throw new InvalidModelJsonError("Model JSON contains an invalid tag reference.");
+    try {
+      const name = this.validateTagName(projectId, value.name);
+      this.tags.set(id, { id, projectId, name });
+    } catch {
+      throw new InvalidModelJsonError("Model JSON contains a duplicate or empty tag name.");
+    }
+  }
+
   private addSerializedCard(value: unknown): void {
     if (!isSerializedCard(value)) {
       throw new InvalidModelJsonError("Model JSON contains an invalid card.");
@@ -324,10 +449,11 @@ export class Model {
         expiration: parseIsoDateTime(value.expiration),
         bucket: value.bucket,
         displayIndex: value.displayIndex,
+        tagIds: this.validateCardTags(projectId, (value.tagIds ?? []) as TagId[]),
       });
     } catch (error) {
       if (error instanceof InvalidModelJsonError) throw error;
-      throw new InvalidModelJsonError("Model JSON contains an invalid card expiration.");
+      throw new InvalidModelJsonError("Model JSON contains an invalid card expiration or tag.");
     }
   }
 }
@@ -345,6 +471,7 @@ interface SerializedCard {
   expiration: string;
   bucket: Bucket;
   displayIndex: number;
+  tagIds?: string[];
 }
 
 function isSerializedCard(value: unknown): value is SerializedCard {
@@ -364,6 +491,8 @@ function isSerializedCard(value: unknown): value is SerializedCard {
       value.bucket === "done") &&
     typeof value.displayIndex === "number" &&
     Number.isInteger(value.displayIndex) &&
-    value.displayIndex >= 0
+    value.displayIndex >= 0 &&
+    (value.tagIds === undefined ||
+      (Array.isArray(value.tagIds) && value.tagIds.every((id) => typeof id === "string")))
   );
 }

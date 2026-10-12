@@ -4,15 +4,16 @@ import {
   createSignal,
   onCleanup,
   onMount,
-  type Accessor,
+  type Accessor, For,
 } from "solid-js";
 import { cn } from "../../../lib/dom";
 import { truncateTextToFit } from "../lib/truncateTextToFit";
-import type { Card as CardData, CardId } from "../model/model";
+import type { Card as CardData, CardId, Tag } from "../model/model";
 
 /** Properties required to render one draggable Kodekai card. */
 export interface CardProps {
   card: CardData;
+  tags: readonly Tag[];
   draggingCardId: Accessor<CardId | undefined>;
   onPointerDown: (card: CardData, element: HTMLLIElement, event: PointerEvent) => void;
   onKeyDown: (card: CardData, element: HTMLLIElement, event: KeyboardEvent) => void;
@@ -114,6 +115,9 @@ export default function Card(props: CardProps) {
         {visibleContent()}
       </p>
       <footer class="mt-1 flex shrink-0 flex-wrap gap-1">
+        <For each={props.tags}>{(tag) => (
+          <span class="rounded bg-sky-100 px-2 py-0.5 text-sm">{tag.name}</span>
+        )}</For>
         <span
           class={cn(
             "rounded-xs px-2 py-0.5 text-sm",

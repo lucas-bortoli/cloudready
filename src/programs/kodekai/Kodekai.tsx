@@ -18,6 +18,7 @@ import useWindowCloser from "../../components/window-manager/useWindowCloser";
 import CardEditor from "./components/CardEditor";
 import Category from "./components/Category";
 import ProjectEditor from "./components/ProjectEditor";
+import TagEditor from "./components/TagEditor";
 import { KodekaiProvider, useKodekai } from "./KodekaiContext";
 import useCardDrag from "./lib/useCardDrag";
 import type { Bucket, Card as CardData, CardId, Model, Project, ProjectId } from "./model/model";
@@ -34,10 +35,12 @@ function KodekaiView() {
   const [editingCard, setEditingCard] = createSignal<CardData>();
   const [projectEditorOpen, setProjectEditorOpen] = createSignal(false);
   const [editingProject, setEditingProject] = createSignal<Project>();
+  const [tagEditorOpen, setTagEditorOpen] = createSignal(false);
   let focusReturnTarget: HTMLElement | undefined;
   let focusReturnCardId: CardId | undefined;
   let projectFocusReturnTarget: HTMLElement | undefined;
   const projects = createMemo(() => model().listProjects());
+  const tags = createMemo(() => (selectedProject() ? model().listTags(selectedProject()!) : []));
   const cardDrag = useCardDrag({ model, rootElement });
 
   const openEditor = (card?: CardData) => {
@@ -115,6 +118,12 @@ function KodekaiView() {
   };
   const updateProject = (project: Project, title: string) =>
     model().renameProject(project.id, title);
+  const createTag = (name: string) => model().createTag(selectedProject()!, name);
+  const renameTag = (id: Parameters<Model["renameTag"]>[0], name: string) =>
+    model().renameTag(id, name);
+  const deleteTag = (id: Parameters<Model["deleteTag"]>[0]) => model().deleteTag(id);
+  const openTagEditor = () => setTagEditorOpen(true);
+  const closeTagEditor = () => setTagEditorOpen(false);
 
   return (
     <section
@@ -149,6 +158,9 @@ function KodekaiView() {
           onClick={openNewCardEditor}
           startIcon={<CarbonIcon icon={TaskAdd16} />}
         />
+        <Button class="ml-2" disabled={!selectedProject()} onClick={openTagEditor}>
+          Tags
+        </Button>
       </header>
       <section class="flex min-h-0 min-w-0 grow basis-0 gap-1 overflow-auto p-8 pt-4 *:shrink-0">
         <For
@@ -173,12 +185,22 @@ function KodekaiView() {
           <CardEditor
             card={editingCard()}
             projectId={projectId()}
+            tags={tags()}
             onClose={closeEditor}
             onCreate={createCard}
             onDelete={deleteCard}
             onUpdate={updateCard}
           />
         )}
+      </Show>
+      <Show when={tagEditorOpen() && selectedProject()}>
+        <TagEditor
+          tags={tags()}
+          onClose={closeTagEditor}
+          onCreate={createTag}
+          onRename={renameTag}
+          onDelete={deleteTag}
+        />
       </Show>
       <Show when={projectEditorOpen()}>
         <ProjectEditor
