@@ -1,22 +1,50 @@
 import Folder16 from "@carbon/icons/es/folder/16.js";
-import Globe16 from "@carbon/icons/es/globe/16.js";
-import Image16 from "@carbon/icons/es/image/16.js";
 import Power16 from "@carbon/icons/es/power/16.js";
 import Search16 from "@carbon/icons/es/search/16.js";
 import Settings16 from "@carbon/icons/es/settings/16.js";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import fallbackProfilePicture from "../../data/default-user-pictures/fallback-picture.png";
+import FileManager from "../../programs/file-manager/FileManager";
+import Kodekai from "../../programs/kodekai/Kodekai";
+import { createMockModel } from "../../programs/kodekai/model/fixture";
+import Button from "../button/Button";
 import { useLayerItem } from "../layer-manager/LayerContext";
+import { ProfilePictureMissingError } from "../session/errors";
+import { sessions } from "../session/SessionClient";
+import { useSession } from "../session/SessionContext";
+import TextInput from "../text-input/TextInput";
+import { useWindowManager } from "../window-manager/WindowManagerContext";
 import CarbonIcon from "./CarbonIcon";
 
 const applications = [
-  { name: "Files", description: "Browse your files", icon: Folder16, color: "bg-amber-500" },
-  { name: "Web", description: "Explore the web", icon: Globe16, color: "bg-sky-500" },
-  { name: "Gallery", description: "View your photos", icon: Image16, color: "bg-violet-500" },
+  {
+    name: "Files",
+    description: "Browse your files",
+    icon: Folder16,
+    launch: (windowManager: ReturnType<typeof useWindowManager>) =>
+      windowManager.createWindow({
+        title: "Files",
+        size: { width: 800, height: 500 },
+        minimumSize: { width: 500, height: 300 },
+        content: () => <FileManager />,
+      }),
+  },
+  {
+    name: "Kodekai",
+    description: "Organize projects and tasks",
+    icon: Settings16,
+    launch: (windowManager: ReturnType<typeof useWindowManager>) =>
+      windowManager.createWindow({
+        title: "Kodekai",
+        size: { width: 960, height: 600 },
+        minimumSize: { width: 640, height: 400 },
+        content: () => <Kodekai model={createMockModel()} />,
+      }),
+  },
   {
     name: "Settings",
     description: "Configure CloudReady",
     icon: Settings16,
-    color: "bg-slate-600",
   },
 ] as const;
 
@@ -26,8 +54,33 @@ interface StartMenuProps {
 
 export default function StartMenu(props: StartMenuProps) {
   const layerItem = useLayerItem("shell");
+  const session = useSession();
+  const windowManager = useWindowManager();
   const [query, setQuery] = createSignal("");
-  let searchInput: HTMLInputElement | undefined;
+  const [profilePictureUrl, setProfilePictureUrl] = createSignal(fallbackProfilePicture);
+  let searchInput: HTMLTextAreaElement | undefined;
+
+  onMount(() => {
+    let objectUrl: string | undefined;
+    if (session.user().profilePicture) {
+      void sessions
+        .profilePicture()
+        .then((picture) => {
+          objectUrl = URL.createObjectURL(
+            new Blob([picture], { type: session.user().profilePicture?.mimeType }),
+          );
+          setProfilePictureUrl(objectUrl);
+        })
+        .catch((error: unknown) => {
+          if (error instanceof ProfilePictureMissingError)
+            setProfilePictureUrl(fallbackProfilePicture);
+        });
+    }
+
+    onCleanup(() => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    });
+  });
 
   const matchingApplications = () => {
     const normalizedQuery = query().trim().toLowerCase();
@@ -39,38 +92,45 @@ export default function StartMenu(props: StartMenuProps) {
       : applications;
   };
 
+  const handleApplicationClick = (application: (typeof applications)[number]) => {
+    if ("launch" in application) application.launch(windowManager);
+    props.onClose();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") props.onClose();
+  };
+
   onMount(() => searchInput?.focus());
 
   return (
     <section
       id="start-menu"
       x-role="start menu"
-      class="absolute bottom-13 left-1 w-lg overflow-hidden rounded-xl border border-neutral-600 bg-neutral-900/80 text-neutral-100 shadow-2xl backdrop-blur-lg"
+      class="absolute bottom-13 left-1 w-2xl overflow-hidden rounded-xs border border-neutral-200 bg-white text-neutral-600 shadow-2xl"
       style={{ "z-index": layerItem.zIndex() }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          props.onClose();
-        }
-      }}
+      onKeyDown={handleKeyDown}
     >
-      <div class="p-1">
-        <label
-          x-role="launcher search"
-          class="flex items-center gap-2 rounded-lg border border-neutral-300 bg-neutral-50 px-3 text-neutral-500 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
-        >
-          <span class="grid size-4 shrink-0 place-items-center">
-            <CarbonIcon icon={Search16} />
-          </span>
-          <input
-            ref={searchInput}
-            class="h-9 min-w-0 flex-1 bg-transparent text-neutral-900 outline-none placeholder:text-neutral-400"
-            type="search"
-            placeholder="Search apps"
-            value={query()}
-            onInput={(event) => setQuery(event.currentTarget.value)}
+      <header class="flex w-full items-center gap-1 border-b border-neutral-200 p-4">
+        <div class="flex items-center gap-2">
+          <img
+            class="pointer-events-none size-6 shrink-0 rounded-full bg-white object-cover"
+            src={profilePictureUrl()}
           />
+          <span>{session.user().displayName}</span>
+        </div>
+        <label x-role="launcher search" class="relative ml-4 h-7 w-full">
+          <TextInput
+            ref={searchInput}
+            value={query()}
+            onValueChange={setQuery}
+            class="w-full"
+            placeholder="Search..."
+          />
+          <CarbonIcon icon={Search16} class="absolute top-1.5 right-1.5" />
         </label>
-      </div>
+        <Button startIcon={<CarbonIcon icon={Power16} class="ml-auto" />} />
+      </header>
       <Show
         when={matchingApplications().length > 0}
         fallback={
@@ -79,20 +139,16 @@ export default function StartMenu(props: StartMenuProps) {
           </p>
         }
       >
-        <div x-role="application grid" class="grid grid-cols-5 grid-rows-4 gap-1 p-1">
+        <div x-role="application grid" class="grid grid-cols-5 grid-rows-3 gap-1 p-1">
           <For each={matchingApplications()}>
             {(application) => (
               <button
                 x-role="launcher application"
-                class="flex cursor-pointer flex-col items-center gap-2 rounded-lg p-1 text-left leading-3 transition-colors hover:bg-neutral-600 focus-visible:bg-neutral-600 focus-visible:outline-none"
+                class="flex w-32 cursor-pointer flex-col items-center gap-2 rounded-sm p-6 text-left leading-3 outline-sky-200 transition-colors hover:bg-neutral-100 focus:outline-2 focus:outline-offset-2"
                 type="button"
-                onClick={() => {
-                  props.onClose();
-                }}
+                onClick={handleApplicationClick.bind(null, application)}
               >
-                <span
-                  class={`grid size-8 shrink-0 place-items-center rounded-md text-white shadow-sm ${application.color}`}
-                >
+                <span class="grid size-12 shrink-0 place-items-center rounded-xs bg-white shadow-sm">
                   <CarbonIcon icon={application.icon} />
                 </span>
                 <span title={application.description}>{application.name}</span>
@@ -101,13 +157,6 @@ export default function StartMenu(props: StartMenuProps) {
           </For>
         </div>
       </Show>
-      <footer class="flex w-full items-center bg-neutral-800 p-4">
-        <div class="flex items-center gap-2">
-          <i class="inline-block size-6 rounded-full bg-white" />
-          <span>User</span>
-        </div>
-        <CarbonIcon icon={Power16} class="ml-auto" />
-      </footer>
     </section>
   );
 }

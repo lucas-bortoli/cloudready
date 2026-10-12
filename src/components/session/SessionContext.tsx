@@ -13,14 +13,17 @@ type SessionContextValue = {
   signOut: () => Promise<void>;
 };
 
-const MINIMUM_LOADING_DURATION = 4000;
+const MINIMUM_LOADING_DURATION = 400;
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
-type ViewTransitionDocument = Document & {
-  startViewTransition?: (update: () => void) => void;
-};
+const SESSION_CONTEXT_KEY = "cloudready.session-context";
 
-const SessionContext = createContext<SessionContextValue>();
+const SessionContext: ReturnType<typeof createContext<SessionContextValue>> =
+  import.meta.hot?.data[SESSION_CONTEXT_KEY] ?? createContext<SessionContextValue>();
+
+if (import.meta.hot) {
+  import.meta.hot.data[SESSION_CONTEXT_KEY] = SessionContext;
+}
 
 /** Gates the desktop behind the current local browser session. */
 export function SessionProvider() {
@@ -28,12 +31,11 @@ export function SessionProvider() {
   const [activeUser, setActiveUser] = createSignal<UserProfile>();
 
   const transitionTo = (nextState: State) => {
-    const documentWithTransitions = document as ViewTransitionDocument;
-    if (!documentWithTransitions.startViewTransition || window.matchMedia(REDUCED_MOTION).matches) {
+    if (!("startViewTransition" in document) || window.matchMedia(REDUCED_MOTION).matches) {
       setState(nextState);
       return;
     }
-    documentWithTransitions.startViewTransition(() => setState(nextState));
+    document.startViewTransition(() => setState(nextState));
   };
 
   const load = async (minimumLoadingDuration: Promise<void>) => {
