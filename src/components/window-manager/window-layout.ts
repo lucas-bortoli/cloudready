@@ -2,17 +2,27 @@ import type { JSX } from "solid-js";
 import type { WindowDock, WindowEntry } from "./WindowManager";
 
 export const taskbarHeight = 48;
+export type TaskbarPosition = "top" | "bottom";
+export const taskbarPosition: TaskbarPosition = "top";
+
+/** Returns the taskbar's occupied edge and corresponding window offsets. */
+export function getTaskbarBounds(): { top: number; bottom: number } {
+  return taskbarPosition === "top"
+    ? { top: taskbarHeight, bottom: 0 }
+    : { top: 0, bottom: taskbarHeight };
+}
 
 /** Converts a layout measurement to an integer CSS pixel value. */
 export const integerPixels = (value: number) => `${Math.round(value)}px`;
 
 /** Returns the viewport layout styles for a window frame. */
 export function getWindowStyle(entry: WindowEntry): JSX.CSSProperties {
+  const taskbarBounds = getTaskbarBounds();
   if (entry.dock === "dock-full") {
     return {
-      top: 0,
+      top: integerPixels(taskbarBounds.top),
       right: 0,
-      bottom: integerPixels(taskbarHeight),
+      bottom: integerPixels(taskbarBounds.bottom),
       left: 0,
       display: entry.isMinimized ? "none" : undefined,
     };
@@ -20,9 +30,9 @@ export function getWindowStyle(entry: WindowEntry): JSX.CSSProperties {
 
   if (entry.dock === "dock-left") {
     return {
-      top: 0,
+      top: integerPixels(taskbarBounds.top),
       right: "50%",
-      bottom: integerPixels(taskbarHeight),
+      bottom: integerPixels(taskbarBounds.bottom),
       left: 0,
       display: entry.isMinimized ? "none" : undefined,
     };
@@ -30,9 +40,9 @@ export function getWindowStyle(entry: WindowEntry): JSX.CSSProperties {
 
   if (entry.dock === "dock-right") {
     return {
-      top: 0,
+      top: integerPixels(taskbarBounds.top),
       right: 0,
-      bottom: integerPixels(taskbarHeight),
+      bottom: integerPixels(taskbarBounds.bottom),
       left: "50%",
       display: entry.isMinimized ? "none" : undefined,
     };

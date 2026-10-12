@@ -1,6 +1,7 @@
 import Close16 from "@carbon/icons/es/close/16.js";
 import Maximize16 from "@carbon/icons/es/maximize/16.js";
 import Minimize16 from "@carbon/icons/es/minimize/16.js";
+import Send16 from "@carbon/icons/es/arrow--left/16.js";
 import PinFilled16 from "@carbon/icons/es/pin--filled/16.js";
 import Pin16 from "@carbon/icons/es/pin/16.js";
 import SidePanelOpen16 from "@carbon/icons/es/side-panel--open/16.js";
@@ -37,12 +38,21 @@ export default function Titlebar(props: {
       class="flex h-8 w-full shrink-0 items-center bg-neutral-600 px-1 text-neutral-50 group-focus-within/window:bg-neutral-800"
       onPointerDown={handlePointerDown}
     >
+      <button
+        aria-label="Back"
+        class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+        type="button"
+        onPointerDown={stopPointerDown}
+        onClick={togglePinned}
+      >
+        <CarbonIcon icon={Send16} />
+      </button>
       <h1 class="ml-1">{props.entry.title}</h1>
       <div class="ml-auto inline-flex gap-0.5">
         <button
           aria-label={props.entry.isPinned ? "Unpin window" : "Pin window"}
           aria-pressed={props.entry.isPinned}
-          class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
+          class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
           type="button"
           onPointerDown={stopPointerDown}
           onClick={togglePinned}
@@ -52,7 +62,7 @@ export default function Titlebar(props: {
         <Show when={props.entry.isMinimizable}>
           <button
             aria-label="Minimize window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
+            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={minimize}
@@ -81,7 +91,7 @@ export default function Titlebar(props: {
           </button>
           <button
             aria-label="Maximize window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
+            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={toggleMaximized}
@@ -92,7 +102,7 @@ export default function Titlebar(props: {
         <Show when={props.entry.closer}>
           <button
             aria-label="Close window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-800"
+            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={close}

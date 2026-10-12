@@ -1,19 +1,36 @@
 import { Show, type Accessor, type JSX } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { WindowDock } from "./WindowManager";
-import { integerPixels, taskbarHeight } from "./window-layout";
+import { getTaskbarBounds, integerPixels } from "./window-layout";
 
 /** Returns the viewport layout styles for a visible dock preview. */
 function getDockPreviewStyle(dock: Exclude<WindowDock, null>): JSX.CSSProperties {
+  const taskbarBounds = getTaskbarBounds();
+
   if (dock === "dock-full") {
-    return { top: 0, right: 0, bottom: integerPixels(taskbarHeight), left: 0 };
+    return {
+      top: integerPixels(taskbarBounds.top),
+      right: 0,
+      bottom: integerPixels(taskbarBounds.bottom),
+      left: 0,
+    };
   }
 
   if (dock === "dock-left") {
-    return { top: 0, right: "50%", bottom: integerPixels(taskbarHeight), left: 0 };
+    return {
+      top: integerPixels(taskbarBounds.top),
+      right: "50%",
+      bottom: integerPixels(taskbarBounds.bottom),
+      left: 0,
+    };
   }
 
-  return { top: 0, right: 0, bottom: integerPixels(taskbarHeight), left: "50%" };
+  return {
+    top: integerPixels(taskbarBounds.top),
+    right: 0,
+    bottom: integerPixels(taskbarBounds.bottom),
+    left: "50%",
+  };
 }
 
 /** Renders the viewport overlay that previews the current dock target. */

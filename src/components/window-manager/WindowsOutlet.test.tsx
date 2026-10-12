@@ -498,9 +498,9 @@ describe("WindowsOutlet", () => {
 
     windowControl(window, label).click();
 
-    expect(window.style.top).toBe("0px");
+    expect(window.style.top).toBe("48px");
     expect(window.style.right).toBe(right);
-    expect(window.style.bottom).toBe("48px");
+    expect(window.style.bottom).toBe("0px");
     expect(window.style.left).toBe(left);
     expect(window.dataset.dock).toBe(dock);
     expect(window.querySelectorAll('[x-role="resize handle"]')).toHaveLength(0);
