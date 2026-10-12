@@ -123,7 +123,7 @@ export default function TextInput(props: TextInputProps) {
       aria-disabled={isInactive() || undefined}
       aria-multiline={isMultiLine() ? undefined : false}
       class={cn(
-        "block min-w-0 rounded-xs border border-neutral-400 bg-neutral-50 text-neutral-800 placeholder:text-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
+        "block min-w-0 rounded-xs border border-neutral-400 bg-neutral-50 text-neutral-800 placeholder:text-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         isMultiLine()
           ? "min-h-20 resize-none overflow-y-auto px-2 py-1.5"
           : "h-7 resize-none overflow-y-hidden px-2 pt-0.75 leading-5 whitespace-nowrap",
