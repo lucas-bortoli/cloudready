@@ -19,6 +19,7 @@ export default function ProfilePicker(props: { onSelected: (user: UserProfile) =
       setError(reason instanceof Error ? reason.message : "Could not start profile.");
     }
   };
+  const handleProfileClick = (profile: UserProfile) => void choose(profile);
   return (
     <main x-role="profile picker" class="grid h-full place-items-center bg-neutral-100 p-6">
       <section class="w-full max-w-sm rounded-xl border border-neutral-300 bg-white p-6 shadow-xl">
@@ -30,7 +31,7 @@ export default function ProfilePicker(props: { onSelected: (user: UserProfile) =
                 x-role="profile choice"
                 class="rounded-lg border border-neutral-300 p-3 text-left text-neutral-800 hover:bg-blue-50"
                 type="button"
-                onClick={() => void choose(profile)}
+                onClick={handleProfileClick.bind(null, profile)}
               >
                 {profile.displayName}
               </button>

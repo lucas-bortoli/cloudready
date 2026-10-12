@@ -66,6 +66,16 @@ export default function CardEditor(props: CardEditorProps) {
     closeAfterTransition();
   };
 
+  const handleBackdropClick = (event: MouseEvent) => {
+    if (event.target === event.currentTarget) requestClose();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") requestClose();
+  };
+
+  const handlePriorityChange = (value: string) => setPriority(value as Priority);
+
   createEffect(() => {
     const card = props.card;
     setTitle(card?.title ?? "");
@@ -113,9 +123,7 @@ export default function CardEditor(props: CardEditorProps) {
       x-role="kodekai card editor backdrop"
       class="kodekai-editor-backdrop absolute inset-0 z-30 flex items-center justify-center overflow-auto bg-neutral-900/35 p-4"
       classList={{ "kodekai-editor-closing": isClosing() }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) requestClose();
-      }}
+      onClick={handleBackdropClick}
     >
       <section
         aria-labelledby="kodekai-card-editor-title"
@@ -125,9 +133,7 @@ export default function CardEditor(props: CardEditorProps) {
         x-role="kodekai card editor"
         role="dialog"
         use:focusTrap={focusTrap}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") requestClose();
-        }}
+        onKeyDown={handleKeyDown}
       >
         <h2 class="mb-4 text-lg font-semibold" id="kodekai-card-editor-title">
           {props.card ? "Editar cartão" : "Novo cartão"}
@@ -151,7 +157,7 @@ export default function CardEditor(props: CardEditorProps) {
                   { value: "urgent", label: "Urgente" },
                 ]}
                 value={priority()}
-                onValueChange={(value) => setPriority(value as Priority)}
+                onValueChange={handlePriorityChange}
               />
             </label>
             <label class="flex shrink grow basis-0 flex-col gap-1">

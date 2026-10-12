@@ -75,31 +75,37 @@ export default function Card(props: CardProps) {
     return new Date(props.card.expiration) < new Date();
   });
 
+  const handlePointerDown = (event: PointerEvent) => {
+    if (cardRef) props.onPointerDown(props.card, cardRef, event);
+  };
+
+  const handleClick = () => {
+    if (!props.shouldSuppressClick()) props.onSelect(props.card);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (cardRef) props.onKeyDown(props.card, cardRef, event);
+    if (event.defaultPrevented) return;
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      props.onSelect(props.card);
+    }
+  };
+
   return (
     <li
       ref={cardRef}
       data-kodekai-card={props.card.id}
       role="button"
       tabIndex={0}
-      class="flex max-h-32 shrink-0 touch-none flex-col gap-1 overflow-hidden rounded-xs border border-neutral-400 bg-white p-2 shadow-sm **:pointer-events-none focus:outline-2 focus:outline-offset-2 focus:outline-blue-600"
+      class="flex max-h-32 shrink-0 touch-none flex-col gap-1 overflow-hidden rounded-xs border border-neutral-400 bg-white p-2 shadow-sm **:pointer-events-none focus:outline-2 focus:outline-offset-2 focus:outline-sky-200"
       classList={{
         "opacity-0": props.draggingCardId() === props.card.id,
       }}
-      onPointerDown={(event) => {
-        if (cardRef) props.onPointerDown(props.card, cardRef, event);
-      }}
-      onClick={() => {
-        if (!props.shouldSuppressClick()) props.onSelect(props.card);
-      }}
-      onKeyDown={(event) => {
-        if (cardRef) props.onKeyDown(props.card, cardRef, event);
-        if (event.defaultPrevented) return;
-
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          props.onSelect(props.card);
-        }
-      }}
+      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
     >
       <h2 ref={titleRef} class="max-h-10 shrink-0 overflow-hidden leading-tight font-medium">
         {visibleTitle()}
