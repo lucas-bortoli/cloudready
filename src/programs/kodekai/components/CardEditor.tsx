@@ -1,7 +1,7 @@
 import Checkmark16 from "@carbon/icons/es/checkmark/16.js";
 import Close16 from "@carbon/icons/es/close/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import "./Editor.css";
 import Button from "../../../components/button/Button";
 import DatePicker from "../../../components/date-picker/DatePicker";
@@ -10,19 +10,20 @@ import CarbonIcon from "../../../components/taskbar/CarbonIcon";
 import TextInput from "../../../components/text-input/TextInput";
 import focusTrap from "../../../lib/focus-trap";
 import { formatIsoDateTime, parseIsoDateTime } from "../../../lib/iso-date-time";
-import type { Card as CardData, CardId, Priority, ProjectId } from "../model/model";
+import type { Card as CardData, CardId, Priority, ProjectId, Tag, TagId } from "../model/model";
 
 const exitDurationMs = 180;
 
 export interface CardEditorProps {
   card?: CardData;
   projectId: ProjectId;
+  tags?: readonly Tag[];
   onClose: (focusCardId?: CardId) => void;
   onCreate: (card: Omit<CardData, "id" | "displayIndex">) => CardId | undefined;
   onDelete: (card: CardData) => void;
   onUpdate: (
     card: CardData,
-    changes: Pick<CardData, "title" | "content" | "priority" | "expiration">,
+    changes: Pick<CardData, "title" | "content" | "priority" | "expiration" | "tagIds">,
   ) => void;
 }
 
@@ -42,6 +43,7 @@ export default function CardEditor(props: CardEditorProps) {
   const [content, setContent] = createSignal("");
   const [priority, setPriority] = createSignal<Priority>("normal");
   const [expirationDate, setExpirationDate] = createSignal(today);
+  const [tagIds, setTagIds] = createSignal<TagId[]>([]);
   const [isClosing, setIsClosing] = createSignal(false);
   let closeTimer: number | undefined;
 
@@ -49,7 +51,8 @@ export default function CardEditor(props: CardEditorProps) {
     title() !== (props.card?.title ?? "") ||
     content() !== (props.card?.content ?? "") ||
     priority() !== (props.card?.priority ?? "normal") ||
-    expirationDate() !== (props.card ? localDateValue(props.card.expiration) : today);
+    expirationDate() !== (props.card ? localDateValue(props.card.expiration) : today) ||
+    tagIds().join() !== (props.card?.tagIds ?? []).join();
 
   const closeAfterTransition = (focusCardId?: CardId) => {
     if (isClosing()) return;
@@ -76,6 +79,11 @@ export default function CardEditor(props: CardEditorProps) {
   };
 
   const handlePriorityChange = (value: string) => setPriority(value as Priority);
+  const toggleTag = (id: TagId) => {
+    setTagIds((current) =>
+      current.includes(id) ? current.filter((tagId) => tagId !== id) : [...current, id],
+    );
+  };
 
   createEffect(() => {
     const card = props.card;
@@ -83,6 +91,7 @@ export default function CardEditor(props: CardEditorProps) {
     setContent(card?.content ?? "");
     setPriority(card?.priority ?? "normal");
     setExpirationDate(card ? localDateValue(card.expiration) : today);
+    setTagIds(card?.tagIds ?? []);
   });
 
   onMount(() => titleInput?.focus());
@@ -104,6 +113,7 @@ export default function CardEditor(props: CardEditorProps) {
         content: content(),
         priority: priority(),
         expiration,
+        tagIds: tagIds(),
       });
       closeAfterTransition();
     } else {
@@ -113,6 +123,7 @@ export default function CardEditor(props: CardEditorProps) {
         content: content(),
         priority: priority(),
         expiration,
+        tagIds: tagIds(),
         bucket: "icebox",
       });
       closeAfterTransition(cardId);
@@ -166,6 +177,21 @@ export default function CardEditor(props: CardEditorProps) {
               <DatePicker required value={expirationDate()} onValueChange={setExpirationDate} />
             </label>
           </div>
+          <fieldset class="flex flex-wrap gap-2">
+            <legend>Tags</legend>
+            <For each={props.tags ?? []}>
+              {(tag) => (
+                <label class="flex items-center gap-1 rounded border border-neutral-200 px-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={tagIds().includes(tag.id)}
+                    onChange={toggleTag.bind(null, tag.id)}
+                  />
+                  {tag.name}
+                </label>
+              )}
+            </For>
+          </fieldset>
           <Show when={!title().trim()}>
             <p class="text-sm text-red-700" role="alert">
               Informe um título para salvar.

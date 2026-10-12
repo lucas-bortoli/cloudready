@@ -61,6 +61,9 @@ export default function Category(props: CategoryProps) {
           children={(card) => (
             <Card
               card={card}
+              tags={model()
+                .listTags(card.projectId)
+                .filter((tag) => card.tagIds.includes(tag.id))}
               draggingCardId={props.draggingCardId}
               onPointerDown={props.onCardPointerDown}
               onKeyDown={props.onCardKeyDown}

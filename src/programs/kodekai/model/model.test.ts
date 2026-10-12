@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { formatIsoDateTime } from "../../../lib/iso-date-time";
-import { InvalidModelJsonError, Model } from "./model";
+import { InvalidCardTagError, InvalidModelJsonError, Model, TagNameConflictError } from "./model";
 
 const expiration = formatIsoDateTime(new Date("2026-09-27T15:30:00.000Z"));
 
@@ -58,5 +58,31 @@ describe("Model", () => {
 
   it("rejects malformed model JSON", () => {
     expect(() => Model.fromJSON("not json")).toThrow(InvalidModelJsonError);
+  });
+
+  it("keeps tags within their project and removes assignments on deletion", () => {
+    const model = Model.empty();
+    const firstProject = model.createProject({ title: "First" });
+    const secondProject = model.createProject({ title: "Second" });
+    const tagId = model.createTag(firstProject, "Review");
+    const cardId = model.createCard({ projectId: firstProject, title: "Task", tagIds: [tagId] });
+    const otherCardId = model.createCard({ projectId: secondProject, title: "Other" });
+
+    expect(() => model.updateCard(otherCardId, { tagIds: [tagId] })).toThrow(InvalidCardTagError);
+    expect(() => model.createTag(firstProject, "review")).toThrow(TagNameConflictError);
+    expect(Model.fromJSON(model.toJSON()).getCard(cardId).tagIds).toEqual([tagId]);
+    model.deleteTag(tagId);
+    expect(model.getCard(cardId).tagIds).toEqual([]);
+  });
+
+  it("loads saved boards created before tags existed", () => {
+    const model = Model.empty();
+    const projectId = model.createProject({ title: "Legacy" });
+    const cardId = model.createCard({ projectId, title: "Task" });
+    const saved = JSON.parse(model.toJSON());
+    delete saved.tags;
+    delete saved.cards[0].tagIds;
+
+    expect(Model.fromJSON(JSON.stringify(saved)).getCard(cardId).tagIds).toEqual([]);
   });
 });
