@@ -1,5 +1,6 @@
 import { createContext, createSignal, Match, onMount, Switch, useContext } from "solid-js";
 import Desktop from "./Desktop";
+import { MachineIntelligenceProvider } from "../machine-intelligence/MachineIntelligenceContext";
 import { SessionContextError, SessionExpiredError, SessionMissingError } from "./errors";
 import Oobe from "./Oobe";
 import ProfilePicker from "./ProfilePicker";
@@ -81,7 +82,9 @@ export function SessionProvider() {
         when={state() === "active"}
         children={
           <SessionContext.Provider value={{ user: activeUser as () => UserProfile, signOut }}>
-            <Desktop />
+            <MachineIntelligenceProvider>
+              <Desktop />
+            </MachineIntelligenceProvider>
           </SessionContext.Provider>
         }
       />

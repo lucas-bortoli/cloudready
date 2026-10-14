@@ -1,4 +1,7 @@
-use std::path::Path;
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 use rusqlite::Connection;
 use thiserror::Error;
@@ -11,6 +14,8 @@ pub enum Error {
     Sqlite(#[from] rusqlite::Error),
     #[error("database was created by an unsupported pre-migration release")]
     UnsupportedLegacyDatabase,
+    #[error("could not restrict database credential file access")]
+    CredentialProtection(#[from] io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -18,9 +23,21 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// The kernel's shared SQLite database and schema migration runner.
 pub struct Database {
     connection: Connection,
+    path: PathBuf,
 }
 
 impl Database {
+    /// Opens the shared SQLite database, applies pending migrations, and protects its files.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Filesystem path to the database file.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::UnsupportedLegacyDatabase`] for an unsupported pre-migration database,
+    /// [`Error::Sqlite`] for SQLite failures, or [`Error::CredentialProtection`] when file access
+    /// cannot be restricted to the current operating system user.
     pub fn open(path: &Path) -> Result<Self> {
         let connection = Connection::open(path)?;
         // WAL lets readers proceed while a later writer commits.
@@ -28,17 +45,78 @@ impl Database {
             "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;",
         )?;
         migrate(&connection)?;
-        Ok(Self { connection })
+        let database = Self {
+            connection,
+            path: path.to_path_buf(),
+        };
+        database.protect_credentials()?;
+        Ok(database)
     }
 
+    /// Borrows the database connection for an internal read or write operation.
     pub(crate) fn connection(&self) -> &Connection {
         &self.connection
     }
 
     #[allow(dead_code)]
+    /// Mutably borrows the database connection for operations requiring a mutable handle.
     pub(crate) fn connection_mut(&mut self) -> &mut Connection {
         &mut self.connection
     }
+
+    /// Restricts the SQLite file and its existing WAL sidecars to the current OS user.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the operating system cannot apply the owner-only permissions.
+    pub(crate) fn protect_credentials(&self) -> io::Result<()> {
+        for suffix in ["", "-wal", "-shm"] {
+            let path = if suffix.is_empty() {
+                self.path.clone()
+            } else {
+                PathBuf::from(format!("{}{}", self.path.display(), suffix))
+            };
+            if path.exists() {
+                restrict_to_owner(&path)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(unix)]
+fn restrict_to_owner(path: &Path) -> io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+}
+
+#[cfg(windows)]
+fn restrict_to_owner(path: &Path) -> io::Result<()> {
+    use std::process::Command;
+    let output = Command::new("whoami.exe")
+        .args(["/user", "/fo", "csv", "/nh"])
+        .output()?;
+    if !output.status.success() {
+        return Err(io::Error::other("could not determine current Windows user"));
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let sid = text
+        .split('"')
+        .find(|part| {
+            part.starts_with("S-1-")
+                && part
+                    .chars()
+                    .all(|ch| ch.is_ascii_digit() || ch == '-' || ch == 'S')
+        })
+        .ok_or_else(|| io::Error::other("could not parse current Windows user SID"))?;
+    let output = Command::new("icacls.exe")
+        .arg(path)
+        .args(["/inheritance:r", "/grant:r", &format!("*{sid}:(F)")])
+        .output()?;
+    if !output.status.success() {
+        return Err(io::Error::other("could not set database file ACL"));
+    }
+    Ok(())
 }
 
 fn migrate(connection: &Connection) -> Result<()> {

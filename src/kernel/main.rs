@@ -7,6 +7,7 @@ use uuid::Uuid;
 mod chromium;
 mod database;
 mod filesystem;
+mod machine_intelligence;
 mod session;
 
 // The build script enables this module only for release builds.
@@ -20,6 +21,8 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let server = Server::http(&address)?;
     let database_path = database_path()?;
     let database = database::Database::open(&database_path)?;
+    // Keep OAuth attempts alive across requests so the loopback callback can finish them.
+    let mut intelligence = machine_intelligence::MachineIntelligence::new(&database);
     println!("Listening on http://{}", server.server_addr());
     // Debug kernels are paired with Vite; release kernels serve the embedded frontend.
     #[cfg(not(embedded_frontend))]
@@ -35,6 +38,26 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Route by path so query parameters do not affect endpoint matching.
         let url = request.url().to_owned();
         let path = url.split('?').next().unwrap_or(&url).to_owned();
+        if path == "/auth/callback" || path.starts_with("/api/mi/") {
+            // OAuth returns without the CloudReady cookie; the callback is checked against
+            // its pending state, while provider API calls must resolve the current profile.
+            let method = request.method().clone();
+            let session_token = cookie(&request, session::COOKIE);
+            let response = machine_intelligence_response(
+                &mut intelligence,
+                &database,
+                &method,
+                &path,
+                &url,
+                &mut request.as_reader(),
+                session_token.as_deref(),
+                &address,
+            );
+            if let Err(error) = request.respond(response) {
+                eprintln!("Failed to send response: {error}");
+            }
+            continue;
+        }
         // Release builds serve embedded assets, reserving /api and /api/* for the API.
         // Debug builds omit this branch entirely. Missing assets fall through to 404.
         #[cfg(embedded_frontend)]
@@ -114,6 +137,103 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     Ok(())
+}
+
+fn machine_intelligence_response(
+    intelligence: &mut machine_intelligence::MachineIntelligence<'_>,
+    database: &database::Database,
+    method: &Method,
+    path: &str,
+    url: &str,
+    body: &mut impl Read,
+    token: Option<&str>,
+    address: &str,
+) -> Response<std::io::Cursor<Vec<u8>>> {
+    if path == "/auth/callback" {
+        // Do not expose token exchange or validation details on the browser callback page.
+        let result = if *method == Method::Get {
+            intelligence.callback(&query(url))
+        } else {
+            Err(machine_intelligence::Error::InvalidInput)
+        };
+        let (status, message) = match result {
+            Ok(()) => (
+                200,
+                "Connected to ChatGPT. You can return to CloudReady and close this window.",
+            ),
+            Err(_) => (
+                400,
+                "ChatGPT connection could not be completed. Return to CloudReady for details.",
+            ),
+        };
+        return Response::from_string(format!(
+            "<!doctype html><title>CloudReady</title><main><h1>CloudReady</h1><p>{message}</p></main>"
+        ))
+        .with_status_code(StatusCode(status))
+        .with_header(header("Content-Type", "text/html; charset=utf-8"))
+        .with_header(header("Cache-Control", "no-store"));
+    }
+
+    // Never accept a profile ID from the request body for provider operations.
+    let user = match session::SessionStore::new(database).current(token) {
+        Ok(user) => user,
+        Err(error) => return session_error_response(error),
+    };
+    let query = query(url);
+    let result: machine_intelligence::Result<serde_json::Value> = (|| match (method, path) {
+        (&Method::Get, "/api/mi/connection") => {
+            serde_json::to_value(intelligence.connection(user.id)?)
+                .map_err(|_| machine_intelligence::Error::Upstream)
+        }
+        (&Method::Post, "/api/mi/authorization") => {
+            // Sign in with ChatGPT requires a loopback redirect on 127.0.0.1.
+            if !address.starts_with("127.0.0.1:") {
+                return Err(machine_intelligence::Error::InvalidAuthorization);
+            }
+            serde_json::to_value(intelligence.start(user.id, &format!("http://{address}"))?)
+                .map_err(|_| machine_intelligence::Error::Upstream)
+        }
+        (&Method::Get, "/api/mi/authorization") => serde_json::to_value(
+            intelligence.authorization_status(
+                user.id,
+                query
+                    .get("attempt_id")
+                    .ok_or(machine_intelligence::Error::InvalidInput)?,
+            )?,
+        )
+        .map_err(|_| machine_intelligence::Error::Upstream),
+        (&Method::Delete, "/api/mi/connection") => {
+            Ok(serde_json::json!({"revoked": intelligence.disconnect(user.id)?}))
+        }
+        (&Method::Get, "/api/mi/models") => serde_json::to_value(intelligence.models(user.id)?)
+            .map_err(|_| machine_intelligence::Error::Upstream),
+        (&Method::Post, "/api/mi/responses") => {
+            #[derive(Deserialize)]
+            struct Input {
+                model: String,
+                input: String,
+            }
+            // Bound prompt payload size before deserializing it into memory.
+            let input: Input = serde_json::from_reader(body.take(16_384))
+                .map_err(|_| machine_intelligence::Error::InvalidInput)?;
+            serde_json::to_value(intelligence.generate_text(user.id, &input.model, &input.input)?)
+                .map_err(|_| machine_intelligence::Error::Upstream)
+        }
+        _ => Err(machine_intelligence::Error::InvalidInput),
+    })();
+    match result {
+        Ok(value) => Response::from_string(value.to_string())
+            .with_header(header("Content-Type", "application/json; charset=utf-8"))
+            // Connection and authorization responses should never be cached by a browser.
+            .with_header(header("Cache-Control", "no-store")),
+        Err(error) => Response::from_string(
+            serde_json::json!({"error": {"code": error.code(), "message": error.to_string()}})
+                .to_string(),
+        )
+        .with_status_code(StatusCode(error.status()))
+        .with_header(header("Content-Type", "application/json; charset=utf-8"))
+        .with_header(header("Cache-Control", "no-store")),
+    }
 }
 
 fn database_path() -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> {
