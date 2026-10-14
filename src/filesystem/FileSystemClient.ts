@@ -1,5 +1,5 @@
 import type { Uuid } from "../lib/uuid";
-import { KernelRpcApiError } from "../lib/kernel-rpc";
+import { KernelRpcApiError } from "../lib/kernel-rpc/core";
 import {
   FileSystemEntryConflictError,
   FileSystemEntryNotFoundError,

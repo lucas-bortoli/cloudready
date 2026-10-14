@@ -22,6 +22,11 @@ pub(super) const ALL: &[Migration] = &[
         name: "profile pictures",
         apply: profile_pictures,
     },
+    Migration {
+        version: 4,
+        name: "machine intelligence credentials and host identity",
+        apply: machine_intelligence,
+    },
 ];
 
 fn initial_filesystem_schema(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
@@ -41,5 +46,18 @@ fn profile_pictures(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
     // A missing row deliberately represents a NULL picture, preserving existing profiles.
     transaction.execute_batch(
         "CREATE TABLE profile_pictures (user_id BLOB PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, mime_type TEXT NOT NULL, content BLOB NOT NULL);",
+    )
+}
+
+fn machine_intelligence(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE machine_intelligence_host (id INTEGER PRIMARY KEY CHECK(id = 1), host_id TEXT NOT NULL);
+         CREATE TABLE machine_intelligence_connections (
+           user_id BLOB PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+           issuer TEXT NOT NULL, subject TEXT NOT NULL, email TEXT,
+           client_id TEXT NOT NULL, id_token TEXT NOT NULL,
+           access_token TEXT NOT NULL, refresh_token TEXT NOT NULL,
+           scopes TEXT NOT NULL, expires_at INTEGER NOT NULL
+         );",
     )
 }

@@ -1,5 +1,5 @@
+import { KernelRpcApiError } from "../../lib/kernel-rpc/core";
 import {
-  KernelRpcApiError,
   sessionCreateFirstUser,
   sessionEnd,
   sessionGetCurrent,
@@ -7,7 +7,7 @@ import {
   sessionGetProfilePicture,
   sessionPutProfilePicture,
   sessionStart,
-} from "../../lib/kernel-rpc";
+} from "../../lib/kernel-rpc/session";
 import type { Uuid } from "../../lib/uuid";
 import {
   InvalidProfileDisplayNameError,

@@ -6,6 +6,7 @@ import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import fallbackProfilePicture from "../../data/default-user-pictures/fallback-picture.png";
 import focusTrap from "../../lib/focus-trap";
 import FileManager from "../../programs/file-manager/FileManager";
+import MachineIntelligenceWindow from "../machine-intelligence/MachineIntelligenceWindow";
 import Kodekai from "../../programs/kodekai/Kodekai";
 import Button from "../button/Button";
 import { useLayerItem } from "../layer-manager/LayerContext";
@@ -39,6 +40,18 @@ const applications = [
         size: { width: 960, height: 600 },
         minimumSize: { width: 640, height: 400 },
         content: () => <Kodekai userId={userId} />,
+      }),
+  },
+  {
+    name: "Machine Intelligence",
+    description: "Connect ChatGPT and try a prompt",
+    icon: Settings16,
+    launch: (windowManager: ReturnType<typeof useWindowManager>) =>
+      windowManager.createWindow({
+        title: "Machine Intelligence",
+        size: { width: 620, height: 540 },
+        minimumSize: { width: 460, height: 380 },
+        content: () => <MachineIntelligenceWindow />,
       }),
   },
   {
