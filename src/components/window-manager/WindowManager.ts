@@ -223,16 +223,9 @@ export default class WindowManager {
     if (!entry || entry.dock === dock || entry.isClosing) return;
     const before = this.motion.beforeDock(entry);
     this.setWindows((window) => window.id === windowId, { dock, isAutoPositioned: false });
-    this.motion.afterDock(
-      windowId,
-      dock,
-      before,
-      () => this.getWindows().find((window) => window.id === windowId),
-    );
-  }
-
   private findWindow(windowId: WindowId): WindowState | undefined {
     return this.getWindows().find((window) => window.id === windowId);
+    this.motion.afterDock(windowId, dock, before, () => this.findWindow(windowId));
   }
 
   /**
