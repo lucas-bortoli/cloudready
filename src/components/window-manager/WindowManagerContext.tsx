@@ -1,5 +1,5 @@
 import { createContext, useContext, type ParentProps } from "solid-js";
-import { LayerContextError, useLayerManager } from "../layer-manager/LayerContext";
+import { useLayerManager } from "../layer-manager/LayerContext";
 import WindowManager from "./WindowManager";
 
 const WindowManagerContext = createContext<WindowManager>();

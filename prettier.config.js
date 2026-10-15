@@ -2,6 +2,7 @@
 export default {
   plugins: ["prettier-plugin-tailwindcss"],
   printWidth: 100,
+  endOfLine: "auto",
   tailwindFunctions: ["cn"],
   tailwindStylesheet: "./src/style.css",
 };
