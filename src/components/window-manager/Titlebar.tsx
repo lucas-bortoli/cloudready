@@ -1,6 +1,3 @@
-import Close16 from "@carbon/icons/es/close/16.js";
-import Maximize16 from "@carbon/icons/es/maximize/16.js";
-import Minimize16 from "@carbon/icons/es/minimize/16.js";
 import Send16 from "@carbon/icons/es/arrow--left/16.js";
 import PinFilled16 from "@carbon/icons/es/pin--filled/16.js";
 import Pin16 from "@carbon/icons/es/pin/16.js";
@@ -87,7 +84,9 @@ export default function Titlebar(props: {
             onPointerDown={(event) => event.stopPropagation()}
             onClick={handleDockRight}
           >
-            <span class="scale-x-[-1]"><CarbonIcon icon={SidePanelOpen16} /></span>
+            <span class="scale-x-[-1]">
+              <CarbonIcon icon={SidePanelOpen16} />
+            </span>
           </button>
           <button
             aria-label="Maximize window"

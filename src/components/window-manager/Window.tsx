@@ -55,7 +55,11 @@ export default function Window(props: { entry: WindowEntry }) {
               ? "idle"
               : "opening"
       }
-      style={{ ...getWindowStyle(props.entry), ...getFrameStyle(props.entry.dock), "z-index": props.entry.zIndex() }}
+      style={{
+        ...getWindowStyle(props.entry),
+        ...getFrameStyle(props.entry.dock),
+        "z-index": props.entry.zIndex(),
+      }}
       tabIndex={-1}
       onPointerDown={handlePointerDown}
       onKeyDown={handleKeyDown}
