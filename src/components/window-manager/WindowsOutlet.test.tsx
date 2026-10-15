@@ -264,7 +264,10 @@ describe("WindowsOutlet", () => {
     const entry = windowManager.getWindows()[0];
     expect(entry.position).toEqual({
       x: Math.round((globalThis.window.innerWidth - window.offsetWidth) / 2),
-      y: Math.max(60, Math.round(48 + (globalThis.window.innerHeight - 48 - window.offsetHeight) / 2)),
+      y: Math.max(
+        48 + 12,
+        Math.round(48 + (globalThis.window.innerHeight - 48 - window.offsetHeight) / 2),
+      ),
     });
     expect(window.dataset.windowMotion).toBe("opening");
 
@@ -406,11 +409,26 @@ describe("WindowsOutlet", () => {
     const { dispose } = renderWindow(2);
     const windows = document.querySelectorAll<HTMLDivElement>('[x-role="window"]');
     const firstTitlebar = windows[0].querySelector<HTMLElement>('[x-role="titlebar"]')!;
+    const zIndexes = () => [...windows].map((element) => Number(element.style.zIndex));
 
-    expect(Number(windows[1].style.zIndex)).toBeGreaterThan(Number(windows[0].style.zIndex));
+    expect(zIndexes()[1]).toBeGreaterThan(zIndexes()[0]);
     firstTitlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
 
-    expect(Number(windows[0].style.zIndex)).toBeGreaterThan(Number(windows[1].style.zIndex));
+    expect(zIndexes()[0]).toBeGreaterThan(zIndexes()[1]);
+    document.dispatchEvent(pointerEvent("pointerup", 100, 100));
+    dispose();
+  });
+
+  it("keeps pinned windows above ordinary windows", () => {
+    const { dispose, windowManager } = renderWindow(2);
+    const windows = document.querySelectorAll<HTMLDivElement>('[x-role="window"]');
+    const secondTitlebar = windows[1].querySelector<HTMLElement>('[x-role="titlebar"]')!;
+    const zIndexes = () => [...windows].map((element) => Number(element.style.zIndex));
+
+    windowManager.setPinned(windowManager.getWindows()[0].id, true);
+    secondTitlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+
+    expect(zIndexes()[0]).toBeGreaterThan(zIndexes()[1]);
     document.dispatchEvent(pointerEvent("pointerup", 100, 100));
     dispose();
   });
@@ -544,8 +562,8 @@ describe("WindowsOutlet", () => {
     document.dispatchEvent(pointerEvent("pointerup", 0, 100));
 
     expect(window.style.right).toBe("50%");
-    expect(window.style.top).toBe("0px");
-    expect(window.style.bottom).toBe("48px");
+    expect(window.style.top).toBe("48px");
+    expect(window.style.bottom).toBe("0px");
     expect(document.querySelector('[x-role="dock preview"]')).toBeNull();
     expect(windowManager.getWindows()[0]).toMatchObject({
       size: { width: 400, height: 300 },
@@ -556,8 +574,8 @@ describe("WindowsOutlet", () => {
   });
 
   it.each([
-    [12, 12],
-    [window.innerWidth - 12, 12],
+    [12, 48],
+    [window.innerWidth - 12, 48],
   ])("docks full-screen when a titlebar drag ends at top corner (%i, %i)", (x, y) => {
     const { dispose, window, windowManager } = renderWindow();
     const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
