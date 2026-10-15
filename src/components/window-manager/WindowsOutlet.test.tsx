@@ -68,8 +68,8 @@ function renderWindow(windowCount = 1) {
   let windowManager: WindowManager | undefined;
   const dispose = render(
     () => (
-    <LayerProvider>
-      <WindowManagerProvider>
+      <LayerProvider>
+        <WindowManagerProvider>
           <TestDesktop
             onManager={(manager) => (windowManager = manager)}
             windowCount={windowCount}
@@ -219,7 +219,7 @@ describe("WindowsOutlet", () => {
     const { dispose, windowManager } = renderWindow(2);
     const windows = document.querySelectorAll<HTMLDivElement>('[x-role="window"]');
     const zIndexes = () => [...windows].map((element) => Number(element.style.zIndex));
-    const [ordinary, pinned] = windowManager.getWindows();
+    const [, pinned] = windowManager.getWindows();
 
     windowManager.setPinned(pinned.id, true);
     expect(zIndexes()[1]).toBeGreaterThan(zIndexes()[0]);

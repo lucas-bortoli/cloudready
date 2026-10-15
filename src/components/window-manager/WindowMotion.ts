@@ -26,7 +26,10 @@ export default class WindowMotion {
   }
 
   public prefersReducedMotion(): boolean {
-    return typeof window === "undefined" || !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    return (
+      typeof window === "undefined" ||
+      !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    );
   }
 
   public cancelTransition(windowId: WindowId): void {
@@ -67,33 +70,59 @@ export default class WindowMotion {
 
   public beforeDock(entry: WindowState): DOMRect | undefined {
     const frame = this.frames.get(entry.id);
-    const animate = !this.dockAnimationSuppressed.delete(entry.id) && !!frame?.animate && !this.prefersReducedMotion() && !entry.isMinimized;
+    const animate =
+      !this.dockAnimationSuppressed.delete(entry.id) &&
+      !!frame?.animate &&
+      !this.prefersReducedMotion() &&
+      !entry.isMinimized;
     const before = animate ? frame!.getBoundingClientRect() : undefined;
     this.cancelTransition(entry.id);
     return before;
   }
 
-  public afterDock(windowId: WindowId, dock: WindowDock, before: DOMRect | undefined, current: () => WindowState | undefined): void {
+  public afterDock(
+    windowId: WindowId,
+    dock: WindowDock,
+    before: DOMRect | undefined,
+    current: () => WindowState | undefined,
+  ): void {
     const frame = this.frames.get(windowId);
     if (!before || !frame) return;
     queueMicrotask(() => {
       const entry = current();
-      if (entry?.dock !== dock || entry.isClosing || entry.isMinimized || this.minimizing.has(windowId)) return;
+      if (
+        entry?.dock !== dock ||
+        entry.isClosing ||
+        entry.isMinimized ||
+        this.minimizing.has(windowId)
+      )
+        return;
       const after = frame.getBoundingClientRect();
       if (!after.width || !after.height) return;
       this.animateFrame(windowId, [
-        { transformOrigin: "top left", transform: `translate(${before.left - after.left}px, ${before.top - after.top}px) scale(${before.width / after.width}, ${before.height / after.height})` },
+        {
+          transformOrigin: "top left",
+          transform: `translate(${before.left - after.left}px, ${before.top - after.top}px) scale(${before.width / after.width}, ${before.height / after.height})`,
+        },
         { transformOrigin: "top left", transform: "translate(0, 0) scale(1, 1)" },
       ]);
     });
   }
 
-  public setMinimized(entry: WindowState, isMinimized: boolean, commit: (value: boolean) => void): void {
+  public setMinimized(
+    entry: WindowState,
+    isMinimized: boolean,
+    commit: (value: boolean) => void,
+  ): void {
     const { id } = entry;
     this.cancelTransition(id);
     if (entry.isMinimized === isMinimized) return;
     const frame = this.frames.get(id);
-    const target = typeof document === "undefined" ? null : (document.querySelector<HTMLElement>(`[data-window-taskbar-id="${id}"]`) ?? document.querySelector<HTMLElement>('[x-role="taskbar"]'));
+    const target =
+      typeof document === "undefined"
+        ? null
+        : (document.querySelector<HTMLElement>(`[data-window-taskbar-id="${id}"]`) ??
+          document.querySelector<HTMLElement>('[x-role="taskbar"]'));
     if (!frame || !target || !frame.animate || this.prefersReducedMotion()) {
       commit(isMinimized);
       return;
@@ -106,9 +135,23 @@ export default class WindowMotion {
     const targetTransform = `translate(${dx}px, ${dy}px) scale(0.08)`;
     frame.style.pointerEvents = "none";
     if (isMinimized) this.minimizing.add(id);
-    this.animateFrame(id, isMinimized
-      ? [{ opacity: 1, transform: "translate(0, 0) scale(1)" }, { opacity: 0, transform: targetTransform }]
-      : [{ opacity: 0, transform: targetTransform }, { opacity: 1, transform: "translate(0, 0) scale(1)" }],
-    isMinimized ? () => { this.minimizing.delete(id); commit(true); } : undefined);
+    this.animateFrame(
+      id,
+      isMinimized
+        ? [
+            { opacity: 1, transform: "translate(0, 0) scale(1)" },
+            { opacity: 0, transform: targetTransform },
+          ]
+        : [
+            { opacity: 0, transform: targetTransform },
+            { opacity: 1, transform: "translate(0, 0) scale(1)" },
+          ],
+      isMinimized
+        ? () => {
+            this.minimizing.delete(id);
+            commit(true);
+          }
+        : undefined,
+    );
   }
 }
