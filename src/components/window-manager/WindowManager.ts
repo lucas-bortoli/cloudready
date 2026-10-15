@@ -223,9 +223,11 @@ export default class WindowManager {
     if (!entry || entry.dock === dock || entry.isClosing) return;
     const before = this.motion.beforeDock(entry);
     this.setWindows((window) => window.id === windowId, { dock, isAutoPositioned: false });
+    this.motion.afterDock(windowId, dock, before, () => this.findWindow(windowId));
+  }
+
   private findWindow(windowId: WindowId): WindowState | undefined {
     return this.getWindows().find((window) => window.id === windowId);
-    this.motion.afterDock(windowId, dock, before, () => this.findWindow(windowId));
   }
 
   /**
@@ -251,12 +253,16 @@ export default class WindowManager {
 
   /** Moves a window to the front of its current stacking layer. */
   public bringToTop(windowId: WindowId) {
-    this.getWindows().find((entry) => entry.id === windowId)?.layerItem.bringToTop();
+    this.getWindows()
+      .find((entry) => entry.id === windowId)
+      ?.layerItem.bringToTop();
   }
 
   /** Moves a window one position toward the back of its stacking layer. */
   public sendBack(windowId: WindowId) {
-    this.getWindows().find((entry) => entry.id === windowId)?.layerItem.sendBack();
+    this.getWindows()
+      .find((entry) => entry.id === windowId)
+      ?.layerItem.sendBack();
   }
 
   /**
