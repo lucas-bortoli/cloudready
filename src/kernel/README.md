@@ -1,5 +1,19 @@
 # Kernel
 
+The binary entry point wires together these modules:
+
+- `application/`: async use cases, feature registration, and the worker that owns blocking services.
+- `transport/`: HTTP routes, embedded asset serving, and WebSocket frames and connection lifetime.
+- `rpc/`: transport-independent envelopes, feature dispatch, and profile-scoped event delivery.
+- `session/`: profile validation and token lifecycle, with SQLite access confined to its repository.
+- `machine_intelligence/`: service construction, OAuth and token refresh, identity validation,
+  provider requests, and protected credential persistence.
+- `filesystem/`: namespace operations, content and revisions, logical paths, and SQLite lookup helpers.
+- `fairy/`: profile-owned conversations, turn execution, and the feature's RPC adapter.
+
+HTTP cookie names and error-to-status mappings belong to transport. Schema migrations and
+database file permissions belong to `database/`; features retain their own persistence code.
+
 Run `npm run dev` for the frontend and `npm run dev:kernel` in a separate terminal
 for the kernel. Restart `npm run dev:kernel` after changing Rust code.
 Run `npm run build` to type-check and bundle the frontend, then produce
