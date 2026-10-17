@@ -63,7 +63,7 @@ export default function Category(props: CategoryProps) {
     <section class="flex w-64 flex-col gap-1">
       <h2
         class={cn(
-          "border-b-2 pb-2 font-medium",
+          "border-b-2 bg-linear-to-b pb-2 font-medium",
           props.bucket === "icebox" && "border-neutral-700 text-neutral-700",
           props.bucket === "in-progress" && "border-sky-700 text-sky-700",
           props.bucket === "blocked" && "border-red-700 text-red-700",
@@ -76,7 +76,14 @@ export default function Category(props: CategoryProps) {
       <ul
         ref={(element) => props.onListElement(props.bucket, element)}
         data-kodekai-bucket={props.bucket}
-        class="relative flex min-h-full flex-col gap-1 pb-8"
+        class={cn(
+          "relative flex min-h-full flex-col gap-1 bg-linear-to-t to-white p-1 pb-8",
+          props.bucket === "icebox" && "from-neutral-50",
+          props.bucket === "in-progress" && "from-sky-50",
+          props.bucket === "blocked" && "from-red-50",
+          props.bucket === "revision" && "from-yellow-50",
+          props.bucket === "done" && "from-green-50",
+        )}
       >
         <For
           each={cards()}

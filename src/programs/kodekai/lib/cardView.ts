@@ -26,15 +26,18 @@ export function visibleCards(cards: readonly Card[], options: CardViewOptions): 
         return false;
       if (options.priority !== "all" && card.priority !== options.priority) return false;
       if (options.tagId && !card.tagIds.includes(options.tagId)) return false;
-      const due = new Date(card.expiration);
-      if (options.due === "overdue" && due >= startOfToday) return false;
-      if (options.due === "upcoming" && due < startOfToday) return false;
+      if (options.due !== "all") {
+        if (card.expiration === null) return false;
+        const due = new Date(card.expiration);
+        if (options.due === "overdue" && due >= startOfToday) return false;
+        if (options.due === "upcoming" && due < startOfToday) return false;
+      }
       return true;
     })
     .sort((left, right) => {
       const order =
         options.sort === "due-date"
-          ? left.expiration.localeCompare(right.expiration)
+          ? (left.expiration ?? "\uffff").localeCompare(right.expiration ?? "\uffff")
           : options.sort === "priority"
             ? priorityRank[left.priority] - priorityRank[right.priority]
             : 0;
