@@ -2,8 +2,8 @@ import Checkmark16 from "@carbon/icons/es/checkmark/16.js";
 import Close16 from "@carbon/icons/es/close/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
-import "./Editor.css";
 import Button from "../../../components/button/Button";
+import Checkbox from "../../../components/checkbox/Checkbox";
 import DatePicker from "../../../components/date-picker/DatePicker";
 import Dropdown from "../../../components/dropdown/Dropdown";
 import CarbonIcon from "../../../components/taskbar/CarbonIcon";
@@ -11,6 +11,7 @@ import TextInput from "../../../components/text-input/TextInput";
 import focusTrap from "../../../lib/focus-trap";
 import { formatIsoDateTime, parseIsoDateTime } from "../../../lib/iso-date-time";
 import type { Card as CardData, CardId, Priority, ProjectId, Tag, TagId } from "../model/model";
+import "./Editor.css";
 
 const exitDurationMs = 180;
 
@@ -27,7 +28,8 @@ export interface CardEditorProps {
   ) => void;
 }
 
-function localDateValue(expiration: string) {
+function localDateValue(expiration: string | null) {
+  if (expiration === null) return "";
   const date = new Date(expiration);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -102,10 +104,10 @@ export default function CardEditor(props: CardEditorProps) {
   const save = (event: SubmitEvent) => {
     event.preventDefault();
     const cleanTitle = title().trim();
-    if (!cleanTitle || !expirationDate()) return;
-    const expiration = parseIsoDateTime(
-      formatIsoDateTime(new Date(`${expirationDate()}T12:00:00`)),
-    );
+    if (!cleanTitle) return;
+    const expiration = expirationDate()
+      ? parseIsoDateTime(formatIsoDateTime(new Date(`${expirationDate()}T12:00:00`)))
+      : null;
 
     if (props.card) {
       props.onUpdate(props.card, {
@@ -174,21 +176,19 @@ export default function CardEditor(props: CardEditorProps) {
             </label>
             <label class="flex shrink grow basis-0 flex-col gap-1">
               <span>Data de vencimento</span>
-              <DatePicker required value={expirationDate()} onValueChange={setExpirationDate} />
+              <DatePicker value={expirationDate()} onValueChange={setExpirationDate} />
             </label>
           </div>
           <fieldset class="flex flex-wrap gap-2">
             <legend>Tags</legend>
             <For each={props.tags ?? []}>
               {(tag) => (
-                <label class="flex items-center gap-1 rounded border border-neutral-200 px-2 py-1">
-                  <input
-                    type="checkbox"
-                    checked={tagIds().includes(tag.id)}
-                    onChange={toggleTag.bind(null, tag.id)}
-                  />
-                  {tag.name}
-                </label>
+                <Checkbox
+                  checked={tagIds().includes(tag.id)}
+                  class="rounded border border-neutral-200 px-2 py-1"
+                  onCheckedChange={toggleTag.bind(null, tag.id)}
+                  children={tag.name}
+                />
               )}
             </For>
           </fieldset>

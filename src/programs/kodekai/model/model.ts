@@ -27,7 +27,7 @@ export interface Card {
   title: string;
   content: string;
   priority: Priority;
-  expiration: IsoDateTime;
+  expiration: IsoDateTime | null;
   bucket: Bucket;
   displayIndex: number;
   tagIds: TagId[];
@@ -42,7 +42,7 @@ export interface CardCreateOptions {
   title: string;
   content?: string;
   priority?: Priority;
-  expiration?: IsoDateTime;
+  expiration?: IsoDateTime | null;
   bucket?: Bucket;
   displayIndex?: number;
   tagIds?: TagId[];
@@ -52,7 +52,7 @@ export interface CardUpdateOptions {
   title?: string;
   content?: string;
   priority?: Priority;
-  expiration?: IsoDateTime;
+  expiration?: IsoDateTime | null;
   tagIds?: TagId[];
 }
 
@@ -193,7 +193,8 @@ export class Model {
       title: options.title,
       content: options.content ?? "",
       priority: options.priority ?? "normal",
-      expiration: options.expiration ?? formatIsoDateTime(new Date()),
+      expiration:
+        options.expiration === undefined ? formatIsoDateTime(new Date()) : options.expiration,
       bucket,
       displayIndex: 0,
       tagIds: this.validateCardTags(options.projectId, options.tagIds ?? []),
@@ -446,7 +447,7 @@ export class Model {
         title: value.title,
         content: value.content,
         priority: value.priority,
-        expiration: parseIsoDateTime(value.expiration),
+        expiration: value.expiration === null ? null : parseIsoDateTime(value.expiration),
         bucket: value.bucket,
         displayIndex: value.displayIndex,
         tagIds: this.validateCardTags(projectId, (value.tagIds ?? []) as TagId[]),
@@ -468,7 +469,7 @@ interface SerializedCard {
   title: string;
   content: string;
   priority: Priority;
-  expiration: string;
+  expiration: string | null;
   bucket: Bucket;
   displayIndex: number;
   tagIds?: string[];
@@ -483,7 +484,7 @@ function isSerializedCard(value: unknown): value is SerializedCard {
     typeof value.title === "string" &&
     typeof value.content === "string" &&
     (value.priority === "low" || value.priority === "normal" || value.priority === "urgent") &&
-    typeof value.expiration === "string" &&
+    (typeof value.expiration === "string" || value.expiration === null) &&
     (value.bucket === "icebox" ||
       value.bucket === "in-progress" ||
       value.bucket === "blocked" ||

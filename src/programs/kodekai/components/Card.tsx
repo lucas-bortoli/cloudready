@@ -2,10 +2,11 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  For,
   onCleanup,
   onMount,
+  Show,
   type Accessor,
-  For,
 } from "solid-js";
 import { cn } from "../../../lib/dom";
 import { truncateTextToFit } from "../lib/truncateTextToFit";
@@ -29,9 +30,13 @@ const priorityLabels: Record<CardData["priority"], string> = {
 };
 
 const formatExpiration = (expiration: CardData["expiration"]) =>
-  new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(
-    new Date(expiration),
-  );
+  expiration === null
+    ? "Sem vencimento"
+    : new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(new Date(expiration));
 
 /** Renders one Kodekai card and keeps its title and content within its fixed height. */
 export default function Card(props: CardProps) {
@@ -73,8 +78,10 @@ export default function Card(props: CardProps) {
     onCleanup(() => observer.disconnect());
   });
 
+  const hasExpiration = createMemo(() => props.card.expiration !== null);
+
   const isExpired = createMemo(() => {
-    return new Date(props.card.expiration) < new Date();
+    return hasExpiration() && new Date(props.card.expiration!) < new Date();
   });
 
   const handlePointerDown = (event: PointerEvent) => {
@@ -119,15 +126,20 @@ export default function Card(props: CardProps) {
         <For each={props.tags}>
           {(tag) => <span class="rounded bg-sky-100 px-2 py-0.5 text-sm">{tag.name}</span>}
         </For>
-        <span
-          class={cn(
-            "rounded-xs px-2 py-0.5 text-sm",
-            !isExpired() && "bg-amber-50",
-            isExpired() && "bg-amber-400",
-          )}
-        >
-          {formatExpiration(props.card.expiration)}
-        </span>
+        <Show
+          when={hasExpiration()}
+          children={
+            <span
+              class={cn(
+                "rounded-xs px-2 py-0.5 text-sm",
+                !isExpired() && "bg-amber-50",
+                isExpired() && "bg-amber-400",
+              )}
+            >
+              {formatExpiration(props.card.expiration)}
+            </span>
+          }
+        />
         <span
           class={cn(
             "rounded-xs px-2 py-0.5 text-sm",
