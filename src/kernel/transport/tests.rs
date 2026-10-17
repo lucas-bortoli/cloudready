@@ -223,18 +223,24 @@ async fn rpc_uses_shared_sessions_and_rechecks_revocation() {
         ))
         .await
         .unwrap();
-    assert_eq!(next_json(&mut socket).await["method"], "fairy.state.delta");
-    assert_eq!(
-        next_json(&mut socket).await["params"]["messages"][0]["status"],
-        "failed"
-    );
-    let reply = next_json(&mut socket).await;
-    assert_eq!(reply["id"], 1);
-    assert_eq!(reply["error"]["code"], "fairy-generation-failed");
-    assert_eq!(
-        reply["error"]["message"],
-        "No ChatGPT account is connected."
-    );
+    let pending = next_json(&mut socket).await;
+    assert_eq!(pending["method"], "fairy.state.delta");
+    assert_eq!(pending["params"]["changes"][0]["message"]["text"], "Hello");
+    let mut accepted = false;
+    let mut failed = false;
+    while !accepted || !failed {
+        let message = next_json(&mut socket).await;
+        if message["type"] == "result" {
+            assert_eq!(message["id"], 1);
+            accepted = true;
+        } else {
+            assert_eq!(
+                message["params"]["changes"][0]["message"]["status"],
+                "failed"
+            );
+            failed = true;
+        }
+    }
 
     let signout = kernel
         .client
@@ -278,13 +284,26 @@ async fn fairy_history_is_shared_across_tabs_and_survives_reconnect() {
     let first_pending = next_json(&mut first).await;
     assert_eq!(first_pending, next_json(&mut second).await);
     assert_eq!(
-        first_pending["params"]["messages"][0]["text"],
+        first_pending["params"]["changes"][0]["message"]["text"],
         "Shared history"
     );
-    let first_final = next_json(&mut first).await;
-    assert_eq!(first_final, next_json(&mut second).await);
-    assert_eq!(first_final["params"]["messages"][0]["status"], "failed");
-    assert_eq!(next_json(&mut first).await["id"], "turn");
+    let mut accepted = false;
+    let mut final_event = None;
+    while !accepted || final_event.is_none() {
+        let message = next_json(&mut first).await;
+        if message["type"] == "result" {
+            assert_eq!(message["id"], "turn");
+            accepted = true;
+        } else {
+            assert_eq!(message, next_json(&mut second).await);
+            assert_eq!(
+                message["params"]["changes"][0]["message"]["status"],
+                "failed"
+            );
+            final_event = Some(message);
+        }
+    }
+    let first_final = final_event.unwrap();
     first.close(None).await.unwrap();
 
     let (mut reconnected, _) =
@@ -293,7 +312,12 @@ async fn fairy_history_is_shared_across_tabs_and_survives_reconnect() {
             .unwrap();
     assert_eq!(next_json(&mut reconnected).await["method"], "session.ready");
     let snapshot = next_json(&mut reconnected).await;
-    assert_eq!(snapshot["params"], first_final["params"]);
+    assert_eq!(
+        snapshot["params"]["revision"],
+        first_final["params"]["revision"]
+    );
+    assert_eq!(snapshot["params"]["messages"][0]["text"], "Shared history");
+    assert_eq!(snapshot["params"]["messages"][0]["status"], "failed");
 
     // Subscription belongs to Fairy, and now actually supplies the current profile snapshot.
     second

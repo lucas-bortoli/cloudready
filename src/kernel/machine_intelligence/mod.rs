@@ -11,3 +11,5 @@ mod tests;
 pub use error::{Error, Result};
 pub use models::{AuthorizationStart, AuthorizationStatus, ConnectionStatus, GeneratedText, Model};
 pub use service::MachineIntelligence;
+
+pub(crate) use provider::GenerationClient;

@@ -24,6 +24,13 @@ pub struct MachineIntelligence<'a> {
 }
 
 impl<'a> MachineIntelligence<'a> {
+    pub(crate) fn observe_connections(
+        &mut self,
+        updates: tokio::sync::broadcast::Sender<(Uuid, bool)>,
+    ) {
+        self.credentials.updates = Some(updates);
+    }
+
     /// Creates a provider service backed by the shared system database.
     ///
     /// # Arguments

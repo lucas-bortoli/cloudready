@@ -39,6 +39,22 @@ pub(crate) struct Application {
 }
 
 impl Application {
+    pub(crate) fn connection_updates(
+        &self,
+    ) -> tokio::sync::broadcast::Receiver<(uuid::Uuid, bool)> {
+        self.worker.connection_updates()
+    }
+
+    /// Reads provider availability without a browser token for a profile-owned runtime.
+    ///
+    /// # Errors
+    /// Returns credential-store or worker failures.
+    pub(crate) async fn profile_provider_connected(&self, id: uuid::Uuid) -> Result<bool, Error> {
+        self.call(move |_, intelligence| intelligence.connection(id).map(|status| status.connected))
+            .await?
+            .map_err(Error::Provider)
+    }
+
     /// Resolves a browser token on the service thread.
     ///
     /// # Errors
@@ -57,35 +73,17 @@ impl Application {
         .await?
     }
 
-    /// Reads provider availability for the current session.
+    /// Resolves an owned provider client without running network generation on the worker.
     ///
     /// # Errors
-    /// Returns [`Error::Session`] for an invalid token, [`Error::Provider`] for credential-store
-    /// failures, or [`Error::Unavailable`] if the worker has stopped.
-    pub(crate) async fn provider_connected(&self, token: Option<String>) -> Result<bool, Error> {
-        self.call(move |database, intelligence| {
-            let user = session::SessionStore::new(database).current(token.as_deref())?;
-            Ok(intelligence.connection(user.id)?.connected)
-        })
-        .await?
-    }
-
-    /// Generates text for the current session, rechecking revocation on every request.
-    ///
-    /// # Errors
-    /// Returns [`Error::Session`] if the token is invalid, [`Error::Provider`] for generation
-    /// failures, or [`Error::Unavailable`] if the service worker has stopped.
-    pub(crate) async fn generate_text(
+    /// Returns provider credential errors or worker unavailability.
+    pub(crate) async fn generation_client(
         &self,
-        token: Option<String>,
-        model: String,
-        input: String,
-    ) -> Result<String, Error> {
-        self.call(move |database, intelligence| {
-            let user = session::SessionStore::new(database).current(token.as_deref())?;
-            Ok(intelligence.generate_text(user.id, &model, &input)?.text)
-        })
-        .await?
+        profile_id: uuid::Uuid,
+    ) -> Result<machine_intelligence::GenerationClient, Error> {
+        self.call(move |_, intelligence| intelligence.generation_client(profile_id))
+            .await?
+            .map_err(Error::Provider)
     }
 
     /// Starts the application after database initialization succeeds.

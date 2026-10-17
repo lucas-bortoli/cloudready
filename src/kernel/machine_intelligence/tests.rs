@@ -265,13 +265,17 @@ fn response_stream_requires_completed_event() {
         .credentials
         .save(user, &connection(now() + 300_000))
         .unwrap();
+    let mut chunks = Vec::new();
     assert_eq!(
         intelligence
-            .generate_text(user, "test-model", "Hi")
+            .generation_client(user)
+            .unwrap()
+            .generate_text("test-model", "Hi", |chunk| chunks.push(chunk))
             .unwrap()
             .text,
         "Hello"
     );
+    assert_eq!(chunks, vec!["Hello"]);
     assert!(matches!(
         intelligence.generate_text(user, "test-model", "Hi"),
         Err(Error::IncompleteResponse)
@@ -281,4 +285,204 @@ fn response_stream_requires_completed_event() {
         Err(Error::UsageLimit)
     ));
     handle.join().unwrap();
+}
+
+#[tokio::test]
+async fn fairy_streams_before_completion_and_keeps_worker_and_reconnecting_sessions_available() {
+    use crate::{
+        application::Application, fairy::service::Service, rpc::hub::RpcHub, session::SessionStore,
+    };
+    use std::io::{BufRead, BufReader, Read, Write};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    fn request(socket: &mut std::net::TcpStream) {
+        let mut reader = BufReader::new(socket);
+        let mut length = 0;
+        loop {
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            if line == "\r\n" {
+                break;
+            }
+            if let Some(value) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                length = value.trim().parse().unwrap();
+            }
+        }
+        reader.read_exact(&mut vec![0; length]).unwrap();
+    }
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let (release, wait) = std::sync::mpsc::channel();
+    let server = thread::spawn(move || {
+        let (mut socket, _) = listener.accept().unwrap();
+        request(&mut socket);
+        let models = json!({"models":[{"slug":crate::fairy::MODEL,"display_name":"Test","visibility":"list"}]}).to_string();
+        write!(
+            socket,
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            models.len(),
+            models
+        )
+        .unwrap();
+        drop(socket);
+        let (mut socket, _) = listener.accept().unwrap();
+        request(&mut socket);
+        let first = "data: {\"type\":\"response.output_text.delta\",\"delta\":\"Hello\"}\n\n";
+        let last = "data: {\"type\":\"response.output_text.delta\",\"delta\":\" again\"}\n\ndata: {\"type\":\"response.completed\"}\n\n";
+        write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", first.len() + last.len(), first).unwrap();
+        socket.flush().unwrap();
+        if wait
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .is_ok()
+        {
+            socket.write_all(last.as_bytes()).unwrap();
+        }
+    });
+    let application = Application::start(":memory:".into()).await.unwrap();
+    let (id, token) = application
+        .call(move |database, intelligence| {
+            let store = SessionStore::new(database);
+            let user = store.create_first_user("Ada").unwrap();
+            let (_, token) = store.start(user.id).unwrap();
+            intelligence.api_base = base;
+            intelligence
+                .credentials
+                .save(user.id, &connection(now() + 300_000))
+                .unwrap();
+            (user.id, token)
+        })
+        .await
+        .unwrap();
+    let hub = Arc::new(Mutex::new(RpcHub::new()));
+    let events = hub.clone();
+    let service = Service::new(
+        application.clone(),
+        Arc::new(move |id, value| {
+            let events = events.clone();
+            Box::pin(async move {
+                events.lock().await.broadcast(id, value);
+            })
+        }),
+    );
+    let (first_id, mut first) = hub.lock().await.connect(id);
+    service.submit(id, Some(token.clone()), "Hi").await.unwrap();
+    let created = first.recv().await.unwrap();
+    assert_eq!(created["revision"], 1);
+    let delta = tokio::time::timeout(std::time::Duration::from_secs(3), first.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(delta["changes"][0]["text"], "Hello");
+    // The provider is paused. A database operation and a joining session still work.
+    let (second_id, mut second) = hub.lock().await.connect(id);
+    let snapshots = hub.clone();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        service.snapshot(id, Some(token), move |value| async move {
+            snapshots.lock().await.send(second_id, value);
+        }),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    let snapshot = second.recv().await.unwrap();
+    assert_eq!(snapshot["revision"], delta["revision"]);
+    assert_eq!(snapshot["messages"][1]["text"], "Hello");
+    hub.lock().await.disconnect(first_id);
+    release.send(()).unwrap();
+    let remaining = second.recv().await.unwrap();
+    assert_eq!(remaining["changes"][0]["text"], " again");
+    let finished = second.recv().await.unwrap();
+    assert_eq!(finished["changes"][0]["message"]["status"], "complete");
+    let saved = application
+        .call(move |database, _| {
+            database.connection().query_row(
+                "SELECT state FROM fairy_states WHERE user_id=?1",
+                [id.as_bytes()],
+                |row| row.get::<_, String>(0),
+            )
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    let saved: serde_json::Value = serde_json::from_str(&saved).unwrap();
+    assert_eq!(saved["machine"]["messages"][1]["text"], "Hello again");
+    server.join().unwrap();
+}
+
+#[tokio::test]
+async fn fairy_connection_changes_reach_all_sessions_without_resubscribing() {
+    use crate::{
+        application::Application, fairy::service::Service, rpc::hub::RpcHub, session::SessionStore,
+    };
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+    let application = Application::start(":memory:".into()).await.unwrap();
+    let (id, token) = application
+        .call(|database, _| {
+            let store = SessionStore::new(database);
+            let user = store.create_first_user("Ada").unwrap();
+            let (_, token) = store.start(user.id).unwrap();
+            (user.id, token)
+        })
+        .await
+        .unwrap();
+    let hub = Arc::new(Mutex::new(RpcHub::new()));
+    let events = hub.clone();
+    let service = Service::new(
+        application.clone(),
+        Arc::new(move |id, value| {
+            let events = events.clone();
+            Box::pin(async move {
+                events.lock().await.broadcast(id, value);
+            })
+        }),
+    );
+    let (_, mut first) = hub.lock().await.connect(id);
+    let (_, mut second) = hub.lock().await.connect(id);
+    service
+        .snapshot(id, Some(token.clone()), |snapshot| async move {
+            assert_eq!(snapshot["connected"], false);
+        })
+        .await
+        .unwrap();
+    application
+        .call(move |_, intelligence| {
+            intelligence
+                .credentials
+                .save(id, &connection(now() + 300_000))
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    let connected = tokio::time::timeout(std::time::Duration::from_secs(3), first.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        connected["changes"][0],
+        json!({"kind":"connection-changed", "connected":true})
+    );
+    assert_eq!(second.recv().await.unwrap(), connected);
+    service
+        .snapshot(id, Some(token), |snapshot| async move {
+            assert_eq!(snapshot["connected"], true);
+        })
+        .await
+        .unwrap();
+    application
+        .call(move |_, intelligence| intelligence.credentials.delete(id))
+        .await
+        .unwrap()
+        .unwrap();
+    let disconnected = tokio::time::timeout(std::time::Duration::from_secs(3), first.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        disconnected["changes"][0],
+        json!({"kind":"connection-changed", "connected":false})
+    );
+    assert_eq!(second.recv().await.unwrap(), disconnected);
 }

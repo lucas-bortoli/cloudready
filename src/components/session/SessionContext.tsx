@@ -1,6 +1,8 @@
 import { createContext, createSignal, Match, onMount, Switch, useContext } from "solid-js";
 import Desktop from "./Desktop";
 import { MachineIntelligenceProvider } from "../machine-intelligence/MachineIntelligenceContext";
+import { SessionRpcProvider } from "../session-rpc/SessionRpcContext";
+import { FairyProvider } from "../../programs/fairy/FairyContext";
 import { SessionContextError, SessionExpiredError, SessionMissingError } from "./errors";
 import Oobe from "./Oobe";
 import ProfilePicker from "./ProfilePicker";
@@ -83,7 +85,11 @@ export function SessionProvider() {
         children={
           <SessionContext.Provider value={{ user: activeUser as () => UserProfile, signOut }}>
             <MachineIntelligenceProvider>
-              <Desktop />
+              <SessionRpcProvider>
+                <FairyProvider>
+                  <Desktop />
+                </FairyProvider>
+              </SessionRpcProvider>
             </MachineIntelligenceProvider>
           </SessionContext.Provider>
         }

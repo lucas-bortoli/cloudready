@@ -20,10 +20,14 @@ pub(super) struct Connection {
 /// Keeps credential persistence and file protection out of OAuth and provider requests.
 pub(super) struct Credentials<'a> {
     database: &'a Database,
+    pub(super) updates: Option<tokio::sync::broadcast::Sender<(Uuid, bool)>>,
 }
 impl<'a> Credentials<'a> {
     pub(super) fn new(database: &'a Database) -> Self {
-        Self { database }
+        Self {
+            database,
+            updates: None,
+        }
     }
 
     pub(super) fn host_id(&self) -> Result<String> {
@@ -70,6 +74,9 @@ impl<'a> Credentials<'a> {
                 value.id_token, value.access_token, value.refresh_token, value.scopes, value.expires_at],
         )?;
         self.database.protect_credentials()?;
+        if let Some(updates) = &self.updates {
+            let _ = updates.send((user_id, true));
+        }
         Ok(())
     }
     pub(super) fn delete(&self, user_id: Uuid) -> Result<()> {
@@ -77,6 +84,9 @@ impl<'a> Credentials<'a> {
             "DELETE FROM machine_intelligence_connections WHERE user_id=?1",
             [user_id.as_bytes()],
         )?;
+        if let Some(updates) = &self.updates {
+            let _ = updates.send((user_id, false));
+        }
         Ok(())
     }
 }

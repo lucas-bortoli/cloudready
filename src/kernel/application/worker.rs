@@ -3,7 +3,7 @@
 use super::Error;
 use crate::{database::Database, machine_intelligence::MachineIntelligence};
 use std::path::PathBuf;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 
 type Job = Box<dyn FnOnce(&Database, &mut MachineIntelligence<'_>) + Send>;
 
@@ -11,6 +11,7 @@ type Job = Box<dyn FnOnce(&Database, &mut MachineIntelligence<'_>) + Send>;
 #[derive(Clone)]
 pub(super) struct Worker {
     sender: mpsc::Sender<Job>,
+    updates: broadcast::Sender<(uuid::Uuid, bool)>,
 }
 
 impl Worker {
@@ -21,6 +22,8 @@ impl Worker {
     /// initialization fails, or [`Error::Unavailable`] if the worker exits before reporting ready.
     pub(super) async fn start(path: PathBuf) -> Result<Self, Error> {
         let (sender, mut receiver) = mpsc::channel::<Job>(16);
+        let (updates, _) = broadcast::channel(64);
+        let connection_updates = updates.clone();
         let (ready, initialized) = oneshot::channel();
         std::thread::Builder::new()
             .name("kernel-services".into())
@@ -33,6 +36,7 @@ impl Worker {
                     }
                 };
                 let mut intelligence = MachineIntelligence::new(&database);
+                intelligence.observe_connections(connection_updates);
                 if ready.send(Ok(())).is_err() {
                     return;
                 }
@@ -43,7 +47,11 @@ impl Worker {
             })
             .map_err(Error::Thread)?;
         initialized.await.map_err(|_| Error::Unavailable)??;
-        Ok(Self { sender })
+        Ok(Self { sender, updates })
+    }
+
+    pub(super) fn connection_updates(&self) -> broadcast::Receiver<(uuid::Uuid, bool)> {
+        self.updates.subscribe()
     }
 
     /// Runs a blocking service operation with owned inputs and an owned result.

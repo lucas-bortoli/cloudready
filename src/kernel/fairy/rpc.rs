@@ -73,17 +73,8 @@ impl Feature for FairyRpc {
                 "fairy.turn.submit" => {
                     let input: SubmitTurn = serde_json::from_value(params)
                         .map_err(|_| Error::new("fairy-invalid-input", "A message is required."))?;
-                    let hub = this.hub.clone();
-                    let profile_id = context.profile_id;
                     this.service
-                        .submit(profile_id, context.token, &input.text, move |snapshot| {
-                            let hub = hub.clone();
-                            async move {
-                                hub.lock()
-                                    .await
-                                    .broadcast(profile_id, event("fairy.state.delta", snapshot));
-                            }
-                        })
+                        .submit(context.profile_id, context.token, &input.text)
                         .await
                         .map_err(map_error)?;
                 }
@@ -100,7 +91,10 @@ fn event(method: &str, snapshot: Value) -> Value {
 
 fn map_error(error: service::Error) -> Error {
     let code = match error {
-        service::Error::InvalidInput => "fairy-invalid-input",
+        service::Error::Transition(super::conversation::TransitionError::InvalidInput) => {
+            "fairy-invalid-input"
+        }
+        service::Error::Transition(super::conversation::TransitionError::Busy) => "fairy-busy",
         _ => "fairy-generation-failed",
     };
     Error::new(code, error.to_string())

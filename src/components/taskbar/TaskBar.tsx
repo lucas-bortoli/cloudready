@@ -4,7 +4,9 @@ import Wifi16 from "@carbon/icons/es/wifi/16.js";
 import { createSignal, For, onCleanup, onMount, Show, splitProps, type JSX } from "solid-js";
 import { cn } from "../../lib/dom";
 import focusTrap from "../../lib/focus-trap";
-import createNaviIcon from "../../programs/navi/createNaviIcon";
+import createFairyIcon from "../../programs/fairy/createFairyIcon";
+import FairyPopover from "../../programs/fairy/FairyPopover";
+import MachineIntelligenceWindow from "../machine-intelligence/MachineIntelligenceWindow";
 import { useHotkey, useHotkeyRegistry } from "../hotkeys/HotkeyContext";
 import { useLayerItem } from "../layer-manager/LayerContext";
 import { useToast } from "../toast/ToastContext";
@@ -43,6 +45,7 @@ export default function Taskbar() {
   const layerItem = useLayerItem("shell");
   const [isStartMenuOpen, setIsStartMenuOpen] = createSignal(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = createSignal(false);
+  const [isFairyOpen, setIsFairyOpen] = createSignal(false);
   const session = useSession();
   const [shouldFocusStartMenuSearch, setShouldFocusStartMenuSearch] = createSignal(true);
   const [isFullscreen, setIsFullscreen] = createSignal(Boolean(document.fullscreenElement));
@@ -86,6 +89,16 @@ export default function Taskbar() {
 
   const toggleAccountMenu = () => setIsAccountMenuOpen(!isAccountMenuOpen());
   const signOut = () => void session.signOut();
+  const toggleFairy = () => setIsFairyOpen(!isFairyOpen());
+  const closeFairy = () => setIsFairyOpen(false);
+  const openMachineIntelligence = () => {
+    windowManager.createWindow({
+      title: "Machine Intelligence",
+      size: { width: 620, height: 540 },
+      minimumSize: { width: 460, height: 380 },
+      content: () => <MachineIntelligenceWindow />,
+    });
+  };
 
   const handleSuperKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Meta" && !event.repeat) isSuperPressPending = true;
@@ -181,13 +194,13 @@ export default function Taskbar() {
       </section>
       <Separator />
       <TaskbarButton
-        aria-controls="start-menu"
-        aria-expanded={isStartMenuOpen()}
+        aria-controls="fairy-conversation"
+        aria-expanded={isFairyOpen()}
         class="inline-flex h-10 items-center gap-2 rounded-xs bg-neutral-800 px-3 hover:bg-neutral-700"
-        onClick={handleStartMenuButtonClick}
+        onClick={toggleFairy}
       >
         <img
-          src={createNaviIcon({
+          src={createFairyIcon({
             wingsFill: "#e0e0e0",
             bodyFill: "white",
             wingsOutline: "white",
@@ -196,6 +209,9 @@ export default function Taskbar() {
         />
         Navi
       </TaskbarButton>
+      <Show when={isFairyOpen()}>
+        <FairyPopover onClose={closeFairy} onConnect={openMachineIntelligence} />
+      </Show>
       <TaskbarButton
         aria-controls="volume-mixer"
         class="inline-flex h-10 items-center gap-2 rounded-xs bg-neutral-800 px-3 hover:bg-neutral-700"

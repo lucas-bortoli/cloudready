@@ -27,6 +27,11 @@ pub(super) const ALL: &[Migration] = &[
         name: "machine intelligence credentials and host identity",
         apply: machine_intelligence,
     },
+    Migration {
+        version: 5,
+        name: "durable fairy state",
+        apply: fairy,
+    },
 ];
 
 fn initial_filesystem_schema(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
@@ -60,4 +65,8 @@ fn machine_intelligence(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
            scopes TEXT NOT NULL, expires_at INTEGER NOT NULL
          );",
     )
+}
+
+fn fairy(transaction: &Transaction<'_>) -> rusqlite::Result<()> {
+    transaction.execute_batch("CREATE TABLE fairy_states (user_id BLOB PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, state TEXT NOT NULL);")
 }

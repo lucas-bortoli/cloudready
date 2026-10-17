@@ -11,7 +11,7 @@ export default defineConfig({
   server: {
     // Forward API requests during development to the kernel started with `npm run dev:kernel`.
     proxy: {
-      "/api/": "http://127.0.0.1:3000",
+      "/api/": { target: "http://127.0.0.1:3000", ws: true },
     },
   },
   build: {

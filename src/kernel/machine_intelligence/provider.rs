@@ -4,7 +4,46 @@ use serde_json::{Value, json};
 use std::io::{BufRead, BufReader};
 use uuid::Uuid;
 pub(super) const RESOURCE: &str = "https://api.openai.com/v1";
+/// An owned provider client; contains credentials and must never be serialized.
+pub(crate) struct GenerationClient {
+    http: reqwest::blocking::Client,
+    api_base: String,
+    access_token: String,
+}
+
 impl MachineIntelligence<'_> {
+    /// Resolves credentials before leaving the database worker.
+    ///
+    /// # Errors
+    /// Returns the connection, authorization, or database error from credential resolution.
+    pub(crate) fn generation_client(&self, user_id: Uuid) -> Result<GenerationClient> {
+        let connection = self.ready_connection(user_id)?;
+        Ok(GenerationClient {
+            http: self.http.clone(),
+            api_base: self.api_base.clone(),
+            access_token: connection.access_token,
+        })
+    }
+
+    /// Lists models for a connected profile.
+    ///
+    /// # Errors
+    /// Returns credential or upstream errors.
+    pub fn models(&self, user_id: Uuid) -> Result<Vec<Model>> {
+        self.generation_client(user_id)?.models()
+    }
+
+    /// Collects a complete response.
+    ///
+    /// # Errors
+    /// Returns credential, input, model, upstream, usage-limit, or incomplete-response errors.
+    pub fn generate_text(&self, user_id: Uuid, model: &str, input: &str) -> Result<GeneratedText> {
+        self.generation_client(user_id)?
+            .generate_text(model, input, |_| {})
+    }
+}
+
+impl GenerationClient {
     /// Lists models visible to the connected ChatGPT account.
     ///
     /// # Arguments
@@ -17,12 +56,11 @@ impl MachineIntelligence<'_> {
     /// [`Error::PermissionMissing`] if plan use is unavailable,
     /// [`Error::ReauthorizationRequired`] if its access token is no longer accepted, or an
     /// upstream or database error if the request fails.
-    pub fn models(&self, user_id: Uuid) -> Result<Vec<Model>> {
-        let connection = self.ready_connection(user_id)?;
+    fn models(&self) -> Result<Vec<Model>> {
         let response = self
             .http
             .get(format!("{}/models", self.api_base))
-            .bearer_auth(&connection.access_token)
+            .bearer_auth(&self.access_token)
             .send()
             .map_err(|_| Error::Upstream)?;
         if response.status().as_u16() == 401 {
@@ -67,21 +105,25 @@ impl MachineIntelligence<'_> {
     /// [`Error::UsageLimit`] when ChatGPT reports a usage limit,
     /// [`Error::ReauthorizationRequired`] when the access token is rejected, or
     /// [`Error::IncompleteResponse`] when the stream does not complete.
-    pub fn generate_text(&self, user_id: Uuid, model: &str, input: &str) -> Result<GeneratedText> {
+    pub(crate) fn generate_text(
+        &self,
+        model: &str,
+        input: &str,
+        mut on_delta: impl FnMut(String),
+    ) -> Result<GeneratedText> {
         if input.trim().is_empty() || input.len() > 16_000 || model.is_empty() || model.len() > 100
         {
             return Err(Error::InvalidInput);
         }
         if !self
-            .models(user_id)?
+            .models()?
             .iter()
             .any(|candidate| candidate.slug == model)
         {
             return Err(Error::ModelUnavailable);
         }
-        let connection = self.ready_connection(user_id)?;
         let response = self.http.post(format!("{}/responses", self.api_base))
-            .bearer_auth(&connection.access_token)
+            .bearer_auth(&self.access_token)
             .json(&json!({"model": model, "input": [{"role": "user", "content": input}], "store": false, "stream": true}))
             .send().map_err(|_| Error::Upstream)?;
         if response.status().as_u16() == 401 {
@@ -107,12 +149,12 @@ impl MachineIntelligence<'_> {
                 event_data.clear();
                 match event.get("type").and_then(Value::as_str) {
                     Some("response.output_text.delta") => {
-                        text.push_str(
-                            event
-                                .get("delta")
-                                .and_then(Value::as_str)
-                                .ok_or(Error::IncompleteResponse)?,
-                        );
+                        let delta = event
+                            .get("delta")
+                            .and_then(Value::as_str)
+                            .ok_or(Error::IncompleteResponse)?;
+                        text.push_str(delta);
+                        on_delta(delta.to_owned());
                     }
                     Some("response.completed") => {
                         completed = true;
