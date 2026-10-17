@@ -11,7 +11,7 @@ mod transport;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let chromium = chromium::executable_from_args(std::env::args_os().skip(1))?;
+    let chromium = config::chromium_binary(std::env::args_os().skip(1))?;
     let address = std::env::var("KERNEL_ADDR").unwrap_or_else(|_| "127.0.0.1:3000".into());
     let listener = tokio::net::TcpListener::bind(&address).await?;
     let bound_address = listener.local_addr()?;

@@ -41,8 +41,12 @@ An empty frontend suite is allowed until frontend tests are added; actual test f
 Set `KERNEL_ADDR` to override the listening address, for example
 `KERNEL_ADDR=127.0.0.1:3001 npm run dev:kernel`.
 
-To open the web OS in a native Chromium app window, pass the Chromium executable:
+To open the web OS in a native Chromium app window, set `CR_CHROMIUM_BINARY` to the
+Chromium executable or pass it on the command line:
+`CR_CHROMIUM_BINARY="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" cargo run` or
 `cargo run -- --chromium="C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"`.
+The command-line path overrides the environment variable. Pass `--no-chromium` to disable
+launching Chromium even when `CR_CHROMIUM_BINARY` is set.
 The kernel launches it with a fresh temporary profile, incognito mode, and Chromium's
 `--app` window mode, so browser tabs, the address bar, and an existing Chrome profile
 are not used. Debug builds target the Vite frontend at `http://localhost:5173`; release

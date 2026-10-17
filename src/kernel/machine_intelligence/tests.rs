@@ -14,7 +14,9 @@ use std::thread;
 use tiny_http::{Header, Response, Server, StatusCode};
 
 fn fixture() -> (Database, Uuid) {
-    let path = std::env::temp_dir().join(format!("cloudready-mi-{}.sqlite", Uuid::new_v4()));
+    let path = std::env::temp_dir()
+        .join("cloudready-databases")
+        .join(format!("cloudready-mi-{}.sqlite", Uuid::new_v4()));
     let database = Database::open(&path).unwrap();
     let user = crate::session::SessionStore::new(&database)
         .create_first_user("Ada")

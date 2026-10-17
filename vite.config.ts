@@ -1,6 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
-import solid from "vite-plugin-solid";
 import { defineConfig } from "vite";
+import solid from "vite-plugin-solid";
 
 const isVitest = Boolean(process.env.VITEST);
 
@@ -13,6 +13,7 @@ export default defineConfig({
     proxy: {
       "/api/": { target: "http://127.0.0.1:3000", ws: true },
     },
+    allowedHosts: ["home"],
   },
   build: {
     outDir: "../target/userland-static-bundle",

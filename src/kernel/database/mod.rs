@@ -178,7 +178,9 @@ mod tests {
     use uuid::Uuid;
 
     fn path() -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("cloudready-database-{}.sqlite", Uuid::new_v4()))
+        let directory = std::env::temp_dir().join("cloudready-databases");
+        std::fs::create_dir_all(&directory).unwrap();
+        directory.join(format!("cloudready-database-{}.sqlite", Uuid::new_v4()))
     }
 
     #[test]

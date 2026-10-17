@@ -7,7 +7,9 @@ use super::*;
 
 #[test]
 fn first_profile_session_and_sign_out() {
-    let path = std::env::temp_dir().join(format!("cloudready-session-{}.sqlite", Uuid::new_v4()));
+    let path = std::env::temp_dir()
+        .join("cloudready-databases")
+        .join(format!("cloudready-session-{}.sqlite", Uuid::new_v4()));
     let database = Database::open(&path).unwrap();
     let store = SessionStore::new(&database);
 
@@ -27,7 +29,9 @@ fn first_profile_session_and_sign_out() {
 
 #[test]
 fn saves_and_returns_an_uploaded_profile_picture() {
-    let path = std::env::temp_dir().join(format!("cloudready-picture-{}.sqlite", Uuid::new_v4()));
+    let path = std::env::temp_dir()
+        .join("cloudready-databases")
+        .join(format!("cloudready-picture-{}.sqlite", Uuid::new_v4()));
     let database = Database::open(&path).unwrap();
     let store = SessionStore::new(&database);
     let user = store.create_first_user("Ada").unwrap();

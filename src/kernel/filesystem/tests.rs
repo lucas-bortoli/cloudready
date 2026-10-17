@@ -5,8 +5,9 @@ use super::*;
 use rusqlite::params;
 use std::io::Cursor;
 fn database() -> Database {
-    Database::open(&std::env::temp_dir().join(format!("cloudready-{}.sqlite", Uuid::new_v4())))
-        .unwrap()
+    let directory = std::env::temp_dir().join("cloudready-databases");
+    std::fs::create_dir_all(&directory).unwrap();
+    Database::open(&directory.join(format!("cloudready-{}.sqlite", Uuid::new_v4()))).unwrap()
 }
 fn user(database: &Database) -> Uuid {
     let user = Uuid::new_v4();

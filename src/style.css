@@ -42,8 +42,12 @@
 }
 
 @layer base {
-  html {
+  html,
+  body {
     background-color: #171717;
+    overscroll-behavior: none;
+    overflow: hidden;
+    touch-action: none;
   }
 
   body {
