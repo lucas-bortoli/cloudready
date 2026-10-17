@@ -5,6 +5,10 @@ import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid
 import Button from "../../../components/button/Button";
 import Checkbox from "../../../components/checkbox/Checkbox";
 import DatePicker from "../../../components/date-picker/DatePicker";
+import useDialog, {
+  RejectReasonDialogCancelled,
+  type DialogHandle,
+} from "../../../components/dialog/Dialog";
 import Dropdown from "../../../components/dropdown/Dropdown";
 import CarbonIcon from "../../../components/taskbar/CarbonIcon";
 import TextInput from "../../../components/text-input/TextInput";
@@ -39,6 +43,7 @@ function localDateValue(expiration: string | null) {
 
 /** Edits a Kodekai card in an overlay contained by the board window. */
 export default function CardEditor(props: CardEditorProps) {
+  const createDialog = useDialog();
   let titleInput: HTMLTextAreaElement | undefined;
   const today = localDateValue(formatIsoDateTime(new Date()));
   const [title, setTitle] = createSignal("");
@@ -48,6 +53,7 @@ export default function CardEditor(props: CardEditorProps) {
   const [tagIds, setTagIds] = createSignal<TagId[]>([]);
   const [isClosing, setIsClosing] = createSignal(false);
   let closeTimer: number | undefined;
+  const [closeConfirmation, setCloseConfirmation] = createSignal<DialogHandle<string> | null>(null);
 
   const isDirty = () =>
     title() !== (props.card?.title ?? "") ||
@@ -62,14 +68,48 @@ export default function CardEditor(props: CardEditorProps) {
     closeTimer = window.setTimeout(() => props.onClose(focusCardId), exitDurationMs);
   };
 
-  const requestClose = () => {
-    if (!isDirty() || window.confirm("Descartar as alterações não salvas?")) closeAfterTransition();
+  const requestClose = async () => {
+    if (closeConfirmation()?.exists() || isClosing()) return;
+    if (!isDirty()) {
+      closeAfterTransition();
+      return;
+    }
+
+    const dialog = createDialog({
+      icon: "warning",
+      title: "Descartar alterações?",
+      content: () => "Descartar as alterações não salvas?",
+      actions: { discard: "Descartar", cancel: "Continuar editando" },
+    });
+    setCloseConfirmation(dialog);
+    try {
+      const action = await dialog.result;
+      if (action === "discard") closeAfterTransition();
+    } catch (reason) {
+      if (reason !== RejectReasonDialogCancelled) throw reason;
+    } finally {
+      setCloseConfirmation((current) => (current === dialog ? null : current));
+    }
   };
 
-  const deleteCard = () => {
-    if (!props.card || !window.confirm("Excluir este cartão?")) return;
-    props.onDelete(props.card);
-    closeAfterTransition();
+  const deleteCard = async () => {
+    const card = props.card;
+    if (!card) return;
+
+    try {
+      const dialog = createDialog({
+        icon: "question",
+        title: "Excluir cartão?",
+        content: () => "Excluir este cartão?",
+        actions: { delete: "Excluir", cancel: "Cancelar" },
+      });
+      const action = await dialog.result;
+      if (action !== "delete") return;
+      props.onDelete(card);
+      closeAfterTransition();
+    } catch (reason) {
+      if (reason !== RejectReasonDialogCancelled) throw reason;
+    }
   };
 
   const handleBackdropClick = (event: MouseEvent) => {

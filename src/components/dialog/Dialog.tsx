@@ -47,6 +47,19 @@ export const RejectReasonDialogCancelled = "reject-reason:DialogCancelled" as co
 /** The type of {@link RejectReasonDialogCancelled}. */
 export type RejectReasonDialogCancelled = typeof RejectReasonDialogCancelled;
 
+export interface DialogHandle<R> {
+  exists: () => void;
+  emphasize: () => void;
+  result: Promise<R>;
+}
+
+/** No dialog for this operation. */
+export class DialogMissingError extends Error {
+  constructor(id: DialogId) {
+    super(`The dialog ${id} doesn't exist`);
+  }
+}
+
 const DIALOG_WIDTH = 400;
 
 /** Properties accepted by {@link DialogContentWrapper}. */
@@ -127,7 +140,8 @@ export default function useDialog() {
 
   /** Resolves a dialog with its selected action and removes its window. */
   function handleConfirm(id: DialogId, action: string) {
-    const dialog = dialogs().get(id)!;
+    const dialog = dialogs().get(id);
+    if (!dialog) throw new DialogMissingError(id);
     dialog.deferred.resolve(action);
     windowManager.destroyWindow(dialog.windowId);
     setDialogs((old) => {
@@ -139,7 +153,8 @@ export default function useDialog() {
 
   /** Rejects a dialog as cancelled, removes its window, and clears its state. */
   function handleCancel(id: DialogId) {
-    const dialog = dialogs().get(id)!;
+    const dialog = dialogs().get(id);
+    if (!dialog) throw new DialogMissingError(id);
     dialog.deferred.reject(RejectReasonDialogCancelled);
     windowManager.destroyWindow(dialog.windowId);
     setDialogs((old) => {
@@ -149,8 +164,19 @@ export default function useDialog() {
     });
   }
 
+  function handleHandleEmphasize(id: DialogId) {
+    const dialog = dialogs().get(id);
+    if (!dialog) throw new DialogMissingError(id);
+    windowManager.setPinned(dialog.windowId, true);
+    windowManager.bringToTop(dialog.windowId);
+  }
+
+  function handleHandleExists(id: DialogId) {
+    return dialogs().has(id);
+  }
+
   /** Opens a pinned dialog window and returns its eventual selected action. */
-  function create<A extends string>(options: DialogShowOptions<A>): Promise<A> {
+  function create<A extends string>(options: DialogShowOptions<A>): DialogHandle<A> {
     const id = makeDialogId();
     const windowId = windowManager.createWindow({
       title: options.title,
@@ -188,7 +214,11 @@ export default function useDialog() {
       return newMap;
     });
 
-    return deferred.promise as Promise<A>;
+    return {
+      exists: handleHandleExists.bind(null, id),
+      emphasize: handleHandleEmphasize.bind(null, id),
+      result: deferred.promise as Promise<A>,
+    };
   }
 
   onCleanup(() => {

@@ -3,6 +3,9 @@
 import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
 import { formatIsoDateTime } from "../../../lib/iso-date-time";
+import { LayerProvider } from "../../../components/layer-manager/LayerContext";
+import { WindowManagerProvider } from "../../../components/window-manager/WindowManagerContext";
+import WindowsOutlet from "../../../components/window-manager/WindowsOutlet";
 import { Model } from "../model/model";
 import CardEditor from "./CardEditor";
 
@@ -18,18 +21,40 @@ function renderEditor(card?: ReturnType<Model["getCard"]>) {
   document.body.append(root);
   const dispose = render(
     () => (
-      <CardEditor
-        card={card}
-        projectId={projectId}
-        onClose={onClose}
-        onCreate={onCreate}
-        onDelete={onDelete}
-        onUpdate={onUpdate}
-      />
+      <LayerProvider>
+        <WindowManagerProvider>
+          <>
+            <CardEditor
+              card={card}
+              projectId={projectId}
+              onClose={onClose}
+              onCreate={onCreate}
+              onDelete={onDelete}
+              onUpdate={onUpdate}
+            />
+            <WindowsOutlet />
+          </>
+        </WindowManagerProvider>
+      </LayerProvider>
     ),
     root,
   );
   return { dispose, onClose, onCreate, onDelete, onUpdate, root };
+}
+
+function dialogAction(label: string) {
+  const action = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+    (button) => button.textContent === label,
+  );
+
+  if (!action) throw new Error(`Dialog action ${label} did not render.`);
+  return action;
+}
+
+function finishClosingDialog() {
+  document
+    .querySelector<HTMLElement>('[x-role="window"][data-window-motion="closing"]')
+    ?.dispatchEvent(new Event("animationend", { bubbles: true }));
 }
 
 describe("CardEditor", () => {
@@ -90,13 +115,11 @@ describe("CardEditor", () => {
     root.remove();
   });
 
-  it("confirms before deleting an existing card", () => {
+  it("confirms before deleting an existing card", async () => {
     vi.useFakeTimers();
     const model = Model.empty();
     const projectId = model.createProject({ title: "Project" });
     const card = model.getCard(model.createCard({ projectId, title: "Original" }));
-    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
-    vi.stubGlobal("confirm", confirm);
     const { dispose, onClose, onDelete, root } = renderEditor(card);
     const deleteButton = [...root.querySelectorAll("button")].find(
       (button) => button.textContent === "Excluir cartão",
@@ -105,6 +128,9 @@ describe("CardEditor", () => {
     deleteButton.click();
     expect(onDelete).not.toHaveBeenCalled();
     deleteButton.click();
+    dialogAction("Excluir").click();
+    await Promise.resolve();
+    finishClosingDialog();
     expect(onDelete).toHaveBeenCalledWith(card);
     expect(root.querySelector(".kodekai-editor-closing")).not.toBeNull();
     vi.runAllTimers();
@@ -127,9 +153,7 @@ describe("CardEditor", () => {
     root.remove();
   });
 
-  it("asks before discarding dirty changes from every close control", () => {
-    const confirm = vi.fn().mockReturnValue(false);
-    vi.stubGlobal("confirm", confirm);
+  it("asks before discarding dirty changes from every close control", async () => {
     const { dispose, onClose, root } = renderEditor();
     const title = root.querySelector("textarea")!;
     title.value = "Unsaved card";
@@ -138,22 +162,30 @@ describe("CardEditor", () => {
     [...root.querySelectorAll("button")]
       .find((button) => button.textContent === "Cancelar")!
       .click();
+    dialogAction("Continuar editando").click();
+    await Promise.resolve();
+    finishClosingDialog();
+
     title.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    dialogAction("Continuar editando").click();
+    await Promise.resolve();
+    finishClosingDialog();
+
     root
       .querySelector('[x-role="kodekai card editor backdrop"]')!
       .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    dialogAction("Continuar editando").click();
+    await Promise.resolve();
+    finishClosingDialog();
 
-    expect(confirm).toHaveBeenCalledTimes(3);
+    expect(document.querySelectorAll('[x-role="window"]')).toHaveLength(0);
     expect(onClose).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
     dispose();
     root.remove();
   });
 
-  it("closes a dirty editor after confirming that its changes should be discarded", () => {
+  it("closes a dirty editor after confirming that its changes should be discarded", async () => {
     vi.useFakeTimers();
-    const confirm = vi.fn().mockReturnValue(true);
-    vi.stubGlobal("confirm", confirm);
     const { dispose, onClose, root } = renderEditor();
     const title = root.querySelector("textarea")!;
     title.value = "Unsaved card";
@@ -163,10 +195,12 @@ describe("CardEditor", () => {
       .find((button) => button.textContent === "Cancelar")!
       .click();
 
+    dialogAction("Descartar").click();
+    await Promise.resolve();
+    finishClosingDialog();
     vi.runAllTimers();
 
     expect(onClose).toHaveBeenCalledOnce();
-    vi.unstubAllGlobals();
     dispose();
     root.remove();
   });

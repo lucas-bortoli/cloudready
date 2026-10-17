@@ -507,38 +507,34 @@ describe("WindowsOutlet", () => {
     dispose();
   });
 
-  it.each([
-    ["Dock window left", "50%", "0px", "dock-left"],
-    ["Dock window right", "0px", "50%", "dock-right"],
-    ["Maximize window", "0px", "0px", "dock-full"],
-  ])("docks through %s without changing the managed client size", (label, right, left, dock) => {
+  it("maximizes without changing the managed client size", () => {
     const { client, dispose, window, windowManager } = renderWindow();
 
-    windowControl(window, label).click();
+    windowControl(window, "Maximize window").click();
 
     expect(window.style.top).toBe("48px");
-    expect(window.style.right).toBe(right);
+    expect(window.style.right).toBe("0px");
     expect(window.style.bottom).toBe("0px");
-    expect(window.style.left).toBe(left);
-    expect(window.dataset.dock).toBe(dock);
+    expect(window.style.left).toBe("0px");
+    expect(window.dataset.dock).toBe("dock-full");
     expect(window.querySelectorAll('[x-role="resize handle"]')).toHaveLength(0);
     expect(client.classList).toContain("flex-1");
     expect(client.style.height).toBe("");
     expect(client.style.minHeight).toBe("");
     expect(windowManager.getWindows()[0]).toMatchObject({
       size: { width: 400, height: 300 },
-      dock,
+      dock: "dock-full",
     });
 
     dispose();
   });
 
-  it("toggles a dock control back to its floating presentation", () => {
+  it("toggles maximize back to the floating presentation", () => {
     const { dispose, window, windowManager } = renderWindow();
-    const dockLeft = windowControl(window, "Dock window left");
+    const maximize = windowControl(window, "Maximize window");
 
-    dockLeft.click();
-    dockLeft.click();
+    maximize.click();
+    maximize.click();
 
     expect(window.style.width).toBe("400px");
     expect(window.classList).toContain("box-content");
@@ -609,7 +605,11 @@ describe("WindowsOutlet", () => {
     const { dispose, window, windowManager } = renderWindow();
     const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
 
-    windowControl(window, "Dock window left").click();
+    titlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+    document.dispatchEvent(pointerEvent("pointermove", 0, 100));
+    document.dispatchEvent(pointerEvent("pointerup", 0, 100));
+    expect(windowManager.getWindows()[0].dock).toBe("dock-left");
+
     titlebar.dispatchEvent(pointerEvent("pointerdown", 10, 20));
 
     expect(window.style.top).toBe("4px");

@@ -8,6 +8,7 @@ import {
   WindowManagerProvider,
   useWindowManager,
 } from "../../components/window-manager/WindowManagerContext";
+import WindowsOutlet from "../../components/window-manager/WindowsOutlet";
 import { formatIsoDateTime } from "../../lib/iso-date-time";
 import { Model } from "./model/model";
 import Kodekai from "./Kodekai";
@@ -42,9 +43,12 @@ function findCard(container: ParentNode, cardId: string) {
 function TestKodekai(props: { model: Model }) {
   const windowId = useWindowManager().createWindow();
   return (
-    <CurrentWindowProvider windowId={windowId}>
-      <Kodekai model={props.model} />
-    </CurrentWindowProvider>
+    <>
+      <CurrentWindowProvider windowId={windowId}>
+        <Kodekai model={props.model} />
+      </CurrentWindowProvider>
+      <WindowsOutlet />
+    </>
   );
 }
 
@@ -376,15 +380,16 @@ describe("Kodekai card editor focus", () => {
 });
 
 describe("Kodekai card deletion", () => {
-  it("deletes the selected card after confirmation", () => {
+  it("deletes the selected card after confirmation", async () => {
     vi.useFakeTimers();
     const { dispose, firstId, model, source } = renderBoard();
-    vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
 
     source.click();
-    [...document.querySelectorAll("button")]
-      .find((button) => button.textContent === "Excluir cartão")!
+    document.querySelector<HTMLButtonElement>('[x-role="kodekai card editor"] button')!.click();
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent === "Excluir")!
       .click();
+    await Promise.resolve();
     vi.runAllTimers();
 
     expect(() => model.getCard(firstId)).toThrow();

@@ -7,12 +7,12 @@ import { LayerProvider } from "../layer-manager/LayerContext";
 import WindowManager from "../window-manager/WindowManager";
 import { WindowManagerProvider, useWindowManager } from "../window-manager/WindowManagerContext";
 import WindowsOutlet from "../window-manager/WindowsOutlet";
-import useDialog, { RejectReasonDialogCancelled } from "./Dialog";
+import useDialog, { RejectReasonDialogCancelled, type DialogHandle } from "./Dialog";
 
 /** Props supplied to the fixture that opens one dialog after mounting. */
 interface DialogLauncherProps {
   /** Receives the promise returned by the fixture's dialog. */
-  onDialogCreated: (dialog: Promise<"confirm" | "cancel">) => void;
+  onDialogCreated: (dialog: DialogHandle<"confirm" | "cancel">) => void;
   /** Receives the manager that owns the fixture's dialog window. */
   onWindowManager: (windowManager: WindowManager) => void;
 }
@@ -41,7 +41,7 @@ function DialogLauncher(props: DialogLauncherProps) {
 function renderDialog() {
   const container = document.createElement("div");
   document.body.append(container);
-  let dialog: Promise<"confirm" | "cancel"> | undefined;
+  let dialog: DialogHandle<"confirm" | "cancel"> | undefined;
   let windowManager: WindowManager | undefined;
   const dispose = render(
     () => (
@@ -90,13 +90,15 @@ describe("useDialog", () => {
   it("cancels outstanding dialogs and removes their windows when unmounted", async () => {
     const { dialog, dispose, windowManager } = renderDialog();
     // Attach the rejection assertion before disposal triggers the cleanup synchronously.
-    const rejection = expect(dialog).rejects.toBe(RejectReasonDialogCancelled);
+    const rejection = expect(dialog.result).rejects.toBe(RejectReasonDialogCancelled);
 
     expect(windowManager.getWindows()).toHaveLength(1);
+    expect(dialog.exists()).toBe(true);
     dispose();
 
     await rejection;
     expect(windowManager.getWindows()).toHaveLength(0);
+    expect(dialog.exists()).toBe(false);
   });
 
   it("rejects with the cancellation reason and closes when the titlebar close button is clicked", async () => {
@@ -106,7 +108,7 @@ describe("useDialog", () => {
     expect(close).toBeInstanceOf(HTMLButtonElement);
 
     // Register the assertion first so this immediate click rejection is always observed.
-    const rejection = expect(dialog).rejects.toBe(RejectReasonDialogCancelled);
+    const rejection = expect(dialog.result).rejects.toBe(RejectReasonDialogCancelled);
     close!.click();
 
     await rejection;
@@ -125,7 +127,7 @@ describe("useDialog", () => {
     const { container, dialog, dispose } = renderDialog();
 
     // Keep the promise observation in place before the synchronous click handler settles it.
-    const resolution = expect(dialog).resolves.toBe(result);
+    const resolution = expect(dialog.result).resolves.toBe(result);
     button(container, label).click();
 
     await resolution;
