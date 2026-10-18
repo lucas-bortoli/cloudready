@@ -229,7 +229,7 @@ export class NavigationHistoryStack<T> {
 }
 ````
 
-## Errors
+### Errors
 
 - Public application and library APIs that can fail in a recoverable way must throw exported,
   named error classes rather than an unadorned `Error`.
@@ -240,3 +240,16 @@ export class NavigationHistoryStack<T> {
 - Across HTTP boundaries, use stable machine-readable error codes and map them to the matching
   client-side error classes.
 - Reserve generic errors for unrecoverable programmer bugs and internal assertions.
+
+### Convergence
+
+The operating system's interface should work smoothly across desktops, touchscreen laptops, and mobile devices. It should adapt to different screen sizes and input methods. Applications can detect the device's form factor and tailor their interfaces accordingly.
+
+#### Traditional form factor
+
+In this mode, a desktop UI is shown, with traditional window management patterns. The taskbar is available, along with an application menu.
+Windows are laid across the desktop and may be rearranged and resized as the user sees fit. Windows can be docked (maximized), pinned, and minimized.
+
+#### Small form factor
+
+On smaller screens, a single application takes focus at a time. Applications open full-screen, and the desktop, taskbar, and application menu adapt to make navigation comfortable on touchscreens. Users can switch between open applications with simple, touch-friendly controls. Apps may rearrange or simplify their layouts to fit the available space.

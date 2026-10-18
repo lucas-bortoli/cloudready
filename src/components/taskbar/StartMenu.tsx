@@ -6,10 +6,11 @@ import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import fallbackProfilePicture from "../../data/default-user-pictures/fallback-picture.png";
 import focusTrap from "../../lib/focus-trap";
 import FileManager from "../../programs/file-manager/FileManager";
-import MachineIntelligenceWindow from "../machine-intelligence/MachineIntelligenceWindow";
+import createIlcc from "../../programs/iron-ledger-calorie-cutie/Ilcc";
 import Kodekai from "../../programs/kodekai/Kodekai";
 import Button from "../button/Button";
 import { useLayerItem } from "../layer-manager/LayerContext";
+import MachineIntelligenceWindow from "../machine-intelligence/MachineIntelligenceWindow";
 import { ProfilePictureMissingError } from "../session/errors";
 import { sessions } from "../session/SessionClient";
 import { useSession } from "../session/SessionContext";
@@ -18,6 +19,12 @@ import { useWindowManager } from "../window-manager/WindowManagerContext";
 import CarbonIcon from "./CarbonIcon";
 
 const applications = [
+  {
+    name: "Iron Ledger: Calorie Cutie",
+    description: "Track your diet",
+    icon: Folder16,
+    launch: createIlcc,
+  },
   {
     name: "Files",
     description: "Browse your files",
