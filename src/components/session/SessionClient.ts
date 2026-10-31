@@ -4,7 +4,6 @@ import {
   sessionEnd,
   sessionGetCurrent,
   sessionListUsers,
-  sessionGetProfilePicture,
   sessionPutProfilePicture,
   sessionStart,
 } from "../../lib/kernel-rpc/session";
@@ -12,8 +11,8 @@ import type { Uuid } from "../../lib/uuid";
 import {
   InvalidProfileDisplayNameError,
   InvalidProfilePictureError,
-  ProfilePictureMissingError,
   ProfileNotFoundError,
+  ProfilePictureMissingError,
   ProfilePictureTooLargeError,
   SessionExpiredError,
   SessionMissingError,
@@ -21,8 +20,10 @@ import {
   SessionSetupCompleteError,
 } from "./errors";
 
+export type UserId = Uuid<"UserId">;
+
 export type UserProfile = Readonly<{
-  id: Uuid<"UserId">;
+  id: UserId;
   displayName: string;
   createdAt: Date;
   profilePicture: Readonly<{ mimeType: string; size: number }> | null;
@@ -98,17 +99,11 @@ export class SessionClient {
   }
 
   /**
-   * Downloads the active profile's uploaded picture.
-   *
-   * @returns The image bytes.
-   * @throws {ProfilePictureMissingError} When the profile has no uploaded picture.
-   * @throws {SessionMissingError} When no browser session is active.
-   * @throws {KernelRpcNetworkError} When the kernel cannot be reached.
-   * @throws {KernelRpcProtocolError} When the kernel response is malformed.
-   * @throws {SessionServerError} When the kernel returns another failure.
+   * Returns an HTTP URL for a profile's picture.
+   * Use it as an image source to avoid downloading the bytes into a blob URL.
    */
-  public async profilePicture(): Promise<ArrayBuffer> {
-    return this.adapt(async () => sessionGetProfilePicture({}));
+  public profilePictureUrl(userId: UserProfile["id"]): string {
+    return `/api/profile-picture/${encodeURIComponent(userId)}`;
   }
 
   /**

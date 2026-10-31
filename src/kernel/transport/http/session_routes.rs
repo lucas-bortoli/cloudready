@@ -55,21 +55,13 @@ pub(crate) fn response(
                 Some(clear_session_cookie()),
             ))
         }
-        (&Method::GET, "/api/profile-picture") => (|| {
-            let user = store.current(token)?;
-            let picture = store.profile_picture(user.id)?;
-            Ok((
-                common::response(
-                    picture.content,
-                    200,
-                    &[
-                        ("Content-Type", &picture.mime_type),
-                        ("Cache-Control", "no-store"),
-                        ("X-Content-Type-Options", "nosniff"),
-                    ],
-                ),
-                None,
-            ))
+        (&Method::GET, path) if path.starts_with("/api/profile-picture/") => (|| {
+            let user_id = path
+                .strip_prefix("/api/profile-picture/")
+                .and_then(|id| Uuid::parse_str(id).ok())
+                .ok_or(session::Error::UserNotFound)?;
+            let picture = store.profile_picture(user_id)?;
+            Ok((profile_picture_response(picture), None))
         })(),
         (&Method::PUT, "/api/profile-picture") => (|| {
             let user = store.current(token)?;
@@ -102,6 +94,18 @@ pub(crate) fn response(
         }
         Err(error) => error_response(error),
     }
+}
+
+fn profile_picture_response(picture: session::ProfilePicture) -> Response {
+    common::response(
+        picture.content,
+        200,
+        &[
+            ("Content-Type", &picture.mime_type),
+            ("Cache-Control", "no-store"),
+            ("X-Content-Type-Options", "nosniff"),
+        ],
+    )
 }
 
 fn session_json(value: impl serde::Serialize) -> session::Result<Response> {

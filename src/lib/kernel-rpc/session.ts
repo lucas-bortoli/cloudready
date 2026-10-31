@@ -13,7 +13,6 @@ const user = v.object({
   profile_picture: v.nullable(profilePicture),
 });
 const emptyInput = v.object({});
-const emptyOutput = v.object({});
 const okOutput = v.object({ ok: v.boolean() });
 const displayNameInput = v.object({ display_name: v.string() });
 const startSessionInput = v.object({ user_id: uuid });
@@ -24,14 +23,6 @@ const routes = {
   sessionEnd: route("DELETE", "/api/session", emptyInput, okOutput),
   sessionListUsers: route("GET", "/api/users", emptyInput, v.array(user)),
   sessionCreateFirstUser: route("POST", "/api/users", displayNameInput, user, (body) => ({ body })),
-  sessionGetProfilePicture: route(
-    "GET",
-    "/api/profile-picture",
-    emptyInput,
-    emptyOutput,
-    undefined,
-    true,
-  ),
   sessionPutProfilePicture: route(
     "PUT",
     "/api/profile-picture",
@@ -109,19 +100,6 @@ export const sessionListUsers = (input: Input<typeof routes.sessionListUsers.inp
  */
 export const sessionCreateFirstUser = (input: Input<typeof routes.sessionCreateFirstUser.input>) =>
   makeCall(routes.sessionCreateFirstUser, input);
-
-/**
- * Downloads the active profile's picture bytes.
- *
- * @returns The profile picture as an ArrayBuffer.
- * @throws {KernelRpcInputError} When the input is malformed.
- * @throws {KernelRpcNetworkError}
- * @throws {KernelRpcProtocolError}
- * @throws {KernelRpcApiError}
- */
-export const sessionGetProfilePicture = (
-  input: Input<typeof routes.sessionGetProfilePicture.input> = {},
-) => makeCall(routes.sessionGetProfilePicture, input);
 
 /**
  * Replaces the active profile's picture with a supported image.

@@ -24,14 +24,20 @@ pub(crate) fn response(
         (&Method::GET, "/api/fs/list") => json(fs.list(required(&query, "path")?)?),
         (&Method::GET, "/api/fs/stat") => json(fs.stat(required(&query, "path")?)?),
         (&Method::GET, "/api/fs/file") => {
+            let path = required(&query, "path")?;
+            let entry = fs.stat(path)?;
+            let mime_type = match entry {
+                filesystem::Entry::File { mime_type, .. } => mime_type,
+                filesystem::Entry::Directory { .. } => return Err(filesystem::Error::InvalidOperation),
+            };
             let offset = number(&query, "offset")?.unwrap_or(0);
             let length = number(&query, "length")?;
             let mut bytes = Vec::new();
-            fs.read_file(required(&query, "path")?, offset, length, &mut bytes)?;
+            fs.read_file(path, offset, length, &mut bytes)?;
             Ok(common::response(
                 bytes,
                 200,
-                &[("Content-Type", "application/octet-stream")],
+                &[("Content-Type", mime_type.as_str()), ("X-Content-Type-Options", "nosniff")],
             ))
         }
         (&Method::PUT, "/api/fs/file") => {

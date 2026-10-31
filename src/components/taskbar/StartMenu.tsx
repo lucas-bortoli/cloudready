@@ -2,7 +2,7 @@ import Folder16 from "@carbon/icons/es/folder/16.js";
 import Power16 from "@carbon/icons/es/power/16.js";
 import Search16 from "@carbon/icons/es/search/16.js";
 import Settings16 from "@carbon/icons/es/settings/16.js";
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import fallbackProfilePicture from "../../data/default-user-pictures/fallback-picture.png";
 import focusTrap from "../../lib/focus-trap";
 import FileManager from "../../programs/file-manager/FileManager";
@@ -11,7 +11,6 @@ import Kodekai from "../../programs/kodekai/Kodekai";
 import Button from "../button/Button";
 import { useLayerItem } from "../layer-manager/LayerContext";
 import MachineIntelligenceWindow from "../machine-intelligence/MachineIntelligenceWindow";
-import { ProfilePictureMissingError } from "../session/errors";
 import { sessions } from "../session/SessionClient";
 import { useSession } from "../session/SessionContext";
 import TextInput from "../text-input/TextInput";
@@ -82,25 +81,9 @@ export default function StartMenu(props: StartMenuProps) {
   let searchInput: HTMLTextAreaElement | undefined;
 
   onMount(() => {
-    let objectUrl: string | undefined;
     if (session.user().profilePicture) {
-      void sessions
-        .profilePicture()
-        .then((picture) => {
-          objectUrl = URL.createObjectURL(
-            new Blob([picture], { type: session.user().profilePicture?.mimeType }),
-          );
-          setProfilePictureUrl(objectUrl);
-        })
-        .catch((error: unknown) => {
-          if (error instanceof ProfilePictureMissingError)
-            setProfilePictureUrl(fallbackProfilePicture);
-        });
+      setProfilePictureUrl(sessions.profilePictureUrl(session.user().id));
     }
-
-    onCleanup(() => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    });
   });
 
   const matchingApplications = () => {

@@ -96,7 +96,7 @@ async fn dispatch(
             }
             if path.starts_with("/api/session")
                 || path == "/api/users"
-                || path == "/api/profile-picture"
+                || path.starts_with("/api/profile-picture")
             {
                 return session_routes::response(
                     database,

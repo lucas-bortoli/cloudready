@@ -167,6 +167,15 @@ export class FileSystemClient {
   }
 
   /**
+   * Returns a same-origin URL that serves the file with its detected media type.
+   * The request uses the active profile's session cookie, so it can be used directly
+   * by browser elements such as `<img>` and `<video>` without creating a blob URL.
+   */
+  public fileUrl(path: string): string {
+    return `${this.baseUrl}/file?path=${encodeURIComponent(path)}`;
+  }
+
+  /**
    * Replaces file content or patches it at a byte offset.
    * @throws {InvalidFileSystemPathError} When `path` is malformed.
    * @throws {InvalidFileRangeError} When `offset` is invalid.
