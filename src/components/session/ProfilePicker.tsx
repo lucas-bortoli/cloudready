@@ -52,7 +52,7 @@ export default function ProfilePicker(props: { onSelected: (user: UserProfile) =
           {(profile) => (
             <button
               x-role="profile choice"
-              class="group flex w-40 cursor-pointer flex-col items-center gap-4 rounded-lg p-8 outline-sky-200 transition-colors hover:bg-neutral-600 focus:outline-2 focus:outline-offset-2 active:bg-neutral-700"
+              class="group flex w-40 cursor-pointer flex-col items-center gap-4 rounded-lg p-8 outline-sky-300 transition-colors hover:bg-neutral-600 focus:outline-2 focus:outline-offset-2 active:bg-neutral-700"
               type="button"
               onClick={handleProfileClick.bind(null, profile)}
             >

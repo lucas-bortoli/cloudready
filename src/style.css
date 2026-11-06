@@ -43,11 +43,15 @@
 
 @layer base {
   html,
-  body {
-    background-color: #171717;
+  body,
+  #app {
     overscroll-behavior: none;
     overflow: hidden;
     touch-action: none;
+  }
+
+  html {
+    background-color: #171717;
   }
 
   body {

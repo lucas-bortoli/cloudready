@@ -104,7 +104,7 @@ export default function MachineIntelligenceWindow() {
               type="button"
               disabled={busy()}
               onClick={handleConnect}
-              class="rounded bg-neutral-800 px-3 py-2 text-white outline-sky-200 focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
+              class="rounded bg-neutral-800 px-3 py-2 text-white outline-sky-300 focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
             >
               Continue with ChatGPT
             </button>
@@ -114,7 +114,7 @@ export default function MachineIntelligenceWindow() {
             type="button"
             disabled={busy()}
             onClick={handleDisconnect}
-            class="rounded border border-neutral-300 px-3 py-2 outline-sky-200 focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
+            class="rounded border border-neutral-300 px-3 py-2 outline-sky-300 focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
           >
             Disconnect
           </button>
@@ -126,7 +126,7 @@ export default function MachineIntelligenceWindow() {
           <select
             value={selectedModel()}
             onChange={handleModelChange}
-            class="rounded border border-neutral-300 p-2 outline-sky-200 focus:outline-2 focus:outline-offset-2"
+            class="rounded border border-neutral-300 p-2 outline-sky-300 focus:outline-2 focus:outline-offset-2"
           >
             <For each={models()}>
               {(model) => <option value={model.slug}>{model.displayName}</option>}
@@ -139,14 +139,14 @@ export default function MachineIntelligenceWindow() {
             value={prompt()}
             onInput={handlePromptInput}
             rows={4}
-            class="resize-y rounded border border-neutral-300 p-2 outline-sky-200 focus:outline-2 focus:outline-offset-2"
+            class="resize-y rounded border border-neutral-300 p-2 outline-sky-300 focus:outline-2 focus:outline-offset-2"
           />
         </label>
         <button
           type="button"
           disabled={busy() || !selectedModel() || !prompt().trim()}
           onClick={handleGenerate}
-          class="self-start rounded bg-neutral-800 px-3 py-2 text-white outline-sky-200 focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
+          class="self-start rounded bg-neutral-800 px-3 py-2 text-white outline-sky-300 focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
         >
           {busy() ? "Working…" : "Send prompt"}
         </button>

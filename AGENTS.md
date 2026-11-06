@@ -48,12 +48,12 @@ Use `npm run build` for production builds.
 
 ### CSS outline rules
 
-For interactive controls, set the base outline color with `outline-sky-200`; apply only outline
+For interactive controls, set the base outline color with `outline-sky-300`; apply only outline
 width and offset during focus, such as `focus:outline-2 focus:outline-offset-2`. This prevents
 a browser-default crappy outline from flashing before the custom focus outline appears.
 
 ```tsx
-<button class="outline-sky-200 focus:outline-2 focus:outline-offset-2">Save</button>
+<button class="outline-sky-300 focus:outline-2 focus:outline-offset-2">Save</button>
 ```
 
 ### Markup roles

@@ -64,7 +64,7 @@ export default function ProfileCreationStep(props: {
         <For each={pictures}>
           {(picture) => (
             <li
-              class="inline-block size-20 cursor-pointer rounded-full bg-cover bg-center shadow-md outline-2 outline-transparent transition-[filter] duration-300 ease-in-out not-data-selected:filter-[brightness(90%)_contrast(90%)] hover:filter-none focus:outline-sky-200 data-selected:outline-6 data-selected:outline-sky-200 data-selected:filter-none"
+              class="inline-block size-20 cursor-pointer rounded-full bg-cover bg-center shadow-md outline-2 outline-transparent transition-[filter] duration-300 ease-in-out not-data-selected:filter-[brightness(90%)_contrast(90%)] hover:filter-none focus:outline-sky-300 data-selected:outline-6 data-selected:outline-sky-300 data-selected:filter-none"
               style={{ "background-image": `url(${DEFAULT_PICTURES[picture]})` }}
               data-selected={selectedPicture() === picture ? true : undefined}
               onClick={handlePictureClick.bind(null, picture)}

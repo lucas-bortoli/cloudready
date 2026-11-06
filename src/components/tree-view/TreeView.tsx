@@ -178,7 +178,7 @@ export default function TreeView<N>(props: TreeViewProps<N>) {
               type="button"
               aria-label={`${isExpanded() ? "Collapse" : "Expand"} ${info().label}`}
               aria-expanded={isExpanded()}
-              class="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-xs border border-neutral-400 text-neutral-600 outline-sky-200 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-0"
+              class="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-xs border border-neutral-400 text-neutral-600 outline-sky-300 hover:bg-neutral-200 focus:outline-2 focus:outline-offset-0"
               onClick={handleExpandClick}
             >
               <svg

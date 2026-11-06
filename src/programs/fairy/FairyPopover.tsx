@@ -68,7 +68,7 @@ export default function FairyPopover(props: FairyPopoverProps) {
       <header class="relative flex items-center justify-between border-b border-neutral-200 pb-2">
         <h2 class="font-semibold">Navi</h2>
         <button
-          class="outline-sky-200 focus:outline-2 focus:outline-offset-2"
+          class="outline-sky-300 focus:outline-2 focus:outline-offset-2"
           type="button"
           onClick={props.onClose}
         >
@@ -82,7 +82,7 @@ export default function FairyPopover(props: FairyPopoverProps) {
           <div class="grow py-4 text-sm">
             <p>Navi needs ChatGPT to help.</p>
             <button
-              class="mt-3 rounded bg-neutral-800 px-3 py-2 text-white outline-sky-200 focus:outline-2 focus:outline-offset-2"
+              class="mt-3 rounded bg-neutral-800 px-3 py-2 text-white outline-sky-300 focus:outline-2 focus:outline-offset-2"
               type="button"
               onClick={props.onConnect}
             >
@@ -103,7 +103,7 @@ export default function FairyPopover(props: FairyPopoverProps) {
                 <p>{message.text}</p>
                 <Show when={message.role === "user" && message.status === "failed"}>
                   <button
-                    class="outline-sky-200 focus:outline-2 focus:outline-offset-2"
+                    class="outline-sky-300 focus:outline-2 focus:outline-offset-2"
                     type="button"
                     onClick={fairy.retry.bind(null, message.id)}
                   >
@@ -120,7 +120,7 @@ export default function FairyPopover(props: FairyPopoverProps) {
           </Show>
           <Show when={showNewMessage()}>
             <button
-              class="sticky bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-neutral-300 bg-white px-3 py-1 text-sm shadow outline-sky-200 focus:outline-2 focus:outline-offset-2"
+              class="sticky bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full border border-neutral-300 bg-white px-3 py-1 text-sm shadow outline-sky-300 focus:outline-2 focus:outline-offset-2"
               type="button"
               onClick={scrollToBottom}
             >
@@ -134,14 +134,14 @@ export default function FairyPopover(props: FairyPopoverProps) {
         <footer class="relative mt-2 flex flex-col">
           <div class="pointer-events-none absolute -top-8 right-0 left-0 z-50 h-6 bg-linear-to-b from-transparent to-white" />
           <textarea
-            class="resize-none rounded border border-neutral-300 p-2 outline-sky-200 focus:outline-2 focus:outline-offset-2"
+            class="resize-none rounded border border-neutral-300 p-2 outline-sky-300 focus:outline-2 focus:outline-offset-2"
             rows={2}
             value={draft()}
             onInput={handleInput}
             placeholder="Ask Navi..."
           />
           <button
-            class="mt-2 rounded bg-neutral-800 px-3 py-2 text-white outline-sky-200 focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
+            class="mt-2 rounded bg-neutral-800 px-3 py-2 text-white outline-sky-300 focus:outline-2 focus:outline-offset-2 disabled:opacity-50"
             type="button"
             disabled={!draft().trim() || fairy.state().phase !== "awaiting-input"}
             onClick={handleSend}

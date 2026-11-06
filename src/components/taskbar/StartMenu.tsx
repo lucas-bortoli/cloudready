@@ -151,7 +151,7 @@ export default function StartMenu(props: StartMenuProps) {
             {(application) => (
               <button
                 x-role="launcher application"
-                class="flex h-30 w-30 cursor-pointer flex-col items-center justify-center gap-2 rounded-sm text-left leading-3 outline-sky-200 transition-colors hover:bg-neutral-100 focus:outline-2 focus:outline-offset-2"
+                class="flex h-30 w-30 cursor-pointer flex-col items-center justify-center gap-2 rounded-sm text-left leading-3 outline-sky-300 transition-colors hover:bg-neutral-100 focus:outline-2 focus:outline-offset-2"
                 type="button"
                 onClick={handleApplicationClick.bind(null, application)}
               >

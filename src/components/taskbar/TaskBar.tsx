@@ -27,7 +27,7 @@ function TaskbarButton(props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) {
     <button
       {...nativeProps}
       class={cn(
-        "z-0 cursor-pointer outline-sky-200 transition-colors focus:z-10 focus:outline-2 focus:outline-offset-2",
+        "z-0 cursor-pointer outline-sky-300 transition-colors focus:z-10 focus:outline-2 focus:outline-offset-2",
         button.class,
       )}
       type={button.type ?? "button"}

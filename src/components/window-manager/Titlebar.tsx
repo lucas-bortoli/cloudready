@@ -32,7 +32,7 @@ export default function Titlebar(props: {
     >
       <button
         aria-label="Back"
-        class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+        class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
         type="button"
         onPointerDown={stopPointerDown}
         onClick={togglePinned}
@@ -44,7 +44,7 @@ export default function Titlebar(props: {
         <button
           aria-label={props.entry.isPinned ? "Unpin window" : "Pin window"}
           aria-pressed={props.entry.isPinned}
-          class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+          class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
           type="button"
           onPointerDown={stopPointerDown}
           onClick={togglePinned}
@@ -54,7 +54,7 @@ export default function Titlebar(props: {
         <Show when={props.entry.isMinimizable}>
           <button
             aria-label="Minimize window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={minimize}
@@ -65,7 +65,7 @@ export default function Titlebar(props: {
         <Show when={props.entry.isResizable}>
           <button
             aria-label="Maximize window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={toggleMaximized}
@@ -76,7 +76,7 @@ export default function Titlebar(props: {
         <Show when={props.entry.closer}>
           <button
             aria-label="Close window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-200 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-focus-within/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={close}

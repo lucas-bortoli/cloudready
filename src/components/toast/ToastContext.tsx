@@ -71,7 +71,7 @@ function ToastOutlet(props: { toasts: () => readonly Toast[]; dismiss: (id: Toas
               </div>
               <button
                 aria-label="Dismiss notification"
-                class="cursor-pointer rounded-xs px-1 outline-sky-200 hover:bg-neutral-100 focus:outline-2 focus:outline-offset-2"
+                class="cursor-pointer rounded-xs px-1 outline-sky-300 hover:bg-neutral-100 focus:outline-2 focus:outline-offset-2"
                 type="button"
                 onClick={handleDismissClick.bind(null, toast.id)}
               >

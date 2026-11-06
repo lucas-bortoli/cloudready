@@ -108,7 +108,7 @@ export default function Card(props: CardProps) {
       data-kodekai-card={props.card.id}
       role="button"
       tabIndex={0}
-      class="flex max-h-32 shrink-0 touch-none flex-col gap-1 overflow-hidden rounded-xs border border-neutral-400 bg-white p-2 shadow-sm **:pointer-events-none focus:outline-2 focus:outline-offset-2 focus:outline-sky-200"
+      class="flex max-h-32 shrink-0 touch-none flex-col gap-1 overflow-hidden rounded-xs border border-neutral-400 bg-white p-2 shadow-sm **:pointer-events-none focus:outline-2 focus:outline-offset-2 focus:outline-sky-300"
       classList={{
         "opacity-0": props.draggingCardId() === props.card.id,
       }}
