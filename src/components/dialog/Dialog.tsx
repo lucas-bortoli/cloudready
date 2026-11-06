@@ -48,7 +48,7 @@ export const RejectReasonDialogCancelled = "reject-reason:DialogCancelled" as co
 export type RejectReasonDialogCancelled = typeof RejectReasonDialogCancelled;
 
 export interface DialogHandle<R> {
-  exists: () => void;
+  exists: () => boolean;
   emphasize: () => void;
   result: Promise<R>;
 }
