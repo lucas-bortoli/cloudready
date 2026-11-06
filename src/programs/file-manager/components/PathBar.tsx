@@ -26,8 +26,9 @@ export default function PathBar(props: PathBarProps) {
       )}
     >
       <li
-        class="inline-flex h-full cursor-pointer items-center bg-transparent px-2 py-1 transition-colors hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 active:bg-neutral-300"
+        class="inline-flex h-full cursor-pointer items-center bg-transparent px-2 py-1 transition-colors hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 active:bg-neutral-300"
         tabIndex={0}
+        onClick={handleSegmentClick.bind(null, 0)}
       >
         <CarbonIcon icon={VmdkDisk16} />
       </li>
@@ -37,9 +38,9 @@ export default function PathBar(props: PathBarProps) {
           <>
             <CarbonIcon icon={CaretRight16} />
             <li
-              class="inline-flex h-full cursor-pointer items-center bg-transparent px-2 py-1 transition-colors hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-200 active:bg-neutral-300"
+              class="inline-flex h-full cursor-pointer items-center bg-transparent px-2 py-1 transition-colors hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 active:bg-neutral-300"
               tabIndex={0}
-              onClick={handleSegmentClick.bind(null, index())}
+              onClick={handleSegmentClick.bind(null, index() + 1)}
             >
               {segment}
             </li>
