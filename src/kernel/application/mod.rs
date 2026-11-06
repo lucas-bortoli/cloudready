@@ -25,6 +25,8 @@ pub(crate) enum Error {
     Session(#[from] session::Error),
     #[error(transparent)]
     Provider(#[from] machine_intelligence::Error),
+    #[error(transparent)]
+    Filesystem(#[from] crate::filesystem::Error),
 }
 
 /// Server-authenticated identity for an RPC connection.

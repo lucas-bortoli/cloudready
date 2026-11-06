@@ -131,7 +131,7 @@ pub(crate) fn error_response(error: session::Error) -> Response {
         session::Error::InvalidProfilePicture => (400, "invalid-profile-picture"),
         session::Error::ProfilePictureTooLarge => (413, "profile-picture-too-large"),
         session::Error::ProfilePictureMissing => (404, "profile-picture-missing"),
-        session::Error::Database(_) => (500, "server-error"),
+        session::Error::Database(_) | session::Error::Filesystem(_) => (500, "server-error"),
     };
     common::response(
         format!(

@@ -12,6 +12,33 @@ impl<'database> FileSystem<'database> {
         Self { database, user_id }
     }
 
+    /// Creates the standard profile directories when they are missing.
+    ///
+    /// Existing directories are preserved, making this safe to call during kernel startup.
+    ///
+    /// # Errors
+    /// Returns [`Error::InvalidOperation`] if a standard directory name is occupied by a file,
+    /// or [`Error::Database`] if storage fails.
+    pub fn ensure_profile_directories(&mut self) -> Result<()> {
+        for name in [
+            "Application Data",
+            "Downloads",
+            "My Documents",
+            "My Music",
+            "My Pictures",
+        ] {
+            match self.stat(&format!("/{name}")) {
+                Ok(Entry::Directory { .. }) => {}
+                Ok(Entry::File { .. }) => return Err(Error::InvalidOperation),
+                Err(Error::NotFound) => {
+                    self.create_directory(&format!("/{name}"))?;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    }
+
     /// Lists live children of a directory in this profile's namespace.
     ///
     /// # Errors

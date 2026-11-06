@@ -15,6 +15,12 @@ fn first_profile_session_and_sign_out() {
 
     let user = store.create_first_user("  Ada  ").unwrap();
     assert_eq!(user.display_name, "Ada");
+    let files = crate::filesystem::FileSystem::new(&database, user.id);
+    assert_eq!(files.list("/").unwrap().len(), 5);
+    assert!(matches!(
+        files.stat("/My Documents"),
+        Ok(crate::filesystem::Entry::Directory { .. })
+    ));
     assert!(matches!(
         store.create_first_user("Grace"),
         Err(Error::SetupComplete)

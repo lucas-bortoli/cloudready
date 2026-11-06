@@ -19,24 +19,41 @@ impl Worker {
     ///
     /// # Errors
     /// Returns [`Error::Thread`] if the OS cannot create the thread, [`Error::Database`] if
-    /// initialization fails, or [`Error::Unavailable`] if the worker exits before reporting ready.
+    /// initialization fails, [`Error::Session`] if profiles cannot be loaded,
+    /// [`Error::Filesystem`] if profile directories cannot be provisioned, or
+    /// [`Error::Unavailable`] if the worker exits before reporting ready.
     pub(super) async fn start(path: PathBuf) -> Result<Self, Error> {
         let (sender, mut receiver) = mpsc::channel::<Job>(16);
         let (updates, _) = broadcast::channel(64);
         let connection_updates = updates.clone();
-        let (ready, initialized) = oneshot::channel();
+        let (ready, initialized) = oneshot::channel::<Result<(), Error>>();
         std::thread::Builder::new()
             .name("kernel-services".into())
             .spawn(move || {
                 let database = match Database::open(&path) {
                     Ok(database) => database,
                     Err(error) => {
-                        let _ = ready.send(Err(error));
+                        let _ = ready.send(Err(super::Error::Database(error.into())));
                         return;
                     }
                 };
                 let mut intelligence = MachineIntelligence::new(&database);
                 intelligence.observe_connections(connection_updates);
+                let profiles = match crate::session::SessionStore::new(&database).users() {
+                    Ok(profiles) => profiles,
+                    Err(error) => {
+                        let _ = ready.send(Err(super::Error::Session(error)));
+                        return;
+                    }
+                };
+                for profile in profiles {
+                    if let Err(error) = crate::filesystem::FileSystem::new(&database, profile.id)
+                        .ensure_profile_directories()
+                    {
+                        let _ = ready.send(Err(super::Error::Filesystem(error)));
+                        return;
+                    }
+                }
                 if ready.send(Ok(())).is_err() {
                     return;
                 }

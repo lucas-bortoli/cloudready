@@ -13,6 +13,9 @@ impl<'a> Repository<'a> {
     pub(super) fn new(database: &'a Database) -> Self {
         Self { database }
     }
+    pub(super) fn database(&self) -> &'a Database {
+        self.database
+    }
     /// Lists profiles selectable by this intentionally unprotected local installation.
     pub(super) fn users(&self) -> Result<Vec<User>> {
         let mut statement = self

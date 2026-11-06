@@ -32,10 +32,15 @@ impl<'a> SessionStore<'a> {
     /// Creates the first profile, atomically rejecting a second setup attempt.
     ///
     /// # Errors
-    /// Returns [`Error::InvalidDisplayName`], [`Error::SetupComplete`], or [`Error::Database`].
+    /// Returns [`Error::InvalidDisplayName`], [`Error::SetupComplete`], [`Error::Database`], or
+    /// [`Error::Filesystem`] if the standard directories cannot be created.
     pub fn create_first_user(&self, display_name: &str) -> Result<User> {
-        self.repository
-            .create_first_user(profile::valid_name(display_name)?, now())
+        let user = self
+            .repository
+            .create_first_user(profile::valid_name(display_name)?, now())?;
+        crate::filesystem::FileSystem::new(self.repository.database(), user.id)
+            .ensure_profile_directories()?;
+        Ok(user)
     }
 
     /// Issues an opaque token, storing only its digest so database reads cannot replay it.

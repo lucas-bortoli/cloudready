@@ -23,6 +23,47 @@ fn user(database: &Database) -> Uuid {
 fn exists(fs: &FileSystem, path: &str) -> bool {
     fs.stat(path).is_ok()
 }
+
+#[test]
+fn profile_directories_preserve_existing_contents_and_restore_missing_folders() {
+    let database = database();
+    let mut fs = FileSystem::new(&database, user(&database));
+    fs.create_directory("/My Documents").unwrap();
+    fs.create_file("/My Documents/notes.txt").unwrap();
+
+    fs.ensure_profile_directories().unwrap();
+    fs.remove("/Downloads", true).unwrap();
+    fs.ensure_profile_directories().unwrap();
+
+    assert!(exists(&fs, "/My Documents/notes.txt"));
+    for name in [
+        "Application Data",
+        "Downloads",
+        "My Documents",
+        "My Music",
+        "My Pictures",
+    ] {
+        assert!(matches!(
+            fs.stat(&format!("/{name}")),
+            Ok(Entry::Directory { .. })
+        ));
+    }
+    assert_eq!(fs.list("/").unwrap().len(), 5);
+}
+
+#[test]
+fn profile_directories_reject_file_conflicts_without_overwriting_them() {
+    let database = database();
+    let mut fs = FileSystem::new(&database, user(&database));
+    fs.create_file("/Downloads").unwrap();
+
+    assert!(matches!(
+        fs.ensure_profile_directories(),
+        Err(Error::InvalidOperation)
+    ));
+    assert!(matches!(fs.stat("/Downloads"), Ok(Entry::File { .. })));
+}
+
 #[test]
 fn versions_ranges_and_restore() {
     let database = database();

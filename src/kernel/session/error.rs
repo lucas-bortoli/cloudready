@@ -20,6 +20,8 @@ pub enum Error {
     ProfilePictureMissing,
     #[error(transparent)]
     Database(#[from] rusqlite::Error),
+    #[error(transparent)]
+    Filesystem(#[from] crate::filesystem::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
