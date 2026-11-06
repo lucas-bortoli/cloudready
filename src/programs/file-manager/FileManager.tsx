@@ -117,10 +117,12 @@ export default function FileManager() {
           icon: "error",
           title: "Entry Fetch Fail",
           content: () => (
-            <p>
-              Sorry, I couldn't list files in <code>{target}</code>.{" "}
+            <div>
+              <p>
+                Sorry, I couldn't list files in <code>{target}</code>.
+              </p>
               <pre>{JSON.stringify(error)}</pre>
-            </p>
+            </div>
           ),
           actions: { ok: "OK" },
         });
