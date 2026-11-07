@@ -6,6 +6,7 @@ import { createSignal, For, onMount, Show } from "solid-js";
 import fallbackProfilePicture from "../../data/default-user-pictures/fallback-picture.png";
 import focusTrap from "../../lib/focus-trap";
 import FileManager from "../../programs/file-manager/FileManager";
+import Flashcards from "../../programs/flashcards/Flashcards";
 import createIlcc from "../../programs/iron-ledger-calorie-cutie/Ilcc";
 import Kodekai from "../../programs/kodekai/Kodekai";
 import Button from "../button/Button";
@@ -34,6 +35,18 @@ const applications = [
         size: { width: 800, height: 500 },
         minimumSize: { width: 500, height: 300 },
         content: () => <FileManager />,
+      }),
+  },
+  {
+    name: "Flashcards",
+    description: "Study Anki decks",
+    icon: Folder16,
+    launch: (windowManager: ReturnType<typeof useWindowManager>, userId: string) =>
+      windowManager.createWindow({
+        title: "Flashcards",
+        size: { width: 800, height: 600 },
+        minimumSize: { width: 320, height: 360 },
+        content: () => <Flashcards userId={userId} />,
       }),
   },
   {
