@@ -7,27 +7,52 @@ import Search16 from "@carbon/icons/es/search/16.js";
 import VmdkDisk16 from "@carbon/icons/es/vmdk-disk/16.js";
 import { For, createEffect, createSignal } from "solid-js";
 import Button from "../../components/button/Button";
+import useDialog from "../../components/dialog/Dialog";
 import CarbonIcon from "../../components/taskbar/CarbonIcon";
 import TextInput from "../../components/text-input/TextInput";
 import useWindowCloser from "../../components/window-manager/useWindowCloser";
-import PathBar from "./components/PathBar";
-
-import useDialog from "../../components/dialog/Dialog";
 import type { FileSystemEntry } from "../../filesystem/FileSystemClient";
 import { cn } from "../../lib/dom";
 import { filesystemList } from "../../lib/kernel-rpc/filesystem";
-import rangeSelect from "./lib/rangeSelect";
+import PathBar from "./components/PathBar";
 import IconFile from "./icons/file.svg";
 import IconDirectory from "./icons/folder.svg";
+import { SelectionProvider } from "../../components/range-select/SelectionContext";
+import { selectionBoundary, selectionItem } from "../../components/range-select/rangeSelect";
 
-void rangeSelect;
+// Solid directives must remain in scope for the compiler.
+void selectionBoundary;
+void selectionItem;
+
+function SidebarCategory(props: {
+  label: string;
+  items: { icon: CarbonIconDescriptor; label: string; targetPath: string }[];
+}) {
+  return (
+    <section>
+      <h3 class="font-medium">{props.label}</h3>
+      <ol class="flex flex-col">
+        <For
+          each={props.items}
+          children={(item) => (
+            <li
+              class="flex h-5 cursor-pointer items-center gap-1 rounded-xs bg-neutral-100 outline-sky-300 focus-within:bg-sky-200 focus-within:outline-1 hover:bg-neutral-200 focus-within:hover:bg-sky-200 active:bg-neutral-300"
+              tabIndex={0}
+            >
+              <CarbonIcon icon={item.icon} /> <h4>{item.label}</h4>
+            </li>
+          )}
+        />
+      </ol>
+    </section>
+  );
+}
 
 function EntryIcon(props: {
   type: "file" | "directory";
   name: string;
   entryName: string;
   selected: boolean;
-  handleClick: (event: MouseEvent) => void;
   handleDoubleClick: (event: MouseEvent) => void;
 }) {
   return (
@@ -38,10 +63,9 @@ function EntryIcon(props: {
         props.selected && "bg-sky-200",
         !props.selected && "hover:bg-sky-100",
       )}
-      onClick={props.handleClick}
       onDblClick={props.handleDoubleClick}
       aria-selected={props.selected}
-      data-entry-name={props.entryName}
+      use:selectionItem={props.entryName}
       role="option"
       tabIndex={0}
     >
@@ -59,47 +83,11 @@ export default function FileManager() {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [entries, setEntries] = createSignal<ReadonlyArray<FileSystemEntry>>([]);
   const [selectedItems, setSelectedItems] = createSignal<ReadonlySet<string>>(new Set());
-  // Shift-click ranges are measured from the last plain or modifier click.
-  const [selectionAnchor, setSelectionAnchor] = createSignal<string | null>(null);
-
-  function handleEntryClick(name: string, event: MouseEvent) {
-    const currentEntries = entries();
-    const index = currentEntries.findIndex((entry) => entry.name === name);
-    const additive = event.ctrlKey || event.metaKey;
-
-    if (event.shiftKey) {
-      const anchor = selectionAnchor();
-      const anchorIndex =
-        anchor === null ? -1 : currentEntries.findIndex((entry) => entry.name === anchor);
-      if (anchorIndex < 0 || index < 0) {
-        setSelectedItems(new Set([name]));
-        setSelectionAnchor(name);
-        return;
-      }
-      const start = Math.min(anchorIndex, index);
-      const end = Math.max(anchorIndex, index);
-      // Ctrl/Cmd+Shift-click adds the range to the current selection.
-      const next = additive ? new Set(selectedItems()) : new Set<string>();
-      for (let i = start; i <= end; i += 1) next.add(currentEntries[i].name);
-      setSelectedItems(next);
-    } else if (additive) {
-      const next = new Set(selectedItems());
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      setSelectedItems(next);
-      setSelectionAnchor(name);
-    } else {
-      setSelectedItems(new Set([name]));
-      setSelectionAnchor(name);
-    }
-  }
-
   function handleEntryDoubleClick(name: string) {
     const entry = entries().find((candidate) => candidate.name === name);
     if (entry?.kind === "directory") {
       // File activation is not implemented yet; directories change the current location.
       setSelectedItems(new Set([]));
-      setSelectionAnchor(null);
       setPath(entry.path);
     }
   }
@@ -109,7 +97,6 @@ export default function FileManager() {
   createEffect(() => {
     const target = path();
     setSelectedItems(new Set([]));
-    setSelectionAnchor(null);
     filesystemList({ path: target })
       .then(setEntries)
       .catch((error) => {
@@ -149,33 +136,26 @@ export default function FileManager() {
       </header>
       <section class="flex grow">
         <aside class="flex w-35 flex-col border-r border-neutral-200 bg-neutral-100 p-1">
-          <h3 class="font-medium">Bookmarks</h3>
-          <ol class="flex flex-col">
-            <li
-              class="flex h-5 cursor-pointer items-center gap-1 rounded-xs bg-neutral-100 focus-within:bg-neutral-200 hover:bg-neutral-200 active:bg-neutral-300"
-              tabIndex={0}
-            >
-              <CarbonIcon icon={VmdkDisk16} /> My Drive
-            </li>
-          </ol>
+          <SidebarCategory
+            label="Bookmarks"
+            items={[{ icon: VmdkDisk16, label: "My Drive", targetPath: "/" }]}
+          />
         </aside>
-        <ol
-          class="relative shrink grow basis-0 gap-2 overflow-y-auto p-2"
-          use:rangeSelect={{ selectedItems, setSelectedItems, setSelectionAnchor }}
-        >
-          <For each={entries()}>
-            {(entry) => (
-              <EntryIcon
-                type={entry.kind}
-                name={entry.name}
-                selected={selectedItems().has(entry.name)}
-                entryName={entry.name}
-                handleClick={handleEntryClick.bind(null, entry.name)}
-                handleDoubleClick={handleEntryDoubleClick.bind(null, entry.name)}
-              />
-            )}
-          </For>
-        </ol>
+        <SelectionProvider selectedItems={selectedItems} setSelectedItems={setSelectedItems}>
+          <ol class="relative shrink grow basis-0 gap-2 overflow-y-auto p-2" use:selectionBoundary>
+            <For each={entries()}>
+              {(entry) => (
+                <EntryIcon
+                  type={entry.kind}
+                  name={entry.name}
+                  selected={selectedItems().has(entry.name)}
+                  entryName={entry.name}
+                  handleDoubleClick={handleEntryDoubleClick.bind(null, entry.name)}
+                />
+              )}
+            </For>
+          </ol>
+        </SelectionProvider>
       </section>
       <footer class="flex h-7 items-center border-t border-neutral-200 px-1">
         <span>{entries().length === 1 ? "1 entry" : `${entries().length} entries`}</span>

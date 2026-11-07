@@ -1,9 +1,12 @@
 import { For, createSignal } from "solid-js";
 import { render } from "solid-js/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import rangeSelect from "./rangeSelect";
+import { LayerProvider } from "../layer-manager/LayerContext";
+import { SelectionProvider } from "./SelectionContext";
+import { selectionBoundary, selectionItem } from "./rangeSelect";
 
-void rangeSelect;
+void selectionBoundary;
+void selectionItem;
 
 const cleanups: Array<() => void> = [];
 
@@ -36,20 +39,28 @@ function setup(initialSelection: string[] = [], scrollTop = 0) {
   const [selectedItems, setSelectedItems] = createSignal<ReadonlySet<string>>(
     new Set(initialSelection),
   );
-  const [anchor, setSelectionAnchor] = createSignal<string | null>("previous");
   const container = document.createElement("div");
   document.body.append(container);
   const dispose = render(
     () => (
-      <ol use:rangeSelect={{ selectedItems, setSelectedItems, setSelectionAnchor }}>
-        <For each={entries()}>
-          {(name) => (
-            <li role="option" data-entry-name={name} aria-selected={selectedItems().has(name)}>
-              {name}
-            </li>
-          )}
-        </For>
-      </ol>
+      <LayerProvider>
+        <SelectionProvider selectedItems={selectedItems} setSelectedItems={setSelectedItems}>
+          <ol use:selectionBoundary>
+            <For each={entries()}>
+              {(name) => (
+                <li
+                  role="option"
+                  data-entry-name={name}
+                  use:selectionItem={name}
+                  aria-selected={selectedItems().has(name)}
+                >
+                  {name}
+                </li>
+              )}
+            </For>
+          </ol>
+        </SelectionProvider>
+      </LayerProvider>
     ),
     container,
   );
@@ -72,21 +83,16 @@ function setup(initialSelection: string[] = [], scrollTop = 0) {
       const index = entries().indexOf(this.dataset.entryName);
       return new DOMRect(120 + index * 60, 70 - list.scrollTop, 40, 40);
     }
-    if (this.parentElement === list && this.tagName === "DIV") {
+    if (this.parentElement === document.body && this.classList.contains("pointer-events-none")) {
       const [x, y] = this.style.transform.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
-      return new DOMRect(
-        100 + x,
-        50 + y - list.scrollTop,
-        parseFloat(this.style.width),
-        parseFloat(this.style.height),
-      );
+      return new DOMRect(x, y, parseFloat(this.style.width), parseFloat(this.style.height));
     }
     return new DOMRect();
   });
 
   // Populate after mounting to exercise Solid's dynamic list insertion.
   setEntries(["first", "second", "third"]);
-  return { list, selectedItems, anchor, capture, dispose, setEntries };
+  return { list, selectedItems, capture, dispose, setEntries };
 }
 
 describe("rangeSelect", () => {
@@ -96,14 +102,13 @@ describe("rangeSelect", () => {
     [170, 60, 110, 120],
     [110, 120, 170, 60],
   ])("selects overlapping entries dragging from (%s, %s) to (%s, %s)", (x1, y1, x2, y2) => {
-    const { list, selectedItems, anchor, capture } = setup(["third"]);
+    const { list, selectedItems, capture } = setup(["third"]);
     const entry = list.querySelector("li");
     pointer(list, "pointerdown", x1, y1);
     pointer(list, "pointermove", x2, y2);
     expect([...selectedItems()]).toEqual(["first"]);
-    expect(anchor()).toBeNull();
     expect(capture).toHaveBeenCalledWith(1);
-    expect(list.querySelector("div")).not.toBeNull();
+    expect(document.body.querySelector(".pointer-events-none")).not.toBeNull();
     expect(list.querySelector("li")).toBe(entry);
     expect(entry?.getAttribute("aria-selected")).toBe("true");
     // Selection keeps updating after the first reactive state change.
@@ -123,7 +128,7 @@ describe("rangeSelect", () => {
     pointer(list, "pointerdown", 110, 60);
     pointer(list, "pointerup", 110, 60);
     expect(selectedItems().size).toBe(0);
-    expect(list.querySelector("div")).toBeNull();
+    expect(document.body.querySelector(".pointer-events-none")).toBeNull();
   });
 
   it("accounts for the list's scroll position", () => {
@@ -140,7 +145,7 @@ describe("rangeSelect", () => {
     pointer(list, "pointermove", 170, 120);
     expect([...selectedItems()]).toEqual(["third"]);
     expect(capture).not.toHaveBeenCalled();
-    expect(list.querySelector("div")).toBeNull();
+    expect(document.body.querySelector(".pointer-events-none")).toBeNull();
   });
 
   it.each(["pointerup", "pointercancel"])(
@@ -150,7 +155,7 @@ describe("rangeSelect", () => {
       pointer(list, "pointerdown", 110, 60);
       pointer(list, "pointermove", 170, 120);
       pointer(list, endEvent, 170, 120);
-      expect(list.querySelector("div")).toBeNull();
+      expect(document.body.querySelector(".pointer-events-none")).toBeNull();
       pointer(list, "pointermove", 290, 120);
       expect([...selectedItems()]).toEqual(["first"]);
       pointer(list, "pointerdown", 175, 60);
@@ -164,7 +169,7 @@ describe("rangeSelect", () => {
     pointer(list, "pointerdown", 110, 60);
     pointer(list, "pointermove", 170, 120);
     dispose();
-    expect(list.querySelector("div")).toBeNull();
+    expect(document.body.querySelector(".pointer-events-none")).toBeNull();
     pointer(list, "pointermove", 290, 120);
     pointer(list, "pointerdown", 110, 60);
     expect([...selectedItems()]).toEqual(["first"]);
