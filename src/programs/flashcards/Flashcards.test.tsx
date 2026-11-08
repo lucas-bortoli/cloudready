@@ -1,4 +1,10 @@
 import { render } from "solid-js/web";
+import { LayerProvider } from "../../components/layer-manager/LayerContext";
+import {
+  WindowManagerProvider,
+  useWindowManager,
+} from "../../components/window-manager/WindowManagerContext";
+import WindowsOutlet from "../../components/window-manager/WindowsOutlet";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { filesystem } from "../../filesystem/FileSystemClient";
 import { emptyProgress } from "./core/progress";
@@ -60,7 +66,17 @@ describe("Flashcards opening flows", () => {
     vi.spyOn(session, "releasePackage").mockImplementation(() => {});
     const root = document.createElement("div");
     document.body.append(root);
-    cleanup = render(() => <Flashcards userId="test" />, root);
+    cleanup = render(
+      () => (
+        <LayerProvider>
+          <WindowManagerProvider>
+            <Flashcards userId="test" />
+            <WindowsOutlet />
+          </WindowManagerProvider>
+        </LayerProvider>
+      ),
+      root,
+    );
     const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
     const file = new File([new Uint8Array([1])], "test.apkg");
     Object.defineProperty(input, "files", { value: [file] });
@@ -69,11 +85,113 @@ describe("Flashcards opening flows", () => {
     await flush();
     findButton(root, "Deck").click();
     await flush();
-    expect(root.querySelector("iframe")?.getAttribute("sandbox")).toBe("");
+    const reviewWindow = root.querySelector('[x-role="window"]');
+    expect(reviewWindow?.textContent).toContain("Flashcards review");
+    expect(root.querySelector('[x-role="flashcards"] iframe')).toBeNull();
+    expect(reviewWindow?.querySelector("iframe")?.getAttribute("sandbox")).toBe("");
     findButton(root, "Show answer").click();
     expect(root.textContent).toContain("Good");
     findButton(root, "Good").click();
     expect(example.store.rate).toHaveBeenCalledWith(example.collection.cards[0], 3);
+  });
+  it("closes the review window and allows reopening from the deck list", async () => {
+    vi.spyOn(session, "openPackage").mockResolvedValue(example);
+    vi.spyOn(session, "releasePackage").mockImplementation(() => {});
+    const root = document.createElement("div");
+    document.body.append(root);
+    cleanup = render(
+      () => (
+        <LayerProvider>
+          <WindowManagerProvider>
+            <Flashcards userId="test" />
+            <WindowsOutlet />
+          </WindowManagerProvider>
+        </LayerProvider>
+      ),
+      root,
+    );
+    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { value: [new File(["a"], "test.apkg")] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await flush();
+    await flush();
+    findButton(root, "Deck").click();
+    const reviewWindow = root.querySelector<HTMLElement>('[x-role="window"]')!;
+    const closeButton = reviewWindow.querySelector<HTMLButtonElement>(
+      '[aria-label="Close window"]',
+    )!;
+    closeButton.click();
+    expect(reviewWindow.dataset.windowMotion).toBe("closing");
+    expect(root.querySelector('[x-role="flashcards"]')?.textContent).toContain("Deck");
+    findButton(root.querySelector<HTMLElement>('[x-role="flashcards"]')!, "Deck").click();
+    expect(root.querySelectorAll('[x-role="window"]')).toHaveLength(2);
+    expect(root.querySelectorAll("iframe")).toHaveLength(1);
+  });
+  it("closes the review window when the package is reopened", async () => {
+    vi.spyOn(session, "openPackage").mockResolvedValue(example);
+    vi.spyOn(session, "releasePackage").mockImplementation(() => {});
+    const root = document.createElement("div");
+    document.body.append(root);
+    cleanup = render(
+      () => (
+        <LayerProvider>
+          <WindowManagerProvider>
+            <Flashcards userId="test" />
+            <WindowsOutlet />
+          </WindowManagerProvider>
+        </LayerProvider>
+      ),
+      root,
+    );
+    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { value: [new File(["a"], "test.apkg")] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await flush();
+    await flush();
+    findButton(root, "Deck").click();
+    const reviewWindow = root.querySelector<HTMLElement>('[x-role="window"]')!;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await flush();
+    await flush();
+    expect(reviewWindow.dataset.windowMotion).toBe("closing");
+    expect(reviewWindow.querySelector("iframe")).toBeNull();
+  });
+  it("closes the review window when its main window is closed", async () => {
+    vi.spyOn(session, "openPackage").mockResolvedValue(example);
+    const release = vi.spyOn(session, "releasePackage").mockImplementation(() => {});
+    const root = document.createElement("div");
+    document.body.append(root);
+    const TestWindow = () => {
+      const manager = useWindowManager();
+      manager.createWindow({
+        title: "Flashcards",
+        closer: () => true,
+        content: () => <Flashcards userId="test" />,
+      });
+      return <WindowsOutlet />;
+    };
+    cleanup = render(
+      () => (
+        <LayerProvider>
+          <WindowManagerProvider>
+            <TestWindow />
+          </WindowManagerProvider>
+        </LayerProvider>
+      ),
+      root,
+    );
+    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, "files", { value: [new File(["a"], "test.apkg")] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await flush();
+    await flush();
+    findButton(root, "Deck").click();
+    const windows = root.querySelectorAll<HTMLElement>('[x-role="window"]');
+    expect(windows).toHaveLength(2);
+    windows[0].querySelector<HTMLButtonElement>('[aria-label="Close window"]')!.click();
+    windows[0].dispatchEvent(new Event("animationend", { bubbles: true }));
+    expect(windows[1].dataset.windowMotion).toBe("closing");
+    expect(release).toHaveBeenCalledWith("test", example.hash);
   });
   it("keeps the current card visible when another becomes due, then shows it after rating", async () => {
     const progress = emptyProgress("queue-test", "test.apkg", "UTC");
@@ -127,7 +245,17 @@ describe("Flashcards opening flows", () => {
     vi.spyOn(session, "releasePackage").mockImplementation(() => {});
     const root = document.createElement("div");
     document.body.append(root);
-    cleanup = render(() => <Flashcards userId="queue-test" />, root);
+    cleanup = render(
+      () => (
+        <LayerProvider>
+          <WindowManagerProvider>
+            <Flashcards userId="queue-test" />
+            <WindowsOutlet />
+          </WindowManagerProvider>
+        </LayerProvider>
+      ),
+      root,
+    );
     const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
     Object.defineProperty(input, "files", { value: [new File(["a"], "test.apkg")] });
     input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -160,7 +288,17 @@ describe("Flashcards opening flows", () => {
     vi.spyOn(filesystem, "readFile").mockResolvedValue(new Blob(["a"]));
     const root = document.createElement("div");
     document.body.append(root);
-    cleanup = render(() => <Flashcards userId="test" />, root);
+    cleanup = render(
+      () => (
+        <LayerProvider>
+          <WindowManagerProvider>
+            <Flashcards userId="test" />
+            <WindowsOutlet />
+          </WindowManagerProvider>
+        </LayerProvider>
+      ),
+      root,
+    );
     findButton(root, "Open CloudReady file").click();
     await flush();
     findButton(root, "deck.apkg").click();

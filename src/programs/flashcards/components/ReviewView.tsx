@@ -24,7 +24,6 @@ export interface ReviewViewProps {
   saveError: boolean;
   canUndo: boolean;
   intervalLabel(rating: Rating): string;
-  onBack(): void;
   onLimit(limit: number): void;
   onReveal(): void;
   onReplay(): void;
@@ -64,7 +63,6 @@ export default function ReviewView(props: ReviewViewProps) {
   return (
     <div class="flex min-h-0 flex-1 flex-col gap-3" tabIndex={0} onKeyDown={handleKey}>
       <div class="flex flex-wrap items-center gap-3">
-        <Button onClick={props.onBack}>Decks</Button>
         <strong>{props.deckName}</strong>
         <span>
           {props.summary.due} due · {props.summary.fresh} new available

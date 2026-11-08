@@ -44,6 +44,7 @@ const applications = [
     launch: (windowManager: ReturnType<typeof useWindowManager>, userId: string) =>
       windowManager.createWindow({
         title: "Flashcards",
+        closer: () => true,
         size: { width: 800, height: 600 },
         minimumSize: { width: 320, height: 360 },
         content: () => <Flashcards userId={userId} />,
