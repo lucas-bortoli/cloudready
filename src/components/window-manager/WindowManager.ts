@@ -1,4 +1,4 @@
-import { type Accessor, type JSX } from "solid-js";
+import { createSignal, type Accessor, type JSX } from "solid-js";
 import { createStore, produce, type SetStoreFunction } from "solid-js/store";
 import type { Point2d, Size2d } from "../../lib/math";
 import generateUuid from "../../lib/uuid";
@@ -16,6 +16,36 @@ export type WindowDock = "dock-full" | "dock-left" | "dock-right" | null;
 
 /** Decides whether a window may be destroyed after its close control is clicked. */
 export type WindowCloser = () => boolean;
+
+/**
+ * Ownership of one overlay. Disposal releases registration without moving focus.
+ */
+export interface WindowOverlayRegistration {
+  /**
+   * Releases ownership. Repeated calls are safe, including after owner destruction.
+   */
+  dispose(): void;
+}
+
+/**
+ * Thrown when an overlay owner is missing, closing, or minimized.
+ */
+export class WindowActivationOwnerError extends Error {
+  public constructor() {
+    super("Overlay ownership requires an available window.");
+    this.name = "WindowActivationOwnerError";
+  }
+}
+
+/**
+ * Thrown when an overlay element already has a live ownership registration.
+ */
+export class WindowOverlayAlreadyRegisteredError extends Error {
+  public constructor() {
+    super("The overlay element is already registered.");
+    this.name = "WindowOverlayAlreadyRegisteredError";
+  }
+}
 
 export interface WindowState {
   /** Stable identifier used to address this window. */
@@ -94,13 +124,130 @@ export default class WindowManager {
   private readonly setWindows: SetStoreFunction<WindowState[]>;
   private readonly layerManager: LayerManager;
   public readonly motion = new WindowMotion();
+  /**
+   * Window owning current keyboard focus, or null when focus is outside managed windows.
+   */
+  public readonly activeWindowId: Accessor<WindowId | null>;
+  private readonly setActiveWindowId: (id: WindowId | null) => void;
+  private readonly frames = new Map<WindowId, HTMLElement>();
+  private readonly overlays = new Map<HTMLElement, { windowId: WindowId }>();
+  private trackedDocument: Document | null = null;
+  private browserFocused = false;
+  private detachActivationTracking: (() => void) | null = null;
 
+  /**
+   * Registers a frame for focus ownership and window motion.
+   */
   public registerFrame(windowId: WindowId, frame: HTMLElement): void {
+    this.frames.set(windowId, frame);
     this.motion.registerFrame(windowId, frame);
+    this.refreshActivation();
   }
+  /**
+   * Releases a frame's focus and motion registration.
+   */
   public unregisterFrame(windowId: WindowId): void {
+    this.frames.delete(windowId);
     this.motion.unregisterFrame(windowId);
+    this.refreshActivation();
   }
+  /**
+   * Registers an overlay as part of its owner's focus region without changing focus or stacking.
+   *
+   * @param windowId An existing window that is neither closing nor minimized.
+   * @param element The rendered overlay root; descendants inherit its ownership.
+   * @returns An independent, idempotent ownership registration.
+   * @throws {WindowActivationOwnerError} When the owner is unavailable.
+   * @throws {WindowOverlayAlreadyRegisteredError} When the element is already registered.
+   */
+  public registerOwnedOverlay(windowId: WindowId, element: HTMLElement): WindowOverlayRegistration {
+    if (!this.canActivate(windowId)) throw new WindowActivationOwnerError();
+    if (this.overlays.has(element)) throw new WindowOverlayAlreadyRegisteredError();
+    const registration = { windowId };
+    this.overlays.set(element, registration);
+    this.refreshActivation();
+    return {
+      dispose: () => {
+        // An old disposer must not release a later registration of the same element.
+        if (this.overlays.get(element) !== registration) return;
+        this.overlays.delete(element);
+        this.refreshActivation();
+      },
+    };
+  }
+
+  /**
+   * Starts focus tracking for this manager, replacing any previous tracking session.
+   *
+   * @param targetDocument Document containing the registered frames and overlays.
+   * @returns Idempotent cleanup that removes listeners and clears all ownership registrations.
+   */
+  public attachActivationTracking(targetDocument: Document): () => void {
+    this.detachActivationTracking?.();
+    const view = targetDocument.defaultView;
+    let disposed = false;
+    this.trackedDocument = targetDocument;
+    this.browserFocused = targetDocument.hasFocus();
+    const handleFocusIn = () => this.refreshActivation();
+    const handleFocusOut = () => {
+      // Focusout precedes focusin; defer to avoid deactivating during an owned focus transfer.
+      queueMicrotask(() => {
+        if (!disposed) this.refreshActivation();
+      });
+    };
+    const handleBlur = () => {
+      this.browserFocused = false;
+      this.refreshActivation();
+    };
+    const handleFocus = () => {
+      this.browserFocused = true;
+      this.refreshActivation();
+    };
+    targetDocument.addEventListener("focusin", handleFocusIn);
+    targetDocument.addEventListener("focusout", handleFocusOut);
+    view?.addEventListener("blur", handleBlur);
+    view?.addEventListener("focus", handleFocus);
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
+      targetDocument.removeEventListener("focusin", handleFocusIn);
+      targetDocument.removeEventListener("focusout", handleFocusOut);
+      view?.removeEventListener("blur", handleBlur);
+      view?.removeEventListener("focus", handleFocus);
+      this.trackedDocument = null;
+      this.browserFocused = false;
+      this.frames.clear();
+      this.overlays.clear();
+      this.setActiveWindowId(null);
+      this.detachActivationTracking = null;
+    };
+    this.detachActivationTracking = dispose;
+    this.refreshActivation();
+    return dispose;
+  }
+
+  private canActivate(windowId: WindowId): boolean {
+    const window = this.findWindow(windowId);
+    return (
+      !!window && !window.isClosing && !window.isMinimized && !this.motion.isMinimizing(windowId)
+    );
+  }
+
+  private refreshActivation(): void {
+    let element = this.browserFocused ? this.trackedDocument?.activeElement : null;
+    while (element) {
+      const owner =
+        this.overlays.get(element as HTMLElement)?.windowId ??
+        Array.from(this.frames).find(([, frame]) => frame === element)?.[0];
+      if (owner !== undefined) {
+        this.setActiveWindowId(this.canActivate(owner) ? owner : null);
+        return;
+      }
+      element = element.parentElement;
+    }
+    this.setActiveWindowId(null);
+  }
+
   public suppressNextDockAnimation(windowId: WindowId): void {
     this.motion.suppressNextDockAnimation(windowId);
   }
@@ -114,6 +261,9 @@ export default class WindowManager {
     this.getWindows = () => windows;
     this.setWindows = setWindows;
     this.layerManager = layerManager;
+    const [activeWindowId, setActiveWindowId] = createSignal<WindowId | null>(null);
+    this.activeWindowId = activeWindowId;
+    this.setActiveWindowId = setActiveWindowId;
   }
 
   /**
@@ -165,6 +315,7 @@ export default class WindowManager {
       this.setWindows(windowIndex, "isClosing", true);
       this.motion.scheduleClose(windowId, () => this.finishDestroyWindow(windowId));
     }
+    this.refreshActivation();
     return true;
   }
 
@@ -174,6 +325,10 @@ export default class WindowManager {
     const windowIndex = this.getWindows().findIndex((window) => window.id === windowId);
     if (windowIndex < 0) return;
 
+    this.unregisterFrame(windowId);
+    for (const [element, registration] of this.overlays) {
+      if (registration.windowId === windowId) this.overlays.delete(element);
+    }
     this.getWindows()[windowIndex].layerItem.dispose();
 
     this.setWindows(
@@ -181,6 +336,7 @@ export default class WindowManager {
         windows.splice(windowIndex, 1);
       }),
     );
+    this.refreshActivation();
   }
 
   /**
@@ -238,9 +394,11 @@ export default class WindowManager {
   public setMinimized(windowId: WindowId, isMinimized: boolean) {
     const entry = this.getWindows().find((window) => window.id === windowId);
     if (!entry || entry.isClosing) return;
-    this.motion.setMinimized(entry, isMinimized, (value) =>
-      this.setWindows((window) => window.id === windowId, "isMinimized", value),
-    );
+    this.motion.setMinimized(entry, isMinimized, (value) => {
+      this.setWindows((window) => window.id === windowId, "isMinimized", value);
+      this.refreshActivation();
+    });
+    this.refreshActivation();
   }
 
   /** Updates whether a window stays above ordinary application windows. */

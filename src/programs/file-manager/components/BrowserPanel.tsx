@@ -1,12 +1,21 @@
 import ArrowLeft16 from "@carbon/icons/es/arrow--left/16.js";
 import ArrowRight16 from "@carbon/icons/es/arrow--right/16.js";
 import BookmarkAdd16 from "@carbon/icons/es/bookmark--add/16.js";
+import Download16 from "@carbon/icons/es/download/16.js";
+import FolderOpen16 from "@carbon/icons/es/folder--open/16.js";
 import Home16 from "@carbon/icons/es/home/16.js";
 import Renew16 from "@carbon/icons/es/renew/16.js";
 import Search16 from "@carbon/icons/es/search/16.js";
+import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
+import Upload16 from "@carbon/icons/es/upload/16.js";
 import VmdkDisk16 from "@carbon/icons/es/vmdk-disk/16.js";
 import { For } from "solid-js";
 import Button from "../../../components/button/Button";
+import { contextMenu } from "../../../components/context-menu/contextMenu";
+import {
+  ContextMenuProvider,
+  type ContextMenuItem,
+} from "../../../components/context-menu/ContextMenuContext";
 import { selectionBoundary, selectionItem } from "../../../components/range-select/rangeSelect";
 import { SelectionProvider } from "../../../components/range-select/SelectionContext";
 import StatusBar from "../../../components/status-bar/StatusBar";
@@ -14,6 +23,7 @@ import StatusBarItem from "../../../components/status-bar/StatusBarItem";
 import StatusBarSeparator from "../../../components/status-bar/StatusBarSeparator";
 import CarbonIcon from "../../../components/taskbar/CarbonIcon";
 import TextInput from "../../../components/text-input/TextInput";
+import type { FileSystemEntry } from "../../../filesystem/FileSystemClient";
 import { cn } from "../../../lib/dom";
 import IconFile from "../icons/file.svg";
 import IconDirectory from "../icons/folder.svg";
@@ -23,6 +33,7 @@ import PathBar from "./PathBar";
 // Solid directives must remain in scope for the compiler.
 void selectionBoundary;
 void selectionItem;
+void contextMenu;
 
 function SidebarCategory(props: {
   label: string;
@@ -54,18 +65,20 @@ function EntryIcon(props: {
   entryName: string;
   selected: boolean;
   handleDoubleClick: (event: MouseEvent) => void;
+  contextMenu: ContextMenuItem[];
 }) {
   return (
     <li
       class={cn(
         "m-1 inline-flex h-20 w-20 cursor-default flex-col items-center gap-2 overflow-hidden rounded-sm px-1 py-2",
-        "outline-sky-300 focus-within:outline-1",
+        "outline-sky-300 *:pointer-events-none focus-within:outline-1",
         props.selected && "bg-sky-200",
         !props.selected && "hover:bg-sky-100",
       )}
       onDblClick={props.handleDoubleClick}
       aria-selected={props.selected}
       use:selectionItem={props.entryName}
+      use:contextMenu={props.contextMenu}
       role="option"
       tabIndex={0}
     >
@@ -95,6 +108,35 @@ export default function BrowserPanel(props: { controller: NavigationController }
     }
   }
 
+  function buildPanelContextMenu(): ContextMenuItem[] {
+    return [
+      { label: "Select all", disabled: entries().length === 0, onSelect: handleSelectAll },
+      { type: "separator" },
+      { type: "label", label: "This device" },
+      { label: "Import files...", icon: Upload16, disabled: true, onSelect: handleUnavailable },
+      { label: "Export files...", icon: Download16, disabled: true, onSelect: handleUnavailable },
+    ];
+  }
+
+  function handleSelectAll() {
+    setSelectedItems(new Set(entries().map((entry) => entry.name)));
+  }
+
+  function handleUnavailable() {}
+
+  function buildEntryContextMenu(entry: FileSystemEntry): ContextMenuItem[] {
+    return [
+      {
+        label: "Open",
+        icon: FolderOpen16,
+        disabled: entry.kind !== "directory",
+        onSelect: handleEntryDoubleClick.bind(null, entry.name),
+      },
+      { type: "separator" },
+      { label: "Delete", icon: TrashCan16, disabled: true, onSelect: handleUnavailable },
+    ];
+  }
+
   return (
     <section
       x-role="browser panel"
@@ -122,23 +164,34 @@ export default function BrowserPanel(props: { controller: NavigationController }
           items={[{ icon: VmdkDisk16, label: "My Drive", targetPath: "/" }]}
         />
       </aside>
-      <section class="flex min-h-0 min-w-0">
-        <SelectionProvider selectedItems={selectedItems} setSelectedItems={setSelectedItems}>
-          <ol class="relative min-w-0 grow overflow-y-auto p-2" use:selectionBoundary>
-            <For each={entries()}>
-              {(entry) => (
-                <EntryIcon
-                  type={entry.kind}
-                  name={entry.name}
-                  selected={selectedItems().has(entry.name)}
-                  entryName={entry.name}
-                  handleDoubleClick={handleEntryDoubleClick.bind(null, entry.name)}
-                />
+      <SelectionProvider selectedItems={selectedItems} setSelectedItems={setSelectedItems}>
+        <ContextMenuProvider>
+          <section class="flex min-h-0 min-w-0">
+            <ol
+              class={cn(
+                "relative min-w-0 grow overflow-y-auto p-2",
+                "-outline-offset-2 outline-sky-300 focus:outline-1",
               )}
-            </For>
-          </ol>
-        </SelectionProvider>
-      </section>
+              use:selectionBoundary
+              use:contextMenu={buildPanelContextMenu()}
+              tabIndex={0}
+            >
+              <For each={entries()}>
+                {(entry) => (
+                  <EntryIcon
+                    type={entry.kind}
+                    name={entry.name}
+                    selected={selectedItems().has(entry.name)}
+                    entryName={entry.name}
+                    handleDoubleClick={handleEntryDoubleClick.bind(null, entry.name)}
+                    contextMenu={buildEntryContextMenu(entry)}
+                  />
+                )}
+              </For>
+            </ol>
+          </section>
+        </ContextMenuProvider>
+      </SelectionProvider>
       <StatusBar class="col-span-2">
         <StatusBarItem text={entries().length === 1 ? "1 entry" : `${entries().length} entries`} />
         <StatusBarSeparator />

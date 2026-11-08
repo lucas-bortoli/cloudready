@@ -96,6 +96,33 @@ function setup(initialSelection: string[] = [], scrollTop = 0) {
 }
 
 describe("rangeSelect", () => {
+  it.each(["boundary", "item"])(
+    "clears selection and its anchor on Escape from a focused %s",
+    (focus) => {
+      const { list, selectedItems } = setup();
+      const entries = list.querySelectorAll("li");
+      entries[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      const target = focus === "boundary" ? list : entries[1];
+      target.tabIndex = 0;
+      target.focus();
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      expect(selectedItems().size).toBe(0);
+      entries[2].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+      expect([...selectedItems()]).toEqual(["third"]);
+    },
+  );
+
+  it("selects an unselected context-menu target and preserves an existing selection", () => {
+    const { list, selectedItems } = setup(["first", "second"]);
+    const entries = list.querySelectorAll("li");
+    entries[0].dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect([...selectedItems()]).toEqual(["first", "second"]);
+    entries[2].dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    expect([...selectedItems()]).toEqual(["third"]);
+    entries[0].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+    expect([...selectedItems()]).toEqual(["first", "second", "third"]);
+  });
+
   it.each([
     [110, 60, 170, 120],
     [170, 120, 110, 60],

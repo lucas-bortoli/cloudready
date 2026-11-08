@@ -28,7 +28,7 @@ export default function Window(props: { entry: WindowEntry }) {
     windowManager.setDock(props.entry.id, dock as WindowDock);
   };
   const [hasOpened, setHasOpened] = createSignal(false);
-  onCleanup(() => windowManager.motion.unregisterFrame(props.entry.id));
+  onCleanup(() => windowManager.unregisterFrame(props.entry.id));
 
   const handleAnimationEnd = (event: AnimationEvent) => {
     if (event.target !== event.currentTarget) return;
@@ -41,11 +41,12 @@ export default function Window(props: { entry: WindowEntry }) {
       x-role="window"
       ref={(element) => {
         interaction.setWindowElement(element);
-        windowManager.motion.registerFrame(props.entry.id, element);
+        windowManager.registerFrame(props.entry.id, element);
       }}
       class="group/window absolute box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl outline-none"
       data-dock={props.entry.dock ?? undefined}
       data-window-id={props.entry.id}
+      data-active={windowManager.activeWindowId() === props.entry.id ? "true" : undefined}
       data-window-motion={
         props.entry.isClosing
           ? "closing"

@@ -28,11 +28,18 @@ export function CurrentWindowProvider(props: ParentProps<{ windowId: WindowId }>
  * @throws {CurrentWindowContextMissingError} When called outside a {@link CurrentWindowProvider}.
  */
 export function useCurrentWindowId(): WindowId {
-  const id = useContext(CurrentWindowIdContext);
+  const id = useOptionalCurrentWindowId();
 
   if (!id) {
     throw new CurrentWindowContextMissingError();
   }
 
   return id;
+}
+
+/**
+ * Returns the current content window's ID, or undefined outside a window.
+ */
+export function useOptionalCurrentWindowId(): WindowId | undefined {
+  return useContext(CurrentWindowIdContext);
 }

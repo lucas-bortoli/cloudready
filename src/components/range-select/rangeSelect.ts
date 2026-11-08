@@ -28,6 +28,7 @@ type SelectionGesture = {
  * Enables drag selection from empty space in a container.
  * Register selectable descendants with the selectionItem directive.
  * Ctrl/Cmd preserves existing selection; plain dragging replaces it.
+ * Escape clears the selection when focus is within the boundary.
  * The directive owns the overlay and removes its listeners when Solid disposes it.
  *
  * @throws {SelectionContextError} When called outside a SelectionProvider.
@@ -113,10 +114,24 @@ export function selectionBoundary(element: HTMLElement): void {
     handlePointerMove(event);
   }
 
+  function handleKeyDown(event: KeyboardEvent) {
+    if (
+      event.key !== "Escape" ||
+      event.defaultPrevented ||
+      !element.contains(document.activeElement)
+    )
+      return;
+    event.preventDefault();
+    options.setSelectedItems(new Set());
+    options.setSelectionAnchor(null);
+  }
+
   element.addEventListener("pointerdown", handlePointerDown);
+  element.addEventListener("keydown", handleKeyDown);
   onCleanup(() => {
     finishGesture();
     element.removeEventListener("pointerdown", handlePointerDown);
+    element.removeEventListener("keydown", handleKeyDown);
     rangeSelectBox.remove();
     layerItem.dispose();
   });
@@ -124,6 +139,7 @@ export function selectionBoundary(element: HTMLElement): void {
 
 /**
  * Registers an element and its selection value with the nearest provider.
+ * A context-menu request selects an unselected item and preserves an existing multi-selection.
  *
  * @throws {SelectionContextError} When called outside a SelectionProvider.
  */
@@ -162,9 +178,21 @@ export function selectionItem(element: HTMLElement, value: () => unknown): void 
     selection.setSelectionAnchor(current);
   }
 
+  function handleContextMenu(event: MouseEvent) {
+    if (event.target !== element || event.defaultPrevented) return;
+    const current = value();
+    if (!selection.selectedItems().has(current)) {
+      selection.setSelectedItems(new Set([current]));
+      selection.setSelectionAnchor(current);
+    }
+  }
+
   element.addEventListener("click", handleClick);
+  // Capture runs before a context-menu directive reads the current selection.
+  element.addEventListener("contextmenu", handleContextMenu, true);
   onCleanup(() => {
     element.removeEventListener("click", handleClick);
+    element.removeEventListener("contextmenu", handleContextMenu, true);
     selection.items.delete(element);
     if (selection.selectionAnchor() === value()) selection.setSelectionAnchor(null);
   });
