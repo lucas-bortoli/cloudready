@@ -66,3 +66,18 @@ another; use one session at a time. File versions are supplied by the filesystem
 
 The full Spanish deck is deliberately not part of the repository. To include it
 in focused tests, set `CLOUDREADY_ANKI_FIXTURE` to its local path.
+
+## UI architecture
+
+`Flashcards` composes the package and review controllers with small views. The
+package controller owns each window's pending import and its package reference;
+the filesystem picker only returns a path. The review controller owns the store
+subscription, queue clock, active-card selection, and review actions. Explicit
+props keep the deck list and review controls independent of either controller.
+
+The audio player owns playback and audio object URLs. The card frame separately
+owns its sanitized document and image URLs. Their cleanup boundaries keep media
+resources tied to the UI that uses them. Package changes reset the review
+session, and the active-card selection stays stable when another card becomes
+due. Rating batches answer and queue changes to avoid flashing the previous
+card's front.
