@@ -1,11 +1,12 @@
 import { render } from "solid-js/web";
 import { LayerProvider } from "../../components/layer-manager/LayerContext";
+import { ContextMenuProvider } from "../../components/context-menu/ContextMenuContext";
 import {
   WindowManagerProvider,
   useWindowManager,
 } from "../../components/window-manager/WindowManagerContext";
 import WindowsOutlet from "../../components/window-manager/WindowsOutlet";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { filesystem } from "../../filesystem/FileSystemClient";
 import { emptyProgress } from "./core/progress";
 import { newCard } from "./core/fsrs";
@@ -53,7 +54,39 @@ function findButton(root: HTMLElement, text: string): HTMLButtonElement {
 async function flush(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
+async function openDeck(root: HTMLElement): Promise<void> {
+  findButton(root, "Open Deck File").click();
+  await flush();
+  const picker = root.querySelector<HTMLElement>('[x-role="file picker content wrapper"]');
+  if (!picker) throw new Error("File picker did not open");
+  const entry = Array.from(picker.querySelectorAll<HTMLElement>('[role="option"]')).find((option) =>
+    option.textContent?.includes("deck.apkg"),
+  );
+  if (!entry) throw new Error("Deck file not found in picker");
+  entry.click();
+  const pickerWindow = picker.closest<HTMLElement>('[x-role="window"]');
+  findButton(picker, "Confirm Selection").click();
+  pickerWindow?.dispatchEvent(new Event("animationend", { bubbles: true }));
+  await flush();
+  await flush();
+}
+
 let cleanup: (() => void) | undefined;
+beforeEach(() => {
+  vi.spyOn(filesystem, "list").mockResolvedValue([
+    {
+      id: "00000000-0000-4000-8000-000000000000",
+      path: "/deck.apkg",
+      name: "deck.apkg",
+      kind: "file",
+      size: 1,
+      mimeType: "application/octet-stream",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ] as never);
+  vi.spyOn(filesystem, "readFile").mockResolvedValue(new Blob(["a"]));
+});
 afterEach(() => {
   cleanup?.();
   document.body.innerHTML = "";
@@ -61,7 +94,7 @@ afterEach(() => {
 });
 
 describe("Flashcards opening flows", () => {
-  it("opens a device package and shows a reveal/rating flow", async () => {
+  it("opens a filesystem package and shows a reveal/rating flow", async () => {
     vi.spyOn(session, "openPackage").mockResolvedValue(example);
     vi.spyOn(session, "releasePackage").mockImplementation(() => {});
     const root = document.createElement("div");
@@ -70,20 +103,17 @@ describe("Flashcards opening flows", () => {
       () => (
         <LayerProvider>
           <WindowManagerProvider>
-            <Flashcards userId="test" />
-            <WindowsOutlet />
+            <ContextMenuProvider>
+              <Flashcards userId="test" />
+              <WindowsOutlet />
+            </ContextMenuProvider>
           </WindowManagerProvider>
         </LayerProvider>
       ),
       root,
     );
-    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
-    const file = new File([new Uint8Array([1])], "test.apkg");
-    Object.defineProperty(input, "files", { value: [file] });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    await flush();
-    await flush();
-    findButton(root, "Deck").click();
+    await openDeck(root);
+    findButton(root, "Deck (").click();
     await flush();
     const reviewWindow = root.querySelector('[x-role="window"]');
     expect(reviewWindow?.textContent).toContain("Flashcards review");
@@ -103,19 +133,17 @@ describe("Flashcards opening flows", () => {
       () => (
         <LayerProvider>
           <WindowManagerProvider>
-            <Flashcards userId="test" />
-            <WindowsOutlet />
+            <ContextMenuProvider>
+              <Flashcards userId="test" />
+              <WindowsOutlet />
+            </ContextMenuProvider>
           </WindowManagerProvider>
         </LayerProvider>
       ),
       root,
     );
-    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
-    Object.defineProperty(input, "files", { value: [new File(["a"], "test.apkg")] });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    await flush();
-    await flush();
-    findButton(root, "Deck").click();
+    await openDeck(root);
+    findButton(root, "Deck (").click();
     const reviewWindow = root.querySelector<HTMLElement>('[x-role="window"]')!;
     const closeButton = reviewWindow.querySelector<HTMLButtonElement>(
       '[aria-label="Close window"]',
@@ -123,7 +151,7 @@ describe("Flashcards opening flows", () => {
     closeButton.click();
     expect(reviewWindow.dataset.windowMotion).toBe("closing");
     expect(root.querySelector('[x-role="flashcards"]')?.textContent).toContain("Deck");
-    findButton(root.querySelector<HTMLElement>('[x-role="flashcards"]')!, "Deck").click();
+    findButton(root.querySelector<HTMLElement>('[x-role="flashcards"]')!, "Deck (").click();
     expect(root.querySelectorAll('[x-role="window"]')).toHaveLength(2);
     expect(root.querySelectorAll("iframe")).toHaveLength(1);
   });
@@ -136,23 +164,19 @@ describe("Flashcards opening flows", () => {
       () => (
         <LayerProvider>
           <WindowManagerProvider>
-            <Flashcards userId="test" />
-            <WindowsOutlet />
+            <ContextMenuProvider>
+              <Flashcards userId="test" />
+              <WindowsOutlet />
+            </ContextMenuProvider>
           </WindowManagerProvider>
         </LayerProvider>
       ),
       root,
     );
-    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
-    Object.defineProperty(input, "files", { value: [new File(["a"], "test.apkg")] });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    await flush();
-    await flush();
-    findButton(root, "Deck").click();
+    await openDeck(root);
+    findButton(root, "Deck (").click();
     const reviewWindow = root.querySelector<HTMLElement>('[x-role="window"]')!;
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    await flush();
-    await flush();
+    await openDeck(root);
     expect(reviewWindow.dataset.windowMotion).toBe("closing");
     expect(reviewWindow.querySelector("iframe")).toBeNull();
   });
@@ -174,18 +198,16 @@ describe("Flashcards opening flows", () => {
       () => (
         <LayerProvider>
           <WindowManagerProvider>
-            <TestWindow />
+            <ContextMenuProvider>
+              <TestWindow />
+            </ContextMenuProvider>
           </WindowManagerProvider>
         </LayerProvider>
       ),
       root,
     );
-    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
-    Object.defineProperty(input, "files", { value: [new File(["a"], "test.apkg")] });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    await flush();
-    await flush();
-    findButton(root, "Deck").click();
+    await openDeck(root);
+    findButton(root, "Deck (").click();
     const windows = root.querySelectorAll<HTMLElement>('[x-role="window"]');
     expect(windows).toHaveLength(2);
     windows[0].querySelector<HTMLButtonElement>('[aria-label="Close window"]')!.click();
@@ -249,19 +271,17 @@ describe("Flashcards opening flows", () => {
       () => (
         <LayerProvider>
           <WindowManagerProvider>
-            <Flashcards userId="queue-test" />
-            <WindowsOutlet />
+            <ContextMenuProvider>
+              <Flashcards userId="queue-test" />
+              <WindowsOutlet />
+            </ContextMenuProvider>
           </WindowManagerProvider>
         </LayerProvider>
       ),
       root,
     );
-    const input = root.querySelector<HTMLInputElement>('input[type="file"]')!;
-    Object.defineProperty(input, "files", { value: [new File(["a"], "test.apkg")] });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-    await flush();
-    await flush();
-    findButton(root, "Deck").click();
+    await openDeck(root);
+    findButton(root, "Deck (").click();
     expect(root.querySelector("iframe")?.srcdoc).toContain("Question");
     await new Promise((resolve) => setTimeout(resolve, 1100));
     expect(root.querySelector("iframe")?.srcdoc).toContain("Question");
@@ -273,38 +293,30 @@ describe("Flashcards opening flows", () => {
   it("browses and opens an apkg in the CloudReady filesystem", async () => {
     vi.spyOn(session, "openPackage").mockResolvedValue(example);
     vi.spyOn(session, "releasePackage").mockImplementation(() => {});
-    vi.spyOn(filesystem, "list").mockResolvedValue([
-      {
-        id: "00000000-0000-4000-8000-000000000000",
-        path: "/deck.apkg",
-        name: "deck.apkg",
-        kind: "file",
-        size: 1,
-        mimeType: "application/octet-stream",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ] as never);
-    vi.spyOn(filesystem, "readFile").mockResolvedValue(new Blob(["a"]));
     const root = document.createElement("div");
     document.body.append(root);
     cleanup = render(
       () => (
         <LayerProvider>
           <WindowManagerProvider>
-            <Flashcards userId="test" />
-            <WindowsOutlet />
+            <ContextMenuProvider>
+              <Flashcards userId="test" />
+              <WindowsOutlet />
+            </ContextMenuProvider>
           </WindowManagerProvider>
         </LayerProvider>
       ),
       root,
     );
-    findButton(root, "Open CloudReady file").click();
-    await flush();
-    findButton(root, "deck.apkg").click();
-    await flush();
-    await flush();
-    expect(session.openPackage).toHaveBeenCalled();
+    await openDeck(root);
+    expect(filesystem.list).toHaveBeenCalledWith("/");
+    expect(filesystem.readFile).toHaveBeenCalledWith("/deck.apkg");
+    expect(session.openPackage).toHaveBeenCalledWith(
+      "test",
+      "deck.apkg",
+      expect.any(ArrayBuffer),
+      expect.any(AbortSignal),
+    );
     expect(root.textContent).toContain("Deck");
   });
 });
