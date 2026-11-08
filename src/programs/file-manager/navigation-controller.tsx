@@ -1,7 +1,6 @@
-import { createEffect, createMemo, createSignal, on } from "solid-js";
+import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js";
 import useDialog from "../../components/dialog/Dialog";
-import type { FileSystemEntry } from "../../filesystem/FileSystemClient";
-import { filesystemList } from "../../lib/kernel-rpc/filesystem";
+import { filesystem, type FileSystemEntry } from "../../filesystem/FileSystemClient";
 
 /**
  * Creates navigation state for browsing filesystem entries.
@@ -13,7 +12,10 @@ export default function createNavigationController(
     entryFilter?: (entry: FileSystemEntry) => boolean;
   } = {},
 ) {
-  const [path, setPath] = createSignal("/");
+  const [history, setHistory] = createSignal({ paths: ["/"], index: 0 });
+  const path = createMemo(() => history().paths[history().index]);
+  const canGoBack = createMemo(() => history().index > 0);
+  const canGoForward = createMemo(() => history().index < history().paths.length - 1);
   const [searchQuery, setSearchQuery] = createSignal("");
   const [entries, setEntries] = createSignal<ReadonlyArray<FileSystemEntry>>([]);
   const [selectedItems, setSelectedItems] = createSignal<ReadonlySet<string>>(new Set());
@@ -37,15 +39,41 @@ export default function createNavigationController(
   const showDialog = useDialog();
 
   function navigateTo(target: string) {
-    setPath(target);
+    setHistory((current) => {
+      if (current.paths[current.index] === target) return current;
+      return {
+        paths: [...current.paths.slice(0, current.index + 1), target],
+        index: current.index + 1,
+      };
+    });
+  }
+
+  function goBack() {
+    setHistory((current) =>
+      current.index > 0 ? { ...current, index: current.index - 1 } : current,
+    );
+  }
+
+  function goForward() {
+    setHistory((current) =>
+      current.index < current.paths.length - 1 ? { ...current, index: current.index + 1 } : current,
+    );
   }
 
   createEffect(() => {
     const target = path();
+    let current = true;
+    onCleanup(() => {
+      current = false;
+    });
     setSelectedItems(new Set([]));
-    filesystemList({ path: target })
-      .then(setEntries)
+    filesystem
+      .list(target)
+      .then((result) => {
+        if (current) setEntries(result);
+      })
       .catch((error) => {
+        if (!current) return;
         showDialog({
           icon: "error",
           title: "Entry Fetch Fail",
@@ -65,6 +93,10 @@ export default function createNavigationController(
   return {
     path,
     navigateTo,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     entries: visibleEntries,
     selectedItems,
     setSelectedItems,

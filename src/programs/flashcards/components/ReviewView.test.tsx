@@ -16,7 +16,6 @@ function reviewProps(): ReviewViewProps {
     saveError: false,
     canUndo: false,
     intervalLabel: () => "1m",
-    onBack: vi.fn(),
     onLimit: vi.fn(),
     onReveal: vi.fn(),
     onReplay: vi.fn(),

@@ -9,13 +9,10 @@ import Search16 from "@carbon/icons/es/search/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
 import Upload16 from "@carbon/icons/es/upload/16.js";
 import VmdkDisk16 from "@carbon/icons/es/vmdk-disk/16.js";
-import { For } from "solid-js";
+import { createEffect, For, on } from "solid-js";
 import Button from "../../../components/button/Button";
 import { contextMenu } from "../../../components/context-menu/contextMenu";
-import {
-  ContextMenuProvider,
-  type ContextMenuItem,
-} from "../../../components/context-menu/ContextMenuContext";
+import type { ContextMenuItem } from "../../../components/context-menu/ContextMenuContext";
 import { selectionBoundary, selectionItem } from "../../../components/range-select/rangeSelect";
 import { SelectionProvider } from "../../../components/range-select/SelectionContext";
 import StatusBar from "../../../components/status-bar/StatusBar";
@@ -64,9 +61,16 @@ function EntryIcon(props: {
   name: string;
   entryName: string;
   selected: boolean;
-  handleDoubleClick: (event: MouseEvent) => void;
+  handleDoubleClick: () => void;
   contextMenu: ContextMenuItem[];
 }) {
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+      return;
+    event.preventDefault();
+    props.handleDoubleClick();
+  }
+
   return (
     <li
       class={cn(
@@ -76,6 +80,7 @@ function EntryIcon(props: {
         !props.selected && "hover:bg-sky-100",
       )}
       onDblClick={props.handleDoubleClick}
+      onKeyDown={handleKeyDown}
       aria-selected={props.selected}
       use:selectionItem={props.entryName}
       use:contextMenu={props.contextMenu}
@@ -92,12 +97,28 @@ export default function BrowserPanel(props: { controller: NavigationController }
   const {
     path,
     navigateTo,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     entries,
     selectedItems,
     setSelectedItems,
     searchQuery,
     setSearchQuery,
   } = props.controller;
+  let entryList: HTMLOListElement | undefined;
+
+  createEffect(
+    on(
+      path,
+      () => {
+        // Entries from the previous directory may disappear when the listing arrives.
+        if (entryList?.contains(document.activeElement)) entryList.focus();
+      },
+      { defer: true },
+    ),
+  );
 
   function handleEntryDoubleClick(name: string) {
     const entry = entries().find((candidate) => candidate.name === name);
@@ -143,8 +164,21 @@ export default function BrowserPanel(props: { controller: NavigationController }
       class="grid h-full min-h-0 grid-cols-[140px_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto] bg-white text-neutral-800"
     >
       <header class="col-span-2 flex h-9 gap-1 border-b border-neutral-200 bg-neutral-100 p-1">
-        <Button startIcon={<CarbonIcon icon={ArrowLeft16} />} class="px-1.5!" />
-        <Button startIcon={<CarbonIcon icon={ArrowRight16} />} class="px-1.5!" />
+        <Button
+          title="Back"
+          disabled={!canGoBack()}
+          onClick={goBack}
+          startIcon={<CarbonIcon icon={ArrowLeft16} />}
+          class="px-1.5!"
+          use:contextMenu={[{ type: "label", label: "Hello!" }]}
+        />
+        <Button
+          title="Forward"
+          disabled={!canGoForward()}
+          onClick={goForward}
+          startIcon={<CarbonIcon icon={ArrowRight16} />}
+          class="px-1.5!"
+        />
         <Button startIcon={<CarbonIcon icon={Renew16} />} class="px-1.5!" />
         <Button startIcon={<CarbonIcon icon={Home16} />} class="px-1.5!" />
         <PathBar path={path()} onPathSegmentClicked={navigateTo} />
@@ -165,32 +199,34 @@ export default function BrowserPanel(props: { controller: NavigationController }
         />
       </aside>
       <SelectionProvider selectedItems={selectedItems} setSelectedItems={setSelectedItems}>
-        <ContextMenuProvider>
-          <section class="flex min-h-0 min-w-0">
-            <ol
-              class={cn(
-                "relative min-w-0 grow overflow-y-auto p-2",
-                "-outline-offset-2 outline-sky-300 focus:outline-1",
+        <section class="flex min-h-0 min-w-0">
+          <ol
+            ref={entryList}
+            role="listbox"
+            aria-label="Files and folders"
+            aria-multiselectable="true"
+            class={cn(
+              "relative min-w-0 grow overflow-y-auto p-2",
+              "-outline-offset-2 outline-sky-300 focus:outline-1",
+            )}
+            use:selectionBoundary
+            use:contextMenu={buildPanelContextMenu()}
+            tabIndex={0}
+          >
+            <For each={entries()}>
+              {(entry) => (
+                <EntryIcon
+                  type={entry.kind}
+                  name={entry.name}
+                  selected={selectedItems().has(entry.name)}
+                  entryName={entry.name}
+                  handleDoubleClick={handleEntryDoubleClick.bind(null, entry.name)}
+                  contextMenu={buildEntryContextMenu(entry)}
+                />
               )}
-              use:selectionBoundary
-              use:contextMenu={buildPanelContextMenu()}
-              tabIndex={0}
-            >
-              <For each={entries()}>
-                {(entry) => (
-                  <EntryIcon
-                    type={entry.kind}
-                    name={entry.name}
-                    selected={selectedItems().has(entry.name)}
-                    entryName={entry.name}
-                    handleDoubleClick={handleEntryDoubleClick.bind(null, entry.name)}
-                    contextMenu={buildEntryContextMenu(entry)}
-                  />
-                )}
-              </For>
-            </ol>
-          </section>
-        </ContextMenuProvider>
+            </For>
+          </ol>
+        </section>
       </SelectionProvider>
       <StatusBar class="col-span-2">
         <StatusBarItem text={entries().length === 1 ? "1 entry" : `${entries().length} entries`} />

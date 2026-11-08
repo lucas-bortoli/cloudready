@@ -1,4 +1,6 @@
 import { onCleanup, type Accessor } from "solid-js";
+import { useOptionalCurrentWindowId } from "../window-manager/CurrentWindowContext";
+import { useOptionalWindowManager } from "../window-manager/WindowManagerContext";
 import { useContextMenu, type ContextMenuItem } from "./ContextMenuContext";
 
 declare module "solid-js" {
@@ -23,10 +25,12 @@ export function contextMenu(
   items: Accessor<readonly ContextMenuItem[]>,
 ): void {
   const context = useContextMenu();
+  const windowId = useOptionalCurrentWindowId();
+  const windowManager = useOptionalWindowManager();
 
   function handleContextMenu(event: MouseEvent) {
     if (event.target !== element) return;
-    const actions = items();
+    const actions = items() ?? [];
     if (!actions.length || event.defaultPrevented) return;
     event.preventDefault();
     event.stopPropagation();
@@ -38,9 +42,13 @@ export function contextMenu(
       x: keyboard ? bounds.left : event.clientX,
       y: keyboard ? bounds.bottom : event.clientY,
       target: element,
+      owner: windowId && windowManager ? { windowId, windowManager } : undefined,
     });
   }
 
   element.addEventListener("contextmenu", handleContextMenu);
-  onCleanup(() => element.removeEventListener("contextmenu", handleContextMenu));
+  onCleanup(() => {
+    element.removeEventListener("contextmenu", handleContextMenu);
+    context.closeFor(element);
+  });
 }

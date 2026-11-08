@@ -96,6 +96,80 @@ function setup(initialSelection: string[] = [], scrollTop = 0) {
 }
 
 describe("rangeSelect", () => {
+  it("navigates entries and extends a range from the keyboard", () => {
+    const { list, selectedItems } = setup();
+    const entries = list.querySelectorAll<HTMLElement>("li");
+    entries.forEach((entry) => {
+      entry.tabIndex = -1;
+    });
+    list.tabIndex = 0;
+    list.focus();
+    list.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
+    );
+    expect(document.activeElement).toBe(entries[0]);
+    expect([...selectedItems()]).toEqual(["first"]);
+    entries[0].dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    expect(document.activeElement).toBe(entries[1]);
+    expect([...selectedItems()]).toEqual(["first", "second"]);
+    entries[1].dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    expect(document.activeElement).toBe(entries[2]);
+    expect([...selectedItems()]).toEqual(["first", "second"]);
+    entries[2].dispatchEvent(
+      new KeyboardEvent("keydown", { key: " ", ctrlKey: true, bubbles: true, cancelable: true }),
+    );
+    expect([...selectedItems()]).toEqual(["first", "second", "third"]);
+    entries[2].dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }),
+    );
+    expect(document.activeElement).toBe(entries[0]);
+    expect([...selectedItems()]).toEqual(["first"]);
+    entries[0].dispatchEvent(
+      new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true }),
+    );
+    expect([...selectedItems()]).toEqual(["first", "second", "third"]);
+  });
+
+  it("moves vertically to the closest entry in the next row", () => {
+    const { list } = setup();
+    const entries = list.querySelectorAll<HTMLElement>("li");
+    entries.forEach((entry) => {
+      entry.tabIndex = -1;
+    });
+    Object.defineProperty(entries[0], "getBoundingClientRect", {
+      value: () => new DOMRect(0, 0, 40, 40),
+    });
+    Object.defineProperty(entries[1], "getBoundingClientRect", {
+      value: () => new DOMRect(50, 0, 40, 40),
+    });
+    Object.defineProperty(entries[2], "getBoundingClientRect", {
+      value: () => new DOMRect(0, 50, 40, 40),
+    });
+    entries[1].focus();
+    entries[1].dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+    );
+    expect(document.activeElement).toBe(entries[2]);
+    entries[2].dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }),
+    );
+    expect(document.activeElement).toBe(entries[0]);
+  });
+
   it.each(["boundary", "item"])(
     "clears selection and its anchor on Escape from a focused %s",
     (focus) => {

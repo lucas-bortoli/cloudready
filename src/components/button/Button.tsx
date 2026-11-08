@@ -1,5 +1,9 @@
 import { splitProps, type JSX } from "solid-js";
 import { cn } from "../../lib/dom";
+import { directivePropNames, forwardDirectives } from "../directives";
+
+// Solid directives must remain in scope for the compiler.
+void forwardDirectives;
 
 /** Visual emphasis applied to a {@link Button}. */
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -68,7 +72,11 @@ export type ButtonProps = ButtonCommonProps & {
  * It defaults to a non-submitting button and forwards safe native button attributes. Setting
  * `disabled` or `loading` adds `aria-disabled`, keeps the element focusable, prevents the click's
  * default action, and skips `onClick`; the event is deliberately allowed to bubble. `x-role` is
- * forwarded only when a caller supplies it. This component never throws.
+ * forwarded only when a caller supplies it. Registered `use:*` directives apply to the button.
+ *
+ * @throws {ContextMenuContextError} When a context menu lacks its provider.
+ * @throws {SelectionContextError} When a selection directive lacks its provider.
+ * @throws {LayerContextError} When a selection boundary lacks its layer provider.
  */
 export default function Button(props: ButtonProps) {
   const [button, nativeProps] = splitProps(props, [
@@ -82,6 +90,7 @@ export default function Button(props: ButtonProps) {
     "startIcon",
     "title",
     "type",
+    ...directivePropNames,
     "variant",
     "x-role",
   ]);
@@ -103,11 +112,12 @@ export default function Button(props: ButtonProps) {
   return (
     <button
       {...nativeProps}
+      use:forwardDirectives={button}
       aria-busy={isLoading() || undefined}
       aria-disabled={isInactive() || undefined}
       aria-label={button["aria-label"] ?? button.title}
       class={cn(
-        "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xs font-medium text-neutral-600 shadow outline-sky-300 transition-colors focus:outline-2 focus:outline-offset-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
+        "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xs font-medium text-neutral-600 shadow outline-sky-300 transition-colors *:pointer-events-none focus:outline-2 focus:outline-offset-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         variant() === "primary" &&
           "border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700 focus:bg-neutral-700 active:bg-neutral-900",
         variant() === "secondary" &&

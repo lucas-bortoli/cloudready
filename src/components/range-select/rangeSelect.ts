@@ -29,6 +29,8 @@ type SelectionGesture = {
  * Register selectable descendants with the selectionItem directive.
  * Ctrl/Cmd preserves existing selection; plain dragging replaces it.
  * Escape clears the selection when focus is within the boundary.
+ * Arrow keys and Home/End move focus; Shift extends selection and Ctrl/Cmd moves without selecting.
+ * Ctrl/Cmd+A selects all items and Ctrl/Cmd+Space toggles the focused item.
  * The directive owns the overlay and removes its listeners when Solid disposes it.
  *
  * @throws {SelectionContextError} When called outside a SelectionProvider.
@@ -115,15 +117,83 @@ export function selectionBoundary(element: HTMLElement): void {
   }
 
   function handleKeyDown(event: KeyboardEvent) {
-    if (
-      event.key !== "Escape" ||
-      event.defaultPrevented ||
-      !element.contains(document.activeElement)
-    )
+    if (event.defaultPrevented || !element.contains(document.activeElement)) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      options.setSelectedItems(new Set());
+      options.setSelectionAnchor(null);
       return;
+    }
+
+    const items = Array.from(options.items)
+      .filter(([item]) => element.contains(item))
+      .sort(([a], [b]) =>
+        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+      );
+    if (event.altKey) return;
+    const additive = event.ctrlKey || event.metaKey;
+    const index = items.findIndex(([item]) => item === document.activeElement);
+    if (index < 0 && document.activeElement !== element) return;
+    if (additive && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+      options.setSelectedItems(new Set(items.map(([, value]) => value())));
+      return;
+    }
+    if (!items.length) return;
+    const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", " "];
+    if (!keys.includes(event.key) || (event.key === " " && index < 0)) return;
     event.preventDefault();
-    options.setSelectedItems(new Set());
-    options.setSelectionAnchor(null);
+
+    let nextIndex = index < 0 ? 0 : index;
+    if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = items.length - 1;
+    else if (index >= 0 && event.key === "ArrowLeft") nextIndex = Math.max(0, index - 1);
+    else if (index >= 0 && event.key === "ArrowRight")
+      nextIndex = Math.min(items.length - 1, index + 1);
+    else if (index >= 0 && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+      const current = items[index][0].getBoundingClientRect();
+      const x = current.left + current.width / 2;
+      const y = current.top + current.height / 2;
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      const candidates = items
+        .map(([item], candidateIndex) => {
+          const bounds = item.getBoundingClientRect();
+          return {
+            index: candidateIndex,
+            dy: direction * (bounds.top + bounds.height / 2 - y),
+            dx: Math.abs(bounds.left + bounds.width / 2 - x),
+          };
+        })
+        .filter((candidate) => candidate.dy > 1);
+      candidates.sort((a, b) => a.dy - b.dy || a.dx - b.dx);
+      nextIndex = candidates[0]?.index ?? index;
+    }
+
+    const [nextElement, nextValue] = items[nextIndex];
+    const value = nextValue();
+    if (event.shiftKey) {
+      let anchorIndex = items.findIndex(
+        ([, itemValue]) => itemValue() === options.selectionAnchor(),
+      );
+      if (anchorIndex < 0) {
+        anchorIndex = index < 0 ? nextIndex : index;
+        options.setSelectionAnchor(items[anchorIndex][1]());
+      }
+      const next = additive ? new Set(options.selectedItems()) : new Set<unknown>();
+      for (const [, itemValue] of items.slice(
+        Math.min(anchorIndex, nextIndex),
+        Math.max(anchorIndex, nextIndex) + 1,
+      ))
+        next.add(itemValue());
+      options.setSelectedItems(next);
+    } else if (!additive || event.key === " ") {
+      const next = additive ? new Set(options.selectedItems()) : new Set<unknown>();
+      if (additive && next.has(value)) next.delete(value);
+      else next.add(value);
+      options.setSelectedItems(next);
+      options.setSelectionAnchor(value);
+    }
+    nextElement.focus();
   }
 
   element.addEventListener("pointerdown", handlePointerDown);

@@ -8,15 +8,14 @@ import {
   onCleanup,
   Show,
   Switch,
-  useContext,
   untrack,
+  useContext,
   type ParentProps,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useLayerItem } from "../layer-manager/LayerContext";
-import { useOptionalCurrentWindowId } from "../window-manager/CurrentWindowContext";
-import { useOptionalWindowManager } from "../window-manager/WindowManagerContext";
-import type { WindowOverlayRegistration } from "../window-manager/WindowManager";
+import type WindowManager from "../window-manager/WindowManager";
+import type { WindowId, WindowOverlayRegistration } from "../window-manager/WindowManager";
 import ContextMenuAction from "./menu-items/ContextMenuAction";
 import ContextMenuLabel from "./menu-items/ContextMenuLabel";
 import ContextMenuSeparator from "./menu-items/ContextMenuSeparator";
@@ -37,11 +36,13 @@ interface OpenMenu {
   x: number;
   y: number;
   target: HTMLElement;
+  owner?: { windowId: WindowId; windowManager: WindowManager };
 }
 
 interface ContextMenuContextValue {
   open: (menu: OpenMenu) => void;
   close: () => void;
+  closeFor: (target: HTMLElement) => void;
 }
 
 const ContextMenuContext = createContext<ContextMenuContextValue>();
@@ -68,12 +69,12 @@ export function ContextMenuProvider(props: ParentProps) {
   );
   const layer = useLayerItem("shell");
   let menuElement: HTMLDivElement | undefined;
-  const windowId = useOptionalCurrentWindowId();
-  const windowManager = useOptionalWindowManager();
   let ownership: WindowOverlayRegistration | undefined;
 
   createEffect(() => {
-    if (!menu() || !windowId || !windowManager) return;
+    const ownerInfo = menu()?.owner;
+    if (!ownerInfo) return;
+    const { windowId, windowManager } = ownerInfo;
     const owner = windowManager.getWindows().find((entry) => entry.id === windowId);
     if (!owner || owner.isClosing || owner.isMinimized) close();
   });
@@ -82,6 +83,10 @@ export function ContextMenuProvider(props: ParentProps) {
     setMenu(null);
     ownership?.dispose();
     ownership = undefined;
+  }
+
+  function closeFor(target: HTMLElement) {
+    if (menu()?.target === target) close();
   }
 
   function open(next: OpenMenu) {
@@ -93,7 +98,12 @@ export function ContextMenuProvider(props: ParentProps) {
     queueMicrotask(() =>
       untrack(() => {
         if (menu() !== next || !menuElement) return;
-        if (windowId && windowManager) {
+        if (!next.target.isConnected) {
+          close();
+          return;
+        }
+        if (next.owner) {
+          const { windowId, windowManager } = next.owner;
           const owner = windowManager.getWindows().find((entry) => entry.id === windowId);
           if (
             !owner ||
@@ -155,20 +165,26 @@ export function ContextMenuProvider(props: ParentProps) {
     close();
   }
 
+  function handleBrowserContextMenu(event: MouseEvent) {
+    event.preventDefault();
+  }
+
   document.addEventListener("pointerdown", handleOutsidePointer, true);
   document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("contextmenu", handleBrowserContextMenu);
   window.addEventListener("resize", close);
   document.addEventListener("scroll", handleScroll, true);
   onCleanup(() => {
     close();
     document.removeEventListener("pointerdown", handleOutsidePointer, true);
     document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("contextmenu", handleBrowserContextMenu);
     window.removeEventListener("resize", close);
     document.removeEventListener("scroll", handleScroll, true);
   });
 
   return (
-    <ContextMenuContext.Provider value={{ open, close }}>
+    <ContextMenuContext.Provider value={{ open, close, closeFor }}>
       {props.children}
       <Show when={menu()}>
         {(current) => (

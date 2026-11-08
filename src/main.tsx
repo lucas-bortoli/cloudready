@@ -1,4 +1,5 @@
 import { render } from "solid-js/web";
+import { ContextMenuProvider } from "./components/context-menu/ContextMenuContext";
 import { HotkeyProvider } from "./components/hotkeys/HotkeyContext";
 import { LayerProvider } from "./components/layer-manager/LayerContext";
 import { SessionProvider } from "./components/session/SessionContext";
@@ -13,7 +14,9 @@ render(
       <HotkeyProvider>
         <ToastProvider>
           <WindowManagerProvider>
-            <SessionProvider />
+            <ContextMenuProvider>
+              <SessionProvider />
+            </ContextMenuProvider>
           </WindowManagerProvider>
         </ToastProvider>
       </HotkeyProvider>

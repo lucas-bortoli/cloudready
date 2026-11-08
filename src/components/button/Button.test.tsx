@@ -1,9 +1,13 @@
 // @vitest-environment happy-dom
 
-import { createSignal, type JSX } from "solid-js";
+import { createSignal, untrack, type JSX } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
+import { SelectionProvider } from "../range-select/SelectionContext";
+import { selectionItem } from "../range-select/rangeSelect";
 import Button from "./Button";
+
+void selectionItem;
 
 function renderButton(button: () => JSX.Element) {
   const container = document.createElement("div");
@@ -25,6 +29,26 @@ function renderButton(button: () => JSX.Element) {
 }
 
 describe("Button", () => {
+  it("forwards selection directives and keeps their values reactive", () => {
+    const [selected, setSelected] = createSignal<ReadonlySet<string>>(new Set());
+    const [value, setValue] = createSignal("first");
+    const { dispose, element } = renderButton(() => (
+      <SelectionProvider selectedItems={selected} setSelectedItems={setSelected}>
+        <Button use:selectionItem={value()}>Select</Button>
+      </SelectionProvider>
+    ));
+
+    expect(element.hasAttribute("use:selectionitem")).toBe(false);
+    element.click();
+    expect([...untrack(selected)]).toEqual(["first"]);
+    setValue("second");
+    element.click();
+    expect([...untrack(selected)]).toEqual(["second"]);
+    dispose();
+    element.click();
+    expect([...untrack(selected)]).toEqual(["second"]);
+  });
+
   it("uses the compact secondary button defaults", () => {
     const { dispose, element } = renderButton(() => <Button>Save</Button>);
 
@@ -51,6 +75,7 @@ describe("Button", () => {
     expect(element.className).toContain("h-7");
     expect(element.className).toContain("custom-class");
     expect(element.textContent).toBe("←Delete→");
+    expect(element.className).toContain("*:pointer-events-none");
     expect(element.querySelector('[aria-hidden="true"]')).not.toBeNull();
 
     dispose();
