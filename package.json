@@ -19,9 +19,11 @@
   },
   "dependencies": {
     "@carbon/icons": "^11.88.0",
+    "@zip.js/zip.js": "^2.25.0",
     "dompurify": "^3.4.17",
     "fflate": "^0.8.3",
     "fzstd": "^0.1.1",
+    "parse5": "^8.1.1",
     "solid-js": "^1.9.15",
     "sql.js": "^1.15.2",
     "valibot": "^1.5.0"

@@ -34,11 +34,24 @@ FSRS types and identifier. The format specification defines the exact fields.
 
 ## Deferred work
 
-Package I/O, validation, safe rendering, editing, and Anki conversion are not
-implemented by the model. Anki templates, cloze cards, and media need a
+Package I/O and validation are implemented separately in `core/subject-package/`.
+Safe rendering, editing, and Anki conversion remain future work. Anki templates, cloze cards, and media need a
 conversion strategy that preserves content or reports unsupported features.
 CloudReady Machine Intelligence integration and a Xournal++-style drawing board
 are future work. Large packages need filesystem improvements: HTTP request
 bodies currently have a 16 MiB limit, and file revisions reconstruct whole
 content even for offset writes. A fresh progress-free export must not expose
 old progress bytes from prior archive revisions.
+
+## Package I/O implementation decisions
+
+ZIP64 and streamed media are supported now, using zip.js Blob range reads, lazy
+asset extraction, and sequential writes to a caller-provided stream. JSON stays
+in memory with configurable byte limits. This allows large media without
+buffering the whole archive and keeps CloudReady filesystem integration separate.
+
+Missing assets and broken internal links produce warnings so subjects remain
+editable. Invalid schemas, unknown fields, unsafe archive paths, and duplicate
+IDs are rejected. A non-executing HTML parser audits references without altering
+HTML or claiming it is safe to render. Source lifetime and cancellation are
+explicit; atomic saved-file replacement belongs to a future filesystem adapter.

@@ -2,8 +2,8 @@
 
 This document specifies the initial Learn Anything Program (LAP) subject format.
 The corresponding TypeScript definitions and type-checked examples are in
-`core/learning-program.ts` and `core/learning-program.example.ts`. The format is
-specified here; a package reader, writer, and validator are not implemented yet.
+`core/learning-program.ts` and `core/learning-program.example.ts`. Package reading, writing, and validation are implemented in
+`core/subject-package/`; its README documents the API and implementation limits.
 
 ## Package
 
@@ -55,7 +55,8 @@ references an embedded archive asset; `lap:item/<id>` links to a topic or item
 in the same subject. Ordinary `#fragment` links address anchors in the HTML
 document. HTTP and HTTPS links address external sites. Asset paths are relative
 to the archive root, must stay within `assets/`, and must name an existing
-entry. Internal links must identify an existing topic or learning item. The cover
+entry. Unresolved asset and internal item references are reported as warnings
+so incomplete subjects can still be opened and edited. The cover
 uses the same asset path convention.
 
 A future renderer must sanitize untrusted HTML and SVG, display them in a
@@ -105,3 +106,9 @@ handling of unsupported Anki content remain to be designed.
 type, nested topics, links and assets, progress including deleted content, an
 empty subject, and a progress-free share. It is illustrative and does not write
 an archive. Paths in an actual archive must have corresponding asset entries.
+
+## Package implementation
+
+See [package I/O](core/subject-package/README.md) for streamed ZIP64 APIs, strict
+validation, configurable processing limits, named errors, and stream ownership.
+Unknown v1 fields are rejected to avoid silently discarding data on save.
