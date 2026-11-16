@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
-import Button from "../../../components/button/Button";
-import type { Rating } from "../core/fsrs";
+import Button from "../../../../components/button/Button";
+import type { Rating } from "../../core/fsrs";
 
 /**
 

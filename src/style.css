@@ -92,6 +92,8 @@
 
   * {
     user-select: none;
+    scrollbar-width: thin;
+    scrollbar-color: #a3a3a3 transparent;
   }
 
   .file-manager-icon-button {

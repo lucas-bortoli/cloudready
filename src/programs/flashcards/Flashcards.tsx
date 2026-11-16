@@ -1,12 +1,21 @@
 import { createEffect, createSignal, on, onCleanup, Show, untrack } from "solid-js";
 import Button from "../../components/button/Button";
+import Sidebar from "../../components/sidebar/Sidebar";
 import type { WindowId } from "../../components/window-manager/WindowManager";
 import { useWindowManager } from "../../components/window-manager/WindowManagerContext";
 import useFilePicker from "../file-manager/file-picker/FilePicker";
 import DeckList from "./components/DeckList";
-import ReviewView from "./components/ReviewView";
+import ReviewView from "./components/review/ReviewView";
 import { createPackageController } from "./ui/createPackageController";
 import { createReviewController } from "./ui/createReviewController";
+
+import ChartLine16 from "@carbon/icons/es/chart--line/16.js";
+import Cognitive16 from "@carbon/icons/es/cognitive/16.js";
+import EarthFilled16 from "@carbon/icons/es/earth--filled/16.js";
+import Education16 from "@carbon/icons/es/education/16.js";
+import TaskApproved16 from "@carbon/icons/es/task--approved/16.js";
+import { SidebarItem } from "../../components/sidebar/SidebarItem";
+import { SidebarSection } from "../../components/sidebar/SidebarSection";
 
 /**
  * Identifies the profile whose progress is used by this window.
@@ -24,6 +33,7 @@ export default function Flashcards(props: FlashcardsProps) {
   const packages = createPackageController(userId);
   const review = createReviewController(packages.loaded);
   const windowManager = useWindowManager();
+  const [selectedItem, setSelectedItem] = createSignal<string | null>("spanish-1-theory");
   let reviewWindow: WindowId | undefined;
   let deactivateReview: (() => void) | undefined;
 
@@ -120,31 +130,46 @@ export default function Flashcards(props: FlashcardsProps) {
   });
 
   return (
-    <div
-      x-role="flashcards"
-      class="flex h-full min-h-0 flex-col gap-3 overflow-auto bg-neutral-50 p-4 text-neutral-800"
-    >
-      <Button onClick={handleBrowse}>Open Deck File</Button>
-      <Show
-        when={packages.loaded()}
-        fallback={
-          <p>
-            Open an Anki package to start studying. Your review progress is saved to your CloudReady
-            profile.
-          </p>
-        }
-      >
-        <Show when={review.saveError()}>
-          <div role="alert" class="rounded bg-red-100 p-2">
-            Could not save progress. <Button onClick={review.retrySave}>Retry</Button>
-          </div>
+    <div x-role="flashcards" class="flex h-full text-neutral-800">
+      <Sidebar selectedItem={selectedItem()} setSelectedItem={setSelectedItem}>
+        <SidebarSection label="Idiomas">
+          <SidebarItem itemKey="spanish" label="Español" icon={EarthFilled16}>
+            <SidebarItem itemKey="spanish-theory" label="Teoria" icon={Education16} />
+            <SidebarItem itemKey="spanish-exercises" label="Exercícios" icon={TaskApproved16} />
+            <SidebarItem itemKey="spanish-memorization" label="Memorização" icon={Cognitive16} />
+            <SidebarItem itemKey="spanish-progress" label="Meu Progresso" icon={ChartLine16} />
+          </SidebarItem>
+          <SidebarItem itemKey="english" label="Español" icon={EarthFilled16}>
+            <SidebarItem itemKey="english-theory" label="Teoria" icon={Education16} />
+            <SidebarItem itemKey="english-exercises" label="Exercícios" icon={TaskApproved16} />
+            <SidebarItem itemKey="english-memorization" label="Memorização" icon={Cognitive16} />
+            <SidebarItem itemKey="english-progress" label="Meu Progresso" icon={ChartLine16} />
+          </SidebarItem>
+        </SidebarSection>
+      </Sidebar>
+      <main class="flex h-full grow flex-col overflow-auto bg-neutral-50 p-4">
+        <Button onClick={handleBrowse}>Open Deck File</Button>
+        <Show
+          when={packages.loaded()}
+          fallback={
+            <p>
+              Open an Anki package to start studying. Your review progress is saved to your
+              CloudReady profile.
+            </p>
+          }
+        >
+          <Show when={review.saveError()}>
+            <div role="alert" class="rounded bg-red-100 p-2">
+              Could not save progress. <Button onClick={review.retrySave}>Retry</Button>
+            </div>
+          </Show>
+          <DeckList
+            decks={review.decks()}
+            unsupported={review.unsupported()}
+            onSelect={handleSelectDeck}
+          />
         </Show>
-        <DeckList
-          decks={review.decks()}
-          unsupported={review.unsupported()}
-          onSelect={handleSelectDeck}
-        />
-      </Show>
+      </main>
     </div>
   );
 }

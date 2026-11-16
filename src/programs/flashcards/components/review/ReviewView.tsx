@@ -1,9 +1,9 @@
 import { Show } from "solid-js";
-import Button from "../../../components/button/Button";
-import type { AnkiCard } from "../core/anki";
-import type { Rating } from "../core/fsrs";
-import type { RenderedCard } from "../core/template";
-import type { QueueSummary } from "../ui/createReviewController";
+import Button from "../../../../components/button/Button";
+import type { AnkiCard } from "../../core/anki";
+import type { Rating } from "../../core/fsrs";
+import type { RenderedCard } from "../../core/template";
+import type { QueueSummary } from "../../ui/createReviewController";
 import CardFrame from "./CardFrame";
 import ReviewControls from "./ReviewControls";
 

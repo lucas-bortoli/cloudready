@@ -1,6 +1,6 @@
 import { createEffect, createMemo, onCleanup } from "solid-js";
-import { cardDocument } from "../browser/card-document";
-import type { RenderedCard } from "../core/template";
+import { cardDocument } from "../../browser/card-document";
+import type { RenderedCard } from "../../core/template";
 
 /**
 

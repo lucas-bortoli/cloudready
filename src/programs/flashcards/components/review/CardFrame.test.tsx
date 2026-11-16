@@ -1,8 +1,8 @@
 import { createSignal } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
-import * as documents from "../browser/card-document";
-import type { RenderedCard } from "../core/template";
+import * as documents from "../../browser/card-document";
+import type { RenderedCard } from "../../core/template";
 import CardFrame from "./CardFrame";
 
 describe("card frame", () => {
