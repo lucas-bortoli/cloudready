@@ -11,7 +11,7 @@ import { filesystem } from "../../filesystem/FileSystemClient";
 import { emptyProgress } from "./core/progress";
 import { newCard } from "./core/fsrs";
 import * as session from "./browser/session";
-import Flashcards from "./Flashcards";
+import Flashcards from "./LegacyFlashcards";
 
 const example = {
   hash: "test",

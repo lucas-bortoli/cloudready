@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:lap-browser": "playwright test tests/lap-browser.spec.ts"
   },
   "dependencies": {
     "@carbon/icons": "^11.88.0",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/sql.js": "^1.4.11",
     "eslint": "^10.11.0",

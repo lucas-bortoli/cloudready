@@ -81,3 +81,20 @@ resources tied to the UI that uses them. Package changes reset the review
 session, and the active-card selection stays stable when another card becomes
 due. Rating batches answer and queue changes to avoid flashing the previous
 card's front.
+
+## LAP subject reader
+
+The LAP launcher opens one `.lap` file from the CloudReady filesystem and shows
+its topic tree and read-only lessons. The previous Anki screen is retained as
+`LegacyFlashcards` for the future import work. Exercise sets and decks currently
+show counts; editing, progress, and saving are not yet available.
+
+Lesson HTML is sanitized and displayed in a scriptless sandbox with a restrictive
+content security policy. Referenced package media is extracted to temporary Blob
+URLs and released on navigation. The filesystem currently downloads the source
+file as a Blob, and referenced media is materialized as a Blob; large-file
+streaming and playback remain future work. CSS asset URLs and imports are removed.
+
+Run the browser isolation check with `npm run test:lap-browser`. Install the
+Playwright Chromium browser first with `npx playwright install chromium`, or set
+`LAP_CHROMIUM` to the path of an existing Chromium executable.
