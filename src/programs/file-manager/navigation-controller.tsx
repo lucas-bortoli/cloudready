@@ -18,6 +18,7 @@ export default function createNavigationController(
   const canGoForward = createMemo(() => history().index < history().paths.length - 1);
   const [searchQuery, setSearchQuery] = createSignal("");
   const [entries, setEntries] = createSignal<ReadonlyArray<FileSystemEntry>>([]);
+  const [refreshVersion, setRefreshVersion] = createSignal(0);
   const [selectedItems, setSelectedItems] = createSignal<ReadonlySet<string>>(new Set());
   const visibleEntries = createMemo(() => {
     const query = searchQuery().toLowerCase();
@@ -62,6 +63,7 @@ export default function createNavigationController(
 
   createEffect(() => {
     const target = path();
+    refreshVersion();
     let current = true;
     onCleanup(() => {
       current = false;
@@ -102,6 +104,7 @@ export default function createNavigationController(
     setSelectedItems,
     searchQuery,
     setSearchQuery,
+    refresh: () => setRefreshVersion((value) => value + 1),
   };
 }
 

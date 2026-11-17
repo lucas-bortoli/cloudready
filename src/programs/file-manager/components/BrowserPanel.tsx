@@ -9,7 +9,7 @@ import Search16 from "@carbon/icons/es/search/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
 import Upload16 from "@carbon/icons/es/upload/16.js";
 import VmdkDisk16 from "@carbon/icons/es/vmdk-disk/16.js";
-import { createEffect, For, on } from "solid-js";
+import { createEffect, createSignal, For, on, Show } from "solid-js";
 import Button from "../../../components/button/Button";
 import { contextMenu } from "../../../components/context-menu/contextMenu";
 import type { ContextMenuItem } from "../../../components/context-menu/ContextMenuContext";
@@ -20,7 +20,7 @@ import StatusBarItem from "../../../components/status-bar/StatusBarItem";
 import StatusBarSeparator from "../../../components/status-bar/StatusBarSeparator";
 import CarbonIcon from "../../../components/taskbar/CarbonIcon";
 import TextInput from "../../../components/text-input/TextInput";
-import type { FileSystemEntry } from "../../../filesystem/FileSystemClient";
+import { filesystem, type FileSystemEntry } from "../../../filesystem/FileSystemClient";
 import { cn } from "../../../lib/dom";
 import IconFile from "../icons/file.svg";
 import IconDirectory from "../icons/folder.svg";
@@ -108,6 +108,35 @@ export default function BrowserPanel(props: { controller: NavigationController }
     setSearchQuery,
   } = props.controller;
   let entryList: HTMLOListElement | undefined;
+  let importInput: HTMLInputElement | undefined;
+  let importPath = "/";
+  const [importError, setImportError] = createSignal("");
+
+  function handleImportClick() {
+    importPath = path();
+    setImportError("");
+    importInput?.click();
+  }
+
+  async function handleImportChange(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = "";
+    for (const file of files) {
+      const destination = `${importPath === "/" ? "" : importPath}/${file.name}`;
+      try {
+        // TODO: Add conflict resolution, progress, and streaming for large files.
+        await filesystem.createFile(destination);
+        await filesystem.writeFile(destination, file);
+      } catch (error) {
+        setImportError(
+          `Could not import ${file.name}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        break;
+      }
+    }
+    if (path() === importPath) props.controller.refresh();
+  }
 
   createEffect(
     on(
@@ -134,7 +163,7 @@ export default function BrowserPanel(props: { controller: NavigationController }
       { label: "Select all", disabled: entries().length === 0, onSelect: handleSelectAll },
       { type: "separator" },
       { type: "label", label: "This device" },
-      { label: "Import files...", icon: Upload16, disabled: true, onSelect: handleUnavailable },
+      { label: "Import files...", icon: Upload16, onSelect: handleImportClick },
       { label: "Export files...", icon: Download16, disabled: true, onSelect: handleUnavailable },
     ];
   }
@@ -164,6 +193,13 @@ export default function BrowserPanel(props: { controller: NavigationController }
       class="grid h-full min-h-0 grid-cols-[140px_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto] bg-white text-neutral-800"
     >
       <header class="col-span-2 flex h-9 gap-1 border-b border-neutral-200 bg-neutral-100 p-1">
+        <input ref={importInput} type="file" multiple hidden onChange={handleImportChange} />
+        <Button
+          title="Import files"
+          onClick={handleImportClick}
+          startIcon={<CarbonIcon icon={Upload16} />}
+          class="px-1.5!"
+        />
         <Button
           title="Back"
           disabled={!canGoBack()}
@@ -200,6 +236,9 @@ export default function BrowserPanel(props: { controller: NavigationController }
       </aside>
       <SelectionProvider selectedItems={selectedItems} setSelectedItems={setSelectedItems}>
         <section class="flex min-h-0 min-w-0">
+          <Show when={importError()}>
+            <p role="alert">{importError()}</p>
+          </Show>
           <ol
             ref={entryList}
             role="listbox"

@@ -3,7 +3,7 @@ import { render } from "solid-js/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LayerProvider } from "../../../components/layer-manager/LayerContext";
 import { ContextMenuProvider } from "../../../components/context-menu/ContextMenuContext";
-import type { FileSystemEntry } from "../../../filesystem/FileSystemClient";
+import { filesystem, type FileSystemEntry } from "../../../filesystem/FileSystemClient";
 import type { NavigationController } from "../navigation-controller";
 import BrowserPanel from "./BrowserPanel";
 
@@ -18,6 +18,7 @@ const directory = {
 
 const cleanups: Array<() => void> = [];
 afterEach(() => cleanups.splice(0).forEach((cleanup) => cleanup()));
+afterEach(() => vi.restoreAllMocks());
 
 function setup() {
   const [path, navigateTo] = createSignal("/");
@@ -40,6 +41,7 @@ function setup() {
     setSelectedItems,
     searchQuery,
     setSearchQuery,
+    refresh: vi.fn(),
   };
   const container = document.createElement("div");
   document.body.append(container);
@@ -151,5 +153,19 @@ describe("BrowserPanel navigation focus", () => {
     expect(document.activeElement).toBe(list);
     setEntries([]);
     expect(document.activeElement).toBe(list);
+  });
+
+  it("imports a local file into the chosen directory", async () => {
+    const create = vi.spyOn(filesystem, "createFile").mockResolvedValue({} as never);
+    const write = vi.spyOn(filesystem, "writeFile").mockResolvedValue({} as never);
+    const { container, navigateTo } = setup();
+    navigateTo("/Folder");
+    container.querySelector<HTMLButtonElement>('[title="Import files"]')!.click();
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = new File(["hello"], "sample.lap");
+    Object.defineProperty(input, "files", { configurable: true, value: [file] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(write).toHaveBeenCalledWith("/Folder/sample.lap", file));
+    expect(create).toHaveBeenCalledWith("/Folder/sample.lap");
   });
 });
