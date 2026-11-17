@@ -26,6 +26,17 @@ export function LessonView(props: LessonViewProps) {
     detach?.();
     const doc = frame?.contentDocument;
     if (!doc) return;
+    const panel = frame?.closest("main");
+    // Some Chromium compositors paint a transparent srcdoc canvas white.
+    // Match the containing panel explicitly so that no white rectangle appears.
+    const matchPanelBackground = () => {
+      if (panel)
+        doc.documentElement.style.backgroundColor = getComputedStyle(panel).backgroundColor;
+    };
+    matchPanelBackground();
+    const backgroundObserver = new MutationObserver(matchPanelBackground);
+    if (panel)
+      backgroundObserver.observe(panel, { attributes: true, attributeFilter: ["class", "style"] });
     const click = (event: MouseEvent) => {
       const target = event.target;
       if (!target || !("closest" in target)) return;
@@ -46,7 +57,11 @@ export function LessonView(props: LessonViewProps) {
       }
     };
     doc.addEventListener("click", click);
-    detach = () => untrack(() => doc.removeEventListener("click", click));
+    detach = () =>
+      untrack(() => {
+        backgroundObserver.disconnect();
+        doc.removeEventListener("click", click);
+      });
   };
   createEffect(() => {
     const html = props.html;
@@ -144,7 +159,7 @@ export function LessonView(props: LessonViewProps) {
       }
       if (!abort.signal.aborted)
         setSrcdoc(
-          `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src blob:; media-src blob:; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'"></head><body>${doc.body.innerHTML}</body></html>`,
+          `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src blob:; media-src blob:; style-src 'unsafe-inline'; font-src 'self'; form-action 'none'; base-uri 'none'"><style>@font-face { font-family: 'Inter Display'; src: url('/Inter-Display.woff2') format('woff2'); font-display: swap; } html, body { background: transparent; } body { margin: 0; font: 16px 'Inter Display', system-ui, 'Segoe UI', Roboto, sans-serif; color: #262626; }</style></head><body>${doc.body.innerHTML}</body></html>`,
         );
     };
     void build();
@@ -163,7 +178,7 @@ export function LessonView(props: LessonViewProps) {
         ref={frame}
         title="Lesson"
         sandbox="allow-same-origin"
-        class="min-h-0 w-full flex-1 border-0 bg-white"
+        class="min-h-0 w-full flex-1 border-0 bg-transparent"
         srcdoc={srcdoc()}
         onLoad={handleLoad}
       />
