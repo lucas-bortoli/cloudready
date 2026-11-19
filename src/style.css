@@ -36,8 +36,9 @@
 }
 
 @font-face {
-  font-family: "Inter Display";
-  src: url("/Inter-Display.woff2") format("woff2");
+  font-family: "Inter Variable";
+  src: url("/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
   font-display: swap;
 }
 
@@ -59,8 +60,8 @@
   }
 
   :root {
-    --sans: "Inter Display", system-ui, "Segoe UI", Roboto, sans-serif;
-    --heading: "Inter Display", system-ui, "Segoe UI", Roboto, sans-serif;
+    --sans: "Inter Variable", system-ui, "Segoe UI", Roboto, sans-serif;
+    --heading: "Inter Variable", system-ui, "Segoe UI", Roboto, sans-serif;
     --mono: ui-monospace, Consolas, monospace;
     --bg: #171717;
     --text: #f5f5f5;

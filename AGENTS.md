@@ -45,6 +45,23 @@ Use `npm run build` for production builds.
 - Prefer explicit relative imports over barrel files unless a feature develops a deliberate
   public API.
 - Declare an explicit `public`, `protected`, or `private` access modifier on every class method.
+- Prefer explicit `if`/`else` branches over ternary expressions for conditional logic. Avoid
+  ternaries in JSX; use Solid's `Show` or `Switch` components for conditional rendering.
+
+```tsx
+const sidebarSelectedItem = createMemo(() => {
+  const route = navigation.route();
+  if (route.page === "item") {
+    return route.itemId;
+  } else {
+    return null;
+  }
+});
+
+<Show when={subject()} fallback={<p>Open a subject.</p>}>
+  {(currentSubject) => <SubjectPage subject={currentSubject()} />}
+</Show>;
+```
 
 ### CSS outline rules
 

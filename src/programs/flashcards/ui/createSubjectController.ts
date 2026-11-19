@@ -4,13 +4,16 @@ import { openSubjectPackage } from "../core/subject-package/package";
 import type { OpenSubjectPackage } from "../core/subject-package/types";
 
 /**
- * Manages one open subject within a Solid owner. Disposing the owner cancels
- * pending work and closes the current package.
+ * Manages open subjects within a Solid owner. Disposing the owner cancels
+ * pending work and closes the packages.
  *
  * @returns Reactive subject, selection, loading and error state, plus open actions.
  */
 export function createSubjectController() {
   const [subject, setSubject] = createSignal<OpenSubjectPackage>();
+  const [subjects, setSubjects] = createSignal<
+    ReadonlyArray<{ path: string; subject: OpenSubjectPackage }>
+  >([]);
   const [selection, setSelection] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -37,13 +40,19 @@ export function createSubjectController() {
         await opened.close();
         return;
       }
-      const previous = subject();
+      const previous = subjects().find((entry) => entry.path === path);
+      setSubjects((entries) => [
+        ...entries.filter((entry) => entry.path !== path),
+        { path, subject: opened },
+      ]);
       setSubject(opened);
       setSelection(null);
-      if (previous) await previous.close();
+      if (previous) await previous.subject.close();
     } catch (cause) {
-      if (!current.signal.aborted && !disposed)
+      if (!current.signal.aborted && !disposed) {
+        console.error("Could not open subject package.", cause);
         setError(cause instanceof Error ? cause.message : "Could not open subject.");
+      }
     } finally {
       if (request === current) {
         request = undefined;
@@ -55,11 +64,12 @@ export function createSubjectController() {
   onCleanup(() => {
     disposed = true;
     request?.abort();
-    const current = subject();
-    if (current) void current.close();
+    subjects().forEach((entry) => void entry.subject.close());
   });
+
   return {
     subject,
+    subjects,
     selection,
     setSelection,
     loading,

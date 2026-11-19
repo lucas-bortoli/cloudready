@@ -19,9 +19,9 @@ export interface SidebarSectionProps extends ParentProps {
  */
 export function SidebarSection(props: SidebarSectionProps) {
   return (
-    <section>
+    <section class="p-2">
       <h1 class="capitalize">{props.label}</h1>
-      <ul class="flex flex-col gap-2">{props.children}</ul>
+      <ul class="flex flex-col gap-0.5">{props.children}</ul>
     </section>
   );
 }

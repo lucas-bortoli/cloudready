@@ -2,11 +2,7 @@ import type { ParentProps } from "solid-js";
 import CarbonIcon from "../taskbar/CarbonIcon";
 import { useSidebar } from "./SidebarContext";
 
-/**
-
- * Props for a selectable sidebar item.
-
- */
+/** Props for a selectable sidebar item. */
 export interface SidebarItemProps extends ParentProps {
   /**
    * Carbon icon displayed beside the label.
@@ -20,6 +16,10 @@ export interface SidebarItemProps extends ParentProps {
    * Key identifying this item within its sidebar.
    */
   itemKey: string;
+  /**
+   * Callback invoked when this item is clicked.
+   */
+  onClick?: () => void;
 }
 
 /**
@@ -28,7 +28,10 @@ export interface SidebarItemProps extends ParentProps {
  */
 export function SidebarItem(props: SidebarItemProps) {
   const sidebar = useSidebar();
-  const handleClick = () => sidebar.setSelectedItem(props.itemKey);
+  const handleClick = () => {
+    sidebar.setSelectedItem(props.itemKey);
+    props.onClick?.();
+  };
 
   return (
     <li class="flex flex-col items-stretch gap-0.5">

@@ -78,7 +78,7 @@ export function mountLapFixture(sample: Blob) {
         title: "LAP",
         size: { width: 800, height: 600 },
         minimumSize: { width: 320, height: 360 },
-        content: () => <Flashcards userId="test" />,
+        content: () => <Flashcards />,
       });
     });
     return null;

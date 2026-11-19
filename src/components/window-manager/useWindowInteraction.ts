@@ -83,6 +83,10 @@ export default function useWindowInteraction(entry: WindowEntry) {
   const resetInteraction = () => {
     setDockPreview(null);
     removeDocumentListeners();
+    if (clientElement) clientElement.inert = false;
+    if (activePointerId !== undefined && windowElement?.hasPointerCapture?.(activePointerId)) {
+      windowElement.releasePointerCapture(activePointerId);
+    }
     activePointerId = undefined;
     interaction = undefined;
   };
@@ -168,6 +172,8 @@ export default function useWindowInteraction(entry: WindowEntry) {
 
     activePointerId = event.pointerId;
     interaction = { ...nextInteraction, pointerId: event.pointerId };
+    if (clientElement) clientElement.inert = true;
+    windowElement?.setPointerCapture?.(event.pointerId);
     setDockPreview(null);
     document.addEventListener("pointermove", onDocumentMove);
     document.addEventListener("pointerup", onDocumentPointerUp);

@@ -41,13 +41,13 @@ const applications = [
     name: "LAP",
     description: "Learn anything",
     icon: Folder16,
-    launch: (windowManager: ReturnType<typeof useWindowManager>, userId: string) =>
+    launch: (windowManager: ReturnType<typeof useWindowManager>) =>
       windowManager.createWindow({
         title: "LAP",
         closer: () => true,
         size: { width: 800, height: 600 },
         minimumSize: { width: 320, height: 360 },
-        content: () => <Flashcards userId={userId} />,
+        content: () => <Flashcards />,
       }),
   },
   {
