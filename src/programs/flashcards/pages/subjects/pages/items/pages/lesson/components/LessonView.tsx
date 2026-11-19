@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
-import type { OpenSubjectPackage } from "../../core/subject-package/types";
+import type { OpenSubjectPackage } from "../../../../../../../core/subject-package/types";
 import lessonDocument from "./lesson-document.html?raw";
 
 /**
@@ -28,6 +28,17 @@ export function LessonView(props: LessonViewProps) {
     detach?.();
     const doc = frame?.contentDocument;
     if (!doc) return;
+    const parentStyle = getComputedStyle(frame);
+    for (const property of [
+      "color",
+      "font-family",
+      "font-size",
+      "font-weight",
+      "letter-spacing",
+      "line-height",
+    ]) {
+      doc.body.style.setProperty(property, parentStyle.getPropertyValue(property));
+    }
     const click = (event: MouseEvent) => {
       const target = event.target;
       if (!target || !("closest" in target)) return;

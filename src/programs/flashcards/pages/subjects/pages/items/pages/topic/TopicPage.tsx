@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import type { Topic } from "../../core/learning-program";
+import type { Topic } from "../../../../../../core/learning-program";
 
 /** Props for a topic page. */
 export interface TopicPageProps {

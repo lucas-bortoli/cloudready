@@ -8,9 +8,9 @@ import ResizableSidebar from "../../components/sidebar/ResizableSidebar";
 import { SidebarItem } from "../../components/sidebar/SidebarItem";
 import { SidebarSection } from "../../components/sidebar/SidebarSection";
 import useFilePicker from "../file-manager/file-picker/FilePicker";
-import { NavigationProvider, useNavigation } from "./components/navigation/NavigationContext";
 import { SubjectsProvider, useSubjects } from "./components/subjects/SubjectsContext";
 import type { TopicItem } from "./core/learning-program";
+import { NavigationProvider, useNavigation } from "./navigation/NavigationContext";
 import PageRouter from "./pages/PageRouter";
 
 function MainWindow() {
@@ -49,24 +49,28 @@ function MainWindow() {
         if (!file) return;
         await subjectOpener.openFile(file.path);
         if (subjectOpener.subjects().some((entry) => entry.path === file.path))
-          navigation.navigate({ page: "subject", subjectPath: file.path });
+          navigation.navigate({ id: "/subjects/:subjectId", subjectId: file.path });
       })
       .catch(() => {});
   };
 
   const handleSelect = (id: string) => {
     if (id === "management:trash") {
-      navigation.navigate({ page: "trash" });
+      navigation.navigate({ id: "/trash" });
       return;
     }
   };
 
   const handleItemClick = (subjectPath: string, itemId: string) => {
-    navigation.navigate({ page: "item", subjectPath, itemId });
+    navigation.navigate({
+      id: "/subjects/:subjectId/items/:itemId",
+      subjectId: subjectPath,
+      itemId,
+    });
   };
 
   const handleSubjectClick = (subjectPath: string) => {
-    navigation.navigate({ page: "subject", subjectPath });
+    navigation.navigate({ id: "/subjects/:subjectId", subjectId: subjectPath });
   };
 
   const subjectKey = (subjectPath: string) => JSON.stringify([subjectPath]);
@@ -90,11 +94,11 @@ function MainWindow() {
   const sidebarSelectedItem = createMemo(() => {
     const route = navigation.route();
 
-    if (route.page === "item") {
-      return itemKey(route.subjectPath, route.itemId);
-    } else if (route.page === "subject") {
-      return subjectKey(route.subjectPath);
-    } else if (route.page === "trash") {
+    if (route.id === "/subjects/:subjectId/items/:itemId") {
+      return itemKey(route.subjectId, route.itemId);
+    } else if (route.id === "/subjects/:subjectId") {
+      return subjectKey(route.subjectId);
+    } else if (route.id === "/trash") {
       return "management:trash";
     } else {
       return null;

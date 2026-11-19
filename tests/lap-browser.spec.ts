@@ -11,7 +11,7 @@ test("isolates lesson scripts and remote resources while allowing navigation and
   await page.goto("/");
   await page.evaluate(async () => {
     const fixture =
-      await import("/programs/flashcards/components/subject/LessonBrowserFixture.tsx");
+      await import("/programs/flashcards/pages/subjects/pages/items/pages/lesson/components/LessonBrowserFixture.tsx");
     fixture.mountLessonFixture(
       `<script>parent.__lessonScript = true</script><img src="https://example.invalid/tracker.png"><img id="local" src="assets/picture.svg"><svg id="inline"><circle cx="5" cy="5" r="5" /></svg><audio id="audio" controls src="assets/sound.mp3"></audio><a id="navigate" href="lap:item/next">Next</a><img src=x onerror="parent.__lessonEvent = true">`,
     );
@@ -45,7 +45,7 @@ test("the lesson frame shows the surrounding page background", async ({ page }) 
     document.body.innerHTML = "";
     document.body.style.background = "rgb(20, 160, 80)";
     const fixture =
-      await import("/programs/flashcards/components/subject/LessonBrowserFixture.tsx");
+      await import("/programs/flashcards/pages/subjects/pages/items/pages/lesson/components/LessonBrowserFixture.tsx");
     fixture.mountLessonFixture("");
     const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Lesson"]')!;
     frame.style.height = "200px";
@@ -69,7 +69,7 @@ test("a lesson opened through LAP blends into its content panel", async ({ page 
   await page.evaluate(async (bytes) => {
     document.body.innerHTML = "";
     const fixture =
-      await import("/programs/flashcards/components/subject/LessonBrowserFixture.tsx");
+      await import("/programs/flashcards/pages/subjects/pages/items/pages/lesson/components/LessonBrowserFixture.tsx");
     fixture.mountLapFixture(new Blob([new Uint8Array(bytes)]));
   }, Array.from(sample));
   await page.getByRole("button", { name: "Open subject" }).click();

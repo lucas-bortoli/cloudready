@@ -1,4 +1,4 @@
-import type { ExerciseSet } from "../../core/learning-program";
+import type { ExerciseSet } from "../../../../../../core/learning-program";
 
 /** Props for an exercise set page. */
 export interface ExerciseSetPageProps {

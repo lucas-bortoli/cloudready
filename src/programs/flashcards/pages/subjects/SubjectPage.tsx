@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
-import { useNavigation } from "../../components/navigation/NavigationContext";
-import { useSubjects } from "../../components/subjects/SubjectsContext";
+import { useNavigation } from "../../navigation/NavigationContext";
+import { useCurrentSubject } from "../../components/subjects/useCurrentSubject";
 import type { TopicItem } from "../../core/learning-program";
 
 function TopicEntry(props: { item: TopicItem; onSelect: (id: string) => void }) {
@@ -30,24 +30,20 @@ function TopicEntry(props: { item: TopicItem; onSelect: (id: string) => void }) 
 }
 
 export default function SubjectPage() {
-  const subjects = useSubjects();
   const navigation = useNavigation();
 
   const handleSelect = (id: string) => {
     const route = navigation.route();
-    if (route.page === "subject" || route.page === "item") {
-      navigation.navigate({ page: "item", subjectPath: route.subjectPath, itemId: id });
+    if (route.id === "/subjects/:subjectId" || route.id === "/subjects/:subjectId/items/:itemId") {
+      navigation.navigate({
+        id: "/subjects/:subjectId/items/:itemId",
+        subjectId: route.subjectId,
+        itemId: id,
+      });
     }
   };
 
-  const subject = () => {
-    const route = navigation.route();
-    if (route.page === "subject" || route.page === "item") {
-      return subjects.subjects().find((entry) => entry.path === route.subjectPath)?.subject;
-    } else {
-      return undefined;
-    }
-  };
+  const subject = useCurrentSubject();
 
   return (
     <Show when={subject()} fallback={<p>This subject is unavailable.</p>}>

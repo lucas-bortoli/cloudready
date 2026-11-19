@@ -1,4 +1,4 @@
-import type { FlashcardDeck } from "../../core/learning-program";
+import type { FlashcardDeck } from "../../../../../../core/learning-program";
 
 /** Props for a flashcard deck page. */
 export interface FlashcardDeckPageProps {

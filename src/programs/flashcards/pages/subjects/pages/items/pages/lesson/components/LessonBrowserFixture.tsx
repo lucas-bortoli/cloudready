@@ -1,15 +1,15 @@
 import { onMount } from "solid-js";
 import { render } from "solid-js/web";
-import { LayerProvider } from "../../../../components/layer-manager/LayerContext";
-import { ContextMenuProvider } from "../../../../components/context-menu/ContextMenuContext";
+import { LayerProvider } from "../../../../../../../../../components/layer-manager/LayerContext";
+import { ContextMenuProvider } from "../../../../../../../../../components/context-menu/ContextMenuContext";
 import {
   WindowManagerProvider,
   useWindowManager,
-} from "../../../../components/window-manager/WindowManagerContext";
-import WindowsOutlet from "../../../../components/window-manager/WindowsOutlet";
-import { filesystem } from "../../../../filesystem/FileSystemClient";
-import Flashcards from "../../Flashcards";
-import type { OpenSubjectPackage } from "../../core/subject-package/types";
+} from "../../../../../../../../../components/window-manager/WindowManagerContext";
+import WindowsOutlet from "../../../../../../../../../components/window-manager/WindowsOutlet";
+import { filesystem } from "../../../../../../../../../filesystem/FileSystemClient";
+import Flashcards from "../../../../../../../Flashcards";
+import type { OpenSubjectPackage } from "../../../../../../../core/subject-package/types";
 import { LessonView } from "./LessonView";
 
 /**

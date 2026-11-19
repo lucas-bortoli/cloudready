@@ -1,14 +1,18 @@
 import { createContext, createSignal, useContext, type ParentProps } from "solid-js";
 
+type RouteId = "/" | "/trash" | "/subjects/:subjectId" | "/subjects/:subjectId/items/:itemId";
+
+type RouteParams<Path extends string> = Path extends `${string}:${infer Param}/${infer Rest}`
+  ? { [Key in Param | keyof RouteParams<`/${Rest}`>]: string }
+  : Path extends `${string}:${infer Param}`
+    ? { [Key in Param]: string }
+    : unknown;
+
 /** A location within the Flashcards application. */
-export type Route =
-  | { page: "home" }
-  | { page: "trash" }
-  | { page: "subject"; subjectPath: string }
-  | { page: "item"; subjectPath: string; itemId: string };
+export type Route = { [Id in RouteId]: { id: Id } & RouteParams<Id> }[RouteId];
 
 function createNavigation() {
-  const [route, navigate] = createSignal<Route>({ page: "home" });
+  const [route, navigate] = createSignal<Route>({ id: "/" });
   return { route, navigate };
 }
 
