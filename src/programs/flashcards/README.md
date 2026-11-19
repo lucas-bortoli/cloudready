@@ -82,18 +82,20 @@ session, and the active-card selection stays stable when another card becomes
 due. Rating batches answer and queue changes to avoid flashing the previous
 card's front.
 
-## LAP subject reader
+## LAP subjects
 
-The LAP launcher opens one `.lap` file from the CloudReady filesystem and shows
-its topic tree and read-only lessons. The previous Anki screen is retained as
-`LegacyFlashcards` for the future import work. Exercise sets and decks currently
-show counts; editing, progress, and saving are not yet available.
+Open a `.lap` file from the CloudReady filesystem to view its topic tree, read
+lessons, or study a flashcard deck. A deck lists due reviews and new cards
+available today. Start a review to reveal answers and rate them with FSRS.
+The most recent rating in the session can be undone.
 
-Lesson HTML is sanitized and displayed in a scriptless sandbox with a restrictive
-content security policy. Referenced package media is extracted to temporary Blob
-URLs and released on navigation. The filesystem currently downloads the source
-file as a Blob, and referenced media is materialized as a Blob; large-file
-streaming and playback remain future work. CSS asset URLs and imports are removed.
+Ratings stay in the open subject's draft until you select **Save**. Saving
+writes the progress, content, and assets back to the same `.lap` file. Exercise
+sets currently show a count.
+
+Lessons and cards share a sanitized, scriptless iframe renderer with a restrictive
+content security policy. Package media loads on demand into temporary Blob URLs
+that are released when the view changes. CSS asset URLs and imports are removed.
 
 Run the browser isolation check with `npm run test:lap-browser`. Install the
 Playwright Chromium browser first with `npx playwright install chromium`, or set

@@ -13,7 +13,7 @@ export interface ReviewControlsProps {
   saveError: boolean;
   canUndo: boolean;
   intervalLabel(rating: Rating): string;
-  onReplay(): void;
+  onReplay?(): void;
   onReveal(): void;
   onRate(rating: Rating): void;
   onUndo(): void;
@@ -29,7 +29,9 @@ export default function ReviewControls(props: ReviewControlsProps) {
   const labels = ["Again", "Hard", "Good", "Easy"];
   return (
     <div class="flex flex-wrap justify-center gap-2">
-      <Button onClick={props.onReplay}>Replay audio</Button>
+      <Show when={props.onReplay}>
+        <Button onClick={props.onReplay}>Replay audio</Button>
+      </Show>
       <Show
         when={props.revealed}
         fallback={

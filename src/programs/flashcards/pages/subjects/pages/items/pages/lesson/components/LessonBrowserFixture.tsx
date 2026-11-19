@@ -1,15 +1,16 @@
-import { onMount } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import { render } from "solid-js/web";
-import { LayerProvider } from "../../../../../../../../../components/layer-manager/LayerContext";
 import { ContextMenuProvider } from "../../../../../../../../../components/context-menu/ContextMenuContext";
+import { LayerProvider } from "../../../../../../../../../components/layer-manager/LayerContext";
 import {
   WindowManagerProvider,
   useWindowManager,
 } from "../../../../../../../../../components/window-manager/WindowManagerContext";
 import WindowsOutlet from "../../../../../../../../../components/window-manager/WindowsOutlet";
 import { filesystem } from "../../../../../../../../../filesystem/FileSystemClient";
-import Flashcards from "../../../../../../../Flashcards";
+import { SubjectHtmlView } from "../../../../../../../components/subjects/SubjectHtmlView";
 import type { OpenSubjectPackage } from "../../../../../../../core/subject-package/types";
+import Flashcards from "../../../../../../../Flashcards";
 import { LessonView } from "./LessonView";
 
 /**
@@ -58,19 +59,28 @@ export function mountLapFixture(sample: Blob) {
   document.body.append(root);
   const originalList = filesystem.list;
   const originalReadFile = filesystem.readFile;
+  const originalWriteFile = filesystem.writeFile;
+  let stored = sample;
   filesystem.list = async () => [
     {
       id: "00000000-0000-4000-8000-000000000000" as never,
       path: "/spanish-starter.lap",
       name: "spanish-starter.lap",
       kind: "file",
-      size: sample.size,
+      size: stored.size,
       mimeType: "application/octet-stream",
       createdAt: new Date(),
       updatedAt: new Date(),
     },
   ];
-  filesystem.readFile = async () => sample;
+  filesystem.readFile = async () => stored;
+  filesystem.writeFile = async (path, content) => {
+    stored = new Blob([content instanceof Blob ? content : new Uint8Array(content)]);
+    root.dataset.saved = path;
+    const [file] = await filesystem.list("/");
+    if (file.kind !== "file") throw new Error("Expected a fixture file.");
+    return file;
+  };
   const Launcher = () => {
     const manager = useWindowManager();
     onMount(() => {
@@ -101,5 +111,46 @@ export function mountLapFixture(sample: Blob) {
     root.remove();
     filesystem.list = originalList;
     filesystem.readFile = originalReadFile;
+    filesystem.writeFile = originalWriteFile;
   };
+}
+
+/** Mounts a card whose front asset remains pending until its stream is aborted. */
+export function mountPendingCardFixture() {
+  const root = document.createElement("div");
+  document.body.append(root);
+  const [html, setHtml] = createSignal('<p>Front</p><img src="assets/pending.png">');
+  const subject = {
+    getAsset() {
+      return {
+        size: 1,
+        openStream({ signal }: { signal: AbortSignal }) {
+          return new ReadableStream({
+            start(controller) {
+              root.dataset.asset = "loading";
+              signal.addEventListener(
+                "abort",
+                () => {
+                  root.dataset.asset = "aborted";
+                  controller.error(signal.reason);
+                },
+                { once: true },
+              );
+            },
+          });
+        },
+      };
+    },
+  } as unknown as OpenSubjectPackage;
+  const flip = () => setHtml("<p>Back</p>");
+  const select = () => {};
+  render(
+    () => (
+      <>
+        <button onClick={flip}>Flip fixture card</button>
+        <SubjectHtmlView subject={subject} html={html()} title="Flashcard" onSelect={select} />
+      </>
+    ),
+    root,
+  );
 }

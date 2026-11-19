@@ -1,19 +1,109 @@
-import { createSignal, onCleanup } from "solid-js";
+import { batch, createSignal, onCleanup } from "solid-js";
 import { filesystem } from "../../../filesystem/FileSystemClient";
-import { openSubjectPackage } from "../core/subject-package/package";
+import type { SubjectProgress } from "../core/learning-program";
+import { emptySubjectProgress } from "../core/subject-review";
+import { openSubjectPackage, writeSubjectPackage } from "../core/subject-package/package";
 import type { OpenSubjectPackage } from "../core/subject-package/types";
+
+/** Owns the draft and any save in flight for one open archive. */
+function createSubjectEntry(path: string, subject: OpenSubjectPackage) {
+  const initial =
+    subject.progress ??
+    emptySubjectProgress(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+  const [progress, setProgress] = createSignal(initial);
+  const [saved, setSaved] = createSignal(initial);
+  const [saving, setSaving] = createSignal(false);
+  const [saveError, setSaveError] = createSignal("");
+  let pending: Promise<void> | undefined;
+
+  const dirty = () => progress() !== saved();
+
+  const persist = async (snapshot: SubjectProgress): Promise<void> => {
+    try {
+      // Finish the archive before committing a new filesystem revision.
+      const archive = new TransformStream<Uint8Array, Uint8Array>();
+      const [blob] = await Promise.all([
+        new Response(archive.readable).blob(),
+        writeSubjectPackage({ ...subject, progress: snapshot }, archive.writable),
+      ]);
+      await filesystem.writeFile(path, blob);
+      setSaved(snapshot);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Could not save subject.";
+      setSaveError(message);
+    }
+  };
+
+  const save = (): Promise<void> => {
+    if (pending) return pending;
+    if (!dirty()) return Promise.resolve();
+    const snapshot = progress();
+    const operation = persist(snapshot).finally(() => {
+      pending = undefined;
+      setSaving(false);
+    });
+    pending = operation;
+    batch(() => {
+      setSaving(true);
+      setSaveError("");
+    });
+    return operation;
+  };
+
+  const updateProgress = (next: SubjectProgress): void => {
+    setProgress(next);
+    if (!saving() && !dirty()) setSaveError("");
+  };
+
+  return {
+    path,
+    subject,
+    progress,
+    updateProgress,
+    dirty,
+    saving,
+    saveError,
+    save,
+    pending: () => pending,
+  };
+}
+
+/** The live archive and progress draft for an open subject. */
+export type OpenSubjectEntry = ReturnType<typeof createSubjectEntry>;
+
+// Windows in the same desktop share a draft, so saving from one cannot discard another's ratings.
+const openEntries = new Map<string, { entry: OpenSubjectEntry; windows: number }>();
+
+function releaseSubject(entry: OpenSubjectEntry): void {
+  const shared = openEntries.get(entry.path);
+  if (!shared) return;
+  shared.windows -= 1;
+  if (shared.windows !== 0) return;
+
+  const closeIfUnused = () => {
+    if (shared.windows !== 0 || openEntries.get(entry.path) !== shared || entry.pending()) return;
+    openEntries.delete(entry.path);
+    void entry.subject.close();
+  };
+
+  // An explicit save can finish after the last window closes.
+  const pending = entry.pending();
+  if (pending) {
+    void pending.then(closeIfUnused);
+  } else {
+    closeIfUnused();
+  }
+}
 
 /**
  * Manages open subjects within a Solid owner. Disposing the owner cancels
- * pending work and closes the packages.
+ * pending opens and releases its archive references.
  *
  * @returns Reactive subject, selection, loading and error state, plus open actions.
  */
 export function createSubjectController() {
   const [subject, setSubject] = createSignal<OpenSubjectPackage>();
-  const [subjects, setSubjects] = createSignal<
-    ReadonlyArray<{ path: string; subject: OpenSubjectPackage }>
-  >([]);
+  const [subjects, setSubjects] = createSignal<readonly OpenSubjectEntry[]>([]);
   const [selection, setSelection] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -32,22 +122,40 @@ export function createSubjectController() {
     request = current;
     setLoading(true);
     setError("");
-    try {
-      const blob = await filesystem.readFile(path);
-      if (current.signal.aborted) return;
-      const opened = await openSubjectPackage(blob, { signal: current.signal });
-      if (current.signal.aborted || disposed) {
-        await opened.close();
-        return;
-      }
-      const previous = subjects().find((entry) => entry.path === path);
-      setSubjects((entries) => [
-        ...entries.filter((entry) => entry.path !== path),
-        { path, subject: opened },
-      ]);
-      setSubject(opened);
+    const existing = subjects().find((entry) => entry.path === path);
+    if (existing) {
+      request = undefined;
+      setLoading(false);
+      setSubject(existing.subject);
       setSelection(null);
-      if (previous) await previous.subject.close();
+      return;
+    }
+    try {
+      let shared = openEntries.get(path);
+      if (!shared) {
+        const blob = await filesystem.readFile(path);
+        if (current.signal.aborted) return;
+        const opened = await openSubjectPackage(blob, { signal: current.signal });
+        if (current.signal.aborted || disposed) {
+          await opened.close();
+          return;
+        }
+        // Another window may have finished opening this path while we were reading it.
+        shared = openEntries.get(path);
+        if (shared) {
+          void opened.close();
+        } else {
+          shared = { entry: createSubjectEntry(path, opened), windows: 0 };
+          openEntries.set(path, shared);
+        }
+      }
+      const { entry } = shared;
+      shared.windows += 1;
+      batch(() => {
+        setSubjects((entries) => [...entries, entry]);
+        setSubject(entry.subject);
+        setSelection(null);
+      });
     } catch (cause) {
       if (!current.signal.aborted && !disposed) {
         console.error("Could not open subject package.", cause);
@@ -64,7 +172,7 @@ export function createSubjectController() {
   onCleanup(() => {
     disposed = true;
     request?.abort();
-    subjects().forEach((entry) => void entry.subject.close());
+    subjects().forEach(releaseSubject);
   });
 
   return {

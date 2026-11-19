@@ -3,12 +3,14 @@ import Document16 from "@carbon/icons/es/document/16.js";
 import Folder16 from "@carbon/icons/es/folder/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
 import { createEffect, createMemo, For, Show } from "solid-js";
+import Button from "../../components/button/Button";
 import useDialog from "../../components/dialog/Dialog";
 import ResizableSidebar from "../../components/sidebar/ResizableSidebar";
 import { SidebarItem } from "../../components/sidebar/SidebarItem";
 import { SidebarSection } from "../../components/sidebar/SidebarSection";
 import useFilePicker from "../file-manager/file-picker/FilePicker";
 import { SubjectsProvider, useSubjects } from "./components/subjects/SubjectsContext";
+import { useCurrentSubjectEntry } from "./components/subjects/useCurrentSubject";
 import type { TopicItem } from "./core/learning-program";
 import { NavigationProvider, useNavigation } from "./navigation/NavigationContext";
 import PageRouter from "./pages/PageRouter";
@@ -16,6 +18,12 @@ import PageRouter from "./pages/PageRouter";
 function MainWindow() {
   const subjectOpener = useSubjects();
   const navigation = useNavigation();
+  const currentSubject = useCurrentSubjectEntry();
+
+  const handleSave = () => {
+    void currentSubject()?.save();
+  };
+
   const showDialog = useDialog();
   const picker = useFilePicker({
     type: "file",
@@ -141,7 +149,34 @@ function MainWindow() {
           </SidebarSection>
         </ResizableSidebar>
         <section class="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-neutral-50">
-          <PageRouter />
+          <Show when={currentSubject()}>
+            {(entry) => (
+              <header
+                x-role="subject-toolbar"
+                class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 px-4 py-2"
+              >
+                <span role="status" class="text-sm">
+                  <Show
+                    when={entry().saving()}
+                    fallback={<Show when={entry().dirty()}>Unsaved changes</Show>}
+                  >
+                    Saving subject…
+                  </Show>
+                </span>
+                <Button disabled={!entry().dirty()} loading={entry().saving()} onClick={handleSave}>
+                  Save
+                </Button>
+                <Show when={entry().saveError()}>
+                  <p role="alert" class="text-sm text-red-700">
+                    Could not save subject. {entry().saveError()} Select Save to retry.
+                  </p>
+                </Show>
+              </header>
+            )}
+          </Show>
+          <div class="flex min-h-0 flex-1 flex-col">
+            <PageRouter />
+          </div>
         </section>
       </div>
     </div>
@@ -149,7 +184,7 @@ function MainWindow() {
 }
 
 /**
- * Opens and navigates read-only LAP subjects.
+ * Opens LAP subjects and supports flashcard review.
  */
 export default function Flashcards() {
   return (
