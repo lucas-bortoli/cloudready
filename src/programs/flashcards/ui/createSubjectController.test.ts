@@ -9,14 +9,18 @@ vi.mock("../../../filesystem/FileSystemClient", () => ({ filesystem: { readFile:
 vi.mock("../core/subject-package/package", () => ({ openSubjectPackage: vi.fn() }));
 afterEach(() => vi.resetAllMocks());
 
-it("retains the old subject on failure, closes replacements and cleans up on disposal", async () => {
+it("retains open subjects on failure, replaces matching paths and cleans up on disposal", async () => {
   const first = { close: vi.fn().mockResolvedValue(undefined) } as unknown as OpenSubjectPackage;
   const second = { close: vi.fn().mockResolvedValue(undefined) } as unknown as OpenSubjectPackage;
+  const replacement = {
+    close: vi.fn().mockResolvedValue(undefined),
+  } as unknown as OpenSubjectPackage;
   vi.mocked(filesystem.readFile).mockResolvedValue(new Blob());
   vi.mocked(openSubjectPackage)
     .mockResolvedValueOnce(first)
     .mockRejectedValueOnce(new Error("bad file"))
-    .mockResolvedValueOnce(second);
+    .mockResolvedValueOnce(second)
+    .mockResolvedValueOnce(replacement);
   let dispose!: () => void;
   const controller = createRoot((stop) => {
     dispose = stop;
@@ -28,11 +32,22 @@ it("retains the old subject on failure, closes replacements and cleans up on dis
   expect(controller.subject()).toBe(first);
   expect(controller.error()).toBe("bad file");
   await controller.openFile("/second.lap");
-  expect(first.close).toHaveBeenCalledOnce();
+  expect(first.close).not.toHaveBeenCalled();
+  expect(controller.subjects()).toEqual([
+    { path: "/first.lap", subject: first },
+    { path: "/second.lap", subject: second },
+  ]);
   expect(controller.selection()).toBeNull();
   expect(controller.subject()).toBe(second);
+  await controller.openFile("/first.lap");
+  expect(first.close).toHaveBeenCalledOnce();
+  expect(controller.subjects()).toEqual([
+    { path: "/second.lap", subject: second },
+    { path: "/first.lap", subject: replacement },
+  ]);
   dispose();
   expect(second.close).toHaveBeenCalledOnce();
+  expect(replacement.close).toHaveBeenCalledOnce();
 });
 
 it("closes a stale package when a newer open wins", async () => {
