@@ -1,21 +1,26 @@
 import { batch, createEffect, createMemo, createSignal, on, onCleanup } from "solid-js";
 import generateUuid from "../../../lib/uuid";
 import { newCard, schedule, type Rating } from "../core/fsrs";
-import type { Flashcard, FlashcardDeck, SubjectProgress } from "../core/learning-program";
-import { rateSubjectCard, subjectReviewQueue } from "../core/subject-review";
+import type { FlashcardDeck, SubjectProgress } from "../core/learning-program";
+import {
+  rateSubjectCard,
+  subjectReviewQueue,
+  type SubjectReviewCard,
+} from "../core/subject-review";
 import type { OpenSubjectEntry } from "./createSubjectController";
 
 /** Manages a deck overview and a review session against the open subject draft. */
 export function createSubjectReviewController(
   entry: Pick<OpenSubjectEntry, "progress" | "updateProgress">,
-  deck: FlashcardDeck,
+  decks: readonly FlashcardDeck[],
+  startImmediately = false,
 ) {
   const [now, setNow] = createSignal(Date.now());
-  const [active, setActive] = createSignal(false);
-  const [selected, setSelected] = createSignal<Flashcard>();
-  const [revealedCard, setRevealedCard] = createSignal<Flashcard>();
+  const [active, setActive] = createSignal(startImmediately);
+  const [selected, setSelected] = createSignal<SubjectReviewCard>();
+  const [revealedCard, setRevealedCard] = createSignal<SubjectReviewCard>();
   const [lastRating, setLastRating] = createSignal<{
-    card: Flashcard;
+    card: SubjectReviewCard;
     previous: SubjectProgress;
     rated: SubjectProgress;
   }>();
@@ -23,13 +28,14 @@ export function createSubjectReviewController(
   const timer = window.setInterval(() => setNow(Date.now()), 1000);
   onCleanup(() => window.clearInterval(timer));
 
-  const queue = createMemo(() => subjectReviewQueue(deck, entry.progress(), now()));
-  const card = createMemo<Flashcard | undefined>((previous) => {
+  const queue = createMemo(() => subjectReviewQueue(decks, entry.progress(), now()));
+  const card = createMemo<SubjectReviewCard | undefined>((previous) => {
     if (!active()) return undefined;
     const current = selected();
     const cards = queue().cards;
-    if (current && cards.includes(current)) return current;
-    if (previous && cards.includes(previous)) return previous;
+    // Queue entries are rebuilt on each tick. Retain the visible entry by its card.
+    if (current && cards.some((entry) => entry.card === current.card)) return current;
+    if (previous && cards.some((entry) => entry.card === previous.card)) return previous;
     return cards[0];
   });
   // Another window can move the current card out of the shared queue.
@@ -73,7 +79,14 @@ export function createSubjectReviewController(
     if (!current || !revealed()) return;
     const previous = entry.progress();
     const timestamp = Date.now();
-    const rated = rateSubjectCard(previous, deck.id, current.id, rating, timestamp, generateUuid());
+    const rated = rateSubjectCard(
+      previous,
+      current.deck.id,
+      current.card.id,
+      rating,
+      timestamp,
+      generateUuid(),
+    );
     batch(() => {
       setLastRating({ card: current, previous, rated });
       setRevealedCard(undefined);
@@ -100,7 +113,7 @@ export function createSubjectReviewController(
     if (!current) return "";
     const cards = entry.progress().cards;
     let state = newCard();
-    if (Object.hasOwn(cards, current.id)) state = cards[current.id].state;
+    if (Object.hasOwn(cards, current.card.id)) state = cards[current.card.id].state;
     const timestamp = now();
     const interval = schedule(state, rating, timestamp).card.due - timestamp;
     if (interval < 3600000) return `${Math.round(interval / 60000)}m`;

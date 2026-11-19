@@ -1,7 +1,7 @@
 import { Show } from "solid-js";
 import { useCurrentSubject } from "../../../../../../components/subjects/useCurrentSubject";
-import { LessonView } from "./components/LessonView";
 import type { Lesson } from "../../../../../../core/learning-program";
+import { LessonView } from "./components/LessonView";
 
 /** Props for a lesson page. */
 export interface LessonPageProps {

@@ -22,7 +22,7 @@ function mountReview(initial: SubjectProgress, currentDeck = deck) {
   return createRoot((dispose) => {
     const [progress, updateProgress] = createSignal(initial);
     const entry = { progress, updateProgress };
-    const review = createSubjectReviewController(entry, currentDeck);
+    const review = createSubjectReviewController(entry, [currentDeck]);
     return { dispose, progress, review };
   });
 }
@@ -41,7 +41,7 @@ it("undoes the first rating even after the review queue is empty", () => {
     expect(review.canUndo()).toBe(true);
     review.undo();
     expect(progress()).toBe(initial);
-    expect(review.card()).toBe(deck.cards[0]);
+    expect(review.card()?.card).toBe(deck.cards[0]);
     expect(review.revealed()).toBe(false);
     expect(review.canUndo()).toBe(false);
   } finally {
@@ -84,13 +84,13 @@ it("keeps the next card visible when an earlier review becomes due", () => {
   const { dispose, review } = mountReview(initial, { ...deck, cards: [...deck.cards, other] });
   try {
     review.start();
-    expect(review.card()).toBe(deck.cards[0]);
+    expect(review.card()?.card).toBe(deck.cards[0]);
     vi.advanceTimersByTime(1000);
-    expect(review.queue().cards[0]).toBe(other);
-    expect(review.card()).toBe(deck.cards[0]);
+    expect(review.queue().cards[0]?.card).toBe(other);
+    expect(review.card()?.card).toBe(deck.cards[0]);
     review.reveal();
     review.rate(4);
-    expect(review.card()).toBe(other);
+    expect(review.card()?.card).toBe(other);
   } finally {
     dispose();
   }

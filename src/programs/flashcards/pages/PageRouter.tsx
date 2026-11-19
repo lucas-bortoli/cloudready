@@ -62,12 +62,12 @@ export default function PageRouter() {
         <TrashPage />
       </Match>
       <Match when={navigation.route().id === "/subjects/:subjectId"}>
-        <SubjectPage />
+        <SubjectPage onSelect={handleSelect} />
       </Match>
       <Match when={navigation.route().id === "/subjects/:subjectId/items/:itemId"}>
         <Switch fallback={<UnavailablePage />}>
           <Match when={itemOfType(selected(), "topic")}>
-            {(item) => <TopicPage topic={item()} />}
+            {(item) => <TopicPage topic={item()} onSelect={handleSelect} />}
           </Match>
           <Match when={itemOfType(selected(), "lesson")}>
             {(item) => <LessonPage lesson={item()} onSelect={handleSelect} />}

@@ -121,6 +121,14 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
         }
       }
     };
+    const greetings = subject.content.topics[0];
+    if (greetings.type !== "topic") throw new Error("Expected the Greetings topic.");
+    greetings.items.push({
+      type: "flashcard-deck",
+      id: "extra-deck",
+      title: "Extra cards",
+      cards: [{ id: "extra-card", front: "<p>Good morning</p>", back: "<p>Buenos días</p>" }],
+    });
     const deck = findDeck(subject.content.topics)!;
     deck.cards[0].front +=
       '<img id="local" src="assets/sun.svg"><audio controls src="assets/chime.wav"></audio><img src="assets/missing.svg">';
@@ -162,8 +170,13 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
   await expect(
     page.frameLocator('iframe[title="Lesson"]').getByText("Everyday phrases"),
   ).toBeVisible();
-  await page.getByRole("button").filter({ hasText: "Greeting cards" }).first().click();
-  await page.getByRole("button", { name: "Start review" }).click();
+  await page
+    .getByRole("complementary")
+    .getByRole("button", { name: "Greetings", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Review all decks" }).click();
+  await expect(page.getByText("3 cards · 0 due · 3 new available")).toBeVisible();
+  await expect(page.locator('[x-role="flashcard-deck"]').getByText("Greeting cards")).toBeVisible();
   await page.getByRole("button", { name: "Show answer" }).click();
   await page.getByRole("button", { name: /^Good/ }).click();
   await expect(frame.getByText("Thank you")).toBeVisible();
@@ -173,7 +186,7 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
   await page.getByRole("button", { name: "Show answer" }).click();
   await page.getByRole("button", { name: /^Easy/ }).click();
   await page.getByRole("button", { name: "End review" }).click();
-  await expect(page.getByText("2 cards · 0 due · 1 new available")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review all decks" })).toBeVisible();
 
   await page.getByRole("button").filter({ hasText: "Be polite" }).first().click();
   await expect(page.getByText("Unsaved changes")).toBeVisible();
