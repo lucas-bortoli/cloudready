@@ -1,24 +1,21 @@
 import { createEffect, createMemo, onCleanup } from "solid-js";
 import { cardDocument } from "../../browser/card-document";
 import type { RenderedCard } from "../../core/template";
+import { ScopedHtml } from "../../../../components/scoped-html/ScopedHtml";
 
 /**
-
- * Card side and package media used to build an isolated iframe document.
-
+ * Card side and package media used to render a card.
  */
-export interface CardFrameProps {
+export interface CardContentProps {
   card: RenderedCard | undefined;
   revealed: boolean;
   media: Record<string, Uint8Array>;
 }
 
 /**
-
- * Renders an untrusted card in a sandbox and releases its image URLs on replacement.
-
+ * Renders a sanitized card and releases its image URLs on replacement.
  */
-export default function CardFrame(props: CardFrameProps) {
+export default function CardContent(props: CardContentProps) {
   const document = createMemo(() => {
     if (!props.card) {
       return undefined;
@@ -28,7 +25,7 @@ export default function CardFrame(props: CardFrameProps) {
   });
   createEffect(() => {
     const current = document();
-    // Each document owns its URLs until it is replaced or the frame is removed.
+    // Each document owns its URLs until it is replaced or the view is removed.
     onCleanup(() => {
       current?.urls.forEach((url) => {
         URL.revokeObjectURL(url);
@@ -36,11 +33,8 @@ export default function CardFrame(props: CardFrameProps) {
     });
   });
   return (
-    <iframe
-      title="Flashcard"
-      sandbox=""
-      class="min-h-48 w-full flex-1 rounded border bg-white"
-      srcdoc={document()?.srcdoc}
-    />
+    <div class="min-h-48 w-full flex-auto shrink-0 rounded border bg-white">
+      <ScopedHtml title="Flashcard" content={document()} bodyClass="card" />
+    </div>
   );
 }

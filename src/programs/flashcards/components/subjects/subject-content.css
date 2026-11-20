@@ -1,0 +1,93 @@
+.content-body {
+  margin: 0;
+  padding: 16px;
+  animation: subject-fade-in 200ms ease-out;
+}
+
+@keyframes subject-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content-body {
+    animation: none;
+  }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+ul,
+ol,
+blockquote,
+pre,
+figure {
+  margin: 0 0 1em;
+  padding: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 400;
+  line-height: 1.25;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 2em;
+}
+h2 {
+  font-size: 1.5em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4,
+h5,
+h6 {
+  font-size: 1em;
+}
+
+.content-body > :first-child {
+  margin-top: 0;
+}
+.content-body > :last-child {
+  margin-bottom: 0;
+}
+ul,
+ol {
+  padding-left: 1.5em;
+}
+li + li {
+  margin-top: 0.25em;
+}
+li > ul,
+li > ol {
+  margin: 0.25em 0 0;
+}
+blockquote {
+  border-left: 3px solid #d4d4d4;
+  padding-left: 1em;
+}
+pre {
+  overflow-x: auto;
+}
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}

@@ -17,7 +17,9 @@ export default function LessonPage(props: LessonPageProps) {
   return (
     <Show when={subject()}>
       {(subject) => (
-        <LessonView subject={subject()} html={props.lesson.html} onSelect={props.onSelect} />
+        <div class="min-h-0 flex-1 overflow-auto">
+          <LessonView subject={subject()} html={props.lesson.html} onSelect={props.onSelect} />
+        </div>
       )}
     </Show>
   );

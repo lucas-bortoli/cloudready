@@ -4,7 +4,7 @@ import type { AnkiCard } from "../../core/anki";
 import type { Rating } from "../../core/fsrs";
 import type { RenderedCard } from "../../core/template";
 import type { QueueSummary } from "../../ui/createReviewController";
-import CardFrame from "./CardFrame";
+import CardContent from "./CardContent";
 import ReviewControls from "./ReviewControls";
 
 /**
@@ -61,7 +61,11 @@ export default function ReviewView(props: ReviewViewProps) {
   };
 
   return (
-    <div class="flex min-h-0 flex-1 flex-col gap-3" tabIndex={0} onKeyDown={handleKey}>
+    <div
+      class="flex min-h-0 flex-1 flex-col gap-3 overflow-auto"
+      tabIndex={0}
+      onKeyDown={handleKey}
+    >
       <div class="flex flex-wrap items-center gap-3">
         <strong>{props.deckName}</strong>
         <span>
@@ -95,7 +99,7 @@ export default function ReviewView(props: ReviewViewProps) {
           </div>
         }
       >
-        <CardFrame card={props.rendered} revealed={props.revealed} media={props.media} />
+        <CardContent card={props.rendered} revealed={props.revealed} media={props.media} />
         <ReviewControls
           revealed={props.revealed}
           saving={props.saving}

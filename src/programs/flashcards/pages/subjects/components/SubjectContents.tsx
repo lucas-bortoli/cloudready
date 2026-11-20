@@ -1,10 +1,10 @@
 import { createMemo, createSignal, For, Show, type ParentProps } from "solid-js";
-import Button from "../../../../components/button/Button";
-import type { TopicItem } from "../../core/learning-program";
-import { collectReviewDecks } from "../../core/subject-review";
-import { SubjectDeckReview } from "../review/SubjectDeckReview";
+import Button from "../../../../../components/button/Button";
+import type { TopicItem } from "../../../core/learning-program";
+import { collectReviewDecks } from "../../../core/subject-review";
+import { SubjectDeckReview } from "../../../components/review/SubjectDeckReview";
 import { TopicEntry } from "./TopicEntry";
-import { useCurrentSubjectEntry } from "./useCurrentSubject";
+import { useCurrentSubjectEntry } from "../../../components/subjects/useCurrentSubject";
 
 // Retain only matching items and the topics needed to show their hierarchy.
 function itemTree(items: TopicItem[], type: "exercise-set" | "flashcard-deck"): TopicItem[] {

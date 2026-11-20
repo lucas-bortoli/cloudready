@@ -16,7 +16,7 @@ it("shows history, reveals an answer and displays the completed score", () => {
     attempts: [{ id: "old", startedAt: 1, answers: [] }],
   };
   const [progress, updateProgress] = createSignal(initial);
-  const entry = { progress, updateProgress, subject: {} } as OpenSubjectEntry;
+  const entry = { progress, updateProgress, subject: {} } as unknown as OpenSubjectEntry;
   const root = document.createElement("div");
   document.body.append(root);
   const dispose = render(
@@ -67,7 +67,7 @@ it("shows history, reveals an answer and displays the completed score", () => {
 
 it("disables starting an empty set", () => {
   const [progress, updateProgress] = createSignal(emptySubjectProgress("UTC"));
-  const entry = { progress, updateProgress, subject: {} } as OpenSubjectEntry;
+  const entry = { progress, updateProgress, subject: {} } as unknown as OpenSubjectEntry;
   const root = document.createElement("div");
   document.body.append(root);
   const dispose = render(

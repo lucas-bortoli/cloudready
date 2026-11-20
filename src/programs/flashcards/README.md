@@ -93,9 +93,10 @@ Ratings stay in the open subject's draft until you select **Save**. Saving
 writes the progress, content, and assets back to the same `.lap` file. Exercise
 sets currently show a count.
 
-Lessons and cards share a sanitized, scriptless iframe renderer with a restrictive
-content security policy. Package media loads on demand into temporary Blob URLs
-that are released when the view changes. CSS asset URLs and imports are removed.
+Lessons and cards share a renderer that sanitizes package HTML and scopes allowed
+CSS declarations to a shadow root. Package media loads on demand into temporary
+Blob URLs that are released when the view changes. Package CSS supports basic
+typography, colors, borders, and layout. CSS imports and resource URLs are removed.
 
 Run the browser isolation check with `npm run test:lap-browser`. Install the
 Playwright Chromium browser first with `npx playwright install chromium`, or set

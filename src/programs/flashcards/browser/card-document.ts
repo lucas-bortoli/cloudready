@@ -1,39 +1,24 @@
-import DOMPurify from "dompurify";
+import { contentMarkup, contentStyles } from "./content-markup";
 
-/**
- * Builds an isolated card document with access only to URLs for package media.
- * The sandbox and CSP remain necessary even after sanitization because card CSS
- * and HTML originate in a user-supplied archive.
- */
+/** Prepares a card with scoped styles and image URLs from its own package. */
 export function cardDocument(
   html: string,
   css: string,
   media: Record<string, Uint8Array>,
-): { srcdoc: string; urls: string[] } {
+): { body: HTMLElement; css: string; urls: string[] } {
   const urls: string[] = [];
-  const sanitized = DOMPurify.sanitize(html, {
-    FORBID_TAGS: ["script", "iframe", "object", "embed", "link", "base", "form", "style"],
-    FORBID_ATTR: ["srcset"],
-  });
-  const doc = new DOMParser().parseFromString(sanitized, "text/html");
-  // Event attributes have no use in our supported template subset. Remove them
-  // explicitly as defense in depth before the document crosses the sandbox boundary.
-  for (const element of doc.querySelectorAll("*")) {
-    for (const attribute of Array.from(element.attributes))
-      if (/^on/i.test(attribute.name)) element.removeAttribute(attribute.name);
+  const body = contentMarkup(html);
+  for (const style of body.querySelectorAll("style")) style.remove();
+  for (const element of body.querySelectorAll("*")) {
+    const source = element.getAttribute("src");
+    for (const name of ["src", "href", "xlink:href", "poster"]) element.removeAttribute(name);
+    if (element.localName !== "img" || !source) continue;
+    const name = source.normalize("NFC");
+    if (!Object.hasOwn(media, name)) continue;
+    const url = URL.createObjectURL(new Blob([media[name].slice().buffer]));
+    urls.push(url);
+    element.setAttribute("src", url);
   }
-  for (const image of doc.querySelectorAll("img")) {
-    const name = (image.getAttribute("src") ?? "").normalize("NFC");
-    const data = media[name];
-    if (data) {
-      const url = URL.createObjectURL(new Blob([data.slice().buffer]));
-      urls.push(url);
-      image.src = url;
-    } else image.removeAttribute("src");
-  }
-  const safeCss = css.replace(/<\/?style/gi, "");
-  return {
-    srcdoc: `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src blob: data:; media-src blob:; style-src 'unsafe-inline'"><style>${safeCss}</style></head><body class="card">${doc.body.innerHTML}</body></html>`,
-    urls,
-  };
+
+  return { body, css: contentStyles(css), urls };
 }

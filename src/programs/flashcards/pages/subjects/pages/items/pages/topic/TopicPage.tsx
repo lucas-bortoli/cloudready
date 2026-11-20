@@ -1,4 +1,4 @@
-import { SubjectContents } from "../../../../../../components/subjects/SubjectContents";
+import { SubjectContents } from "../../../../components/SubjectContents";
 import type { Topic } from "../../../../../../core/learning-program";
 
 /** Props for a topic page. */

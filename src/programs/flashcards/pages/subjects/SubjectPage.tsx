@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { SubjectContents } from "../../components/subjects/SubjectContents";
+import { SubjectContents } from "./components/SubjectContents";
 import { useCurrentSubject } from "../../components/subjects/useCurrentSubject";
 
 /** Displays the subject root and its package metadata. */

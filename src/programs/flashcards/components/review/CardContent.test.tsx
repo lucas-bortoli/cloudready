@@ -3,14 +3,14 @@ import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
 import * as documents from "../../browser/card-document";
 import type { RenderedCard } from "../../core/template";
-import CardFrame from "./CardFrame";
+import CardContent from "./CardContent";
 
-describe("card frame", () => {
+describe("card content", () => {
   it("retains the current document on unrelated updates and releases URLs on replacement and disposal", () => {
     const create = vi
       .spyOn(documents, "cardDocument")
-      .mockReturnValueOnce({ srcdoc: "front", urls: ["blob:front"] })
-      .mockReturnValueOnce({ srcdoc: "back", urls: ["blob:back"] });
+      .mockReturnValueOnce({ body: document.createElement("div"), css: "", urls: ["blob:front"] })
+      .mockReturnValueOnce({ body: document.createElement("div"), css: "", urls: ["blob:back"] });
     const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     const card: RenderedCard = {
       front: "front",
@@ -31,7 +31,7 @@ describe("card frame", () => {
       return (
         <>
           <span>{other()}</span>
-          <CardFrame card={card} media={media} revealed={revealed()} />
+          <CardContent card={card} media={media} revealed={revealed()} />
         </>
       );
     }, root);

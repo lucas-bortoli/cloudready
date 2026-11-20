@@ -1,7 +1,8 @@
-import DOMPurify from "dompurify";
-import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import type { OpenSubjectPackage } from "../../core/subject-package/types";
-import subjectDocument from "./subject-document.html?raw";
+import { contentMarkup, contentStyles } from "../../browser/content-markup";
+import { ScopedHtml } from "../../../../components/scoped-html/ScopedHtml";
+import baseCss from "./subject-content.css?raw";
 
 /**
  * Properties for isolated subject content.
@@ -14,56 +15,34 @@ export interface SubjectHtmlViewProps {
 }
 
 /**
- * Displays sanitized LAP HTML with scriptless sandboxing and local media.
+ * Displays sanitized LAP HTML with scoped styles and local media.
  * Object URLs and pending reads are released when the content changes or closes.
  *
  * @param props The open package, HTML, and internal navigation handler.
  */
 export function SubjectHtmlView(props: SubjectHtmlViewProps) {
-  const [srcdoc, setSrcdoc] = createSignal("");
+  const [content, setContent] = createSignal<{ body: HTMLElement; css: string }>();
   const [warning, setWarning] = createSignal(false);
-  let frame: HTMLIFrameElement | undefined;
-  let detach: (() => void) | undefined;
 
-  const handleLoad = () => {
-    detach?.();
-    const doc = frame?.contentDocument;
-    if (!doc) return;
-    const parentStyle = getComputedStyle(frame);
-    for (const property of [
-      "color",
-      "font-family",
-      "font-size",
-      "font-weight",
-      "letter-spacing",
-      "line-height",
-    ]) {
-      doc.body.style.setProperty(property, parentStyle.getPropertyValue(property));
-    }
-    const click = (event: MouseEvent) => {
-      const target = event.target;
-      if (!target || !("closest" in target)) return;
-      const link = (target as Element).closest("a[data-lap-link]");
-      if (!link) return;
-      event.preventDefault();
-      const href = link.getAttribute("data-lap-link") ?? "";
-      if (href.startsWith("lap:item/")) {
-        try {
-          props.onSelect(decodeURIComponent(href.slice(9).split("#")[0]));
-        } catch {
-          /* Invalid link. */
-        }
-      } else if (href.startsWith("#")) {
-        doc.getElementById(href.slice(1))?.scrollIntoView();
-      } else if (/^https?:\/\//i.test(href)) {
-        window.open(href, "_blank", "noopener,noreferrer");
+  const handleClick = (event: MouseEvent, root: ShadowRoot) => {
+    if (!(event.target instanceof Element)) return;
+    const link = event.target.closest("a[data-lap-link]");
+    if (!link) return;
+    event.preventDefault();
+    const href = link.getAttribute("data-lap-link") ?? "";
+    if (href.startsWith("lap:item/")) {
+      let id: string;
+      try {
+        id = decodeURIComponent(href.slice(9).split("#")[0]);
+      } catch {
+        return;
       }
-    };
-    doc.addEventListener("click", click);
-    detach = () =>
-      untrack(() => {
-        doc.removeEventListener("click", click);
-      });
+      props.onSelect(id);
+    } else if (href.startsWith("#")) {
+      root.getElementById(href.slice(1))?.scrollIntoView();
+    } else if (/^https?:\/\//i.test(href)) {
+      window.open(href, "_blank", "noopener,noreferrer");
+    }
   };
 
   createEffect(() => {
@@ -71,40 +50,16 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
     const subject = props.subject;
     const abort = new AbortController();
     const urls: string[] = [];
-    setSrcdoc("");
+    setContent(undefined);
     setWarning(false);
     const build = async () => {
-      const safe = DOMPurify.sanitize(html, {
-        WHOLE_DOCUMENT: true,
-        ALLOWED_URI_REGEXP: /^(?:(?:https?):|lap:item\/|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i,
-        FORBID_TAGS: [
-          "script",
-          "iframe",
-          "object",
-          "embed",
-          "form",
-          "meta",
-          "link",
-          "base",
-          "foreignObject",
-          "animate",
-          "animateTransform",
-          "set",
-        ],
-        FORBID_ATTR: ["srcset"],
+      const body = contentMarkup(html);
+      const styles = Array.from(body.querySelectorAll("style"), (style) => {
+        style.remove();
+        return contentStyles(style.textContent ?? "");
       });
-      const doc = new DOMParser().parseFromString(safe, "text/html");
-      for (const style of doc.querySelectorAll("style"))
-        if (/url\s*\(|@import|\\/i.test(style.textContent ?? "")) style.remove();
       const cache = new Map<string, string>();
-      for (const element of doc.querySelectorAll("*")) {
-        for (const attr of Array.from(element.attributes)) {
-          if (
-            /^on/i.test(attr.name) ||
-            (attr.name === "style" && /url\s*\(|@import|\\/i.test(attr.value))
-          )
-            element.removeAttribute(attr.name);
-        }
+      for (const element of body.querySelectorAll("*")) {
         if (element.localName === "a") {
           const href = element.getAttribute("href") ?? "";
           element.removeAttribute("href");
@@ -118,8 +73,10 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
         }
         for (const attr of ["src", "href", "poster", "xlink:href"]) {
           const value = element.getAttribute(attr);
-          if (!value || value.startsWith("#")) continue;
+          if (value === null) continue;
+          if (value.startsWith("#") && (attr === "href" || attr === "xlink:href")) continue;
           element.removeAttribute(attr);
+          if (!value) continue;
           let path: string;
           try {
             path = decodeURIComponent(value.split(/[?#]/)[0]);
@@ -127,7 +84,12 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
             setWarning(true);
             continue;
           }
-          if (!path.startsWith("assets/")) continue;
+          const mediaSource =
+            attr === "src" && /^(?:img|audio|video|source|track)$/.test(element.localName);
+          const poster = attr === "poster" && element.localName === "video";
+          const svgImage =
+            (attr === "href" || attr === "xlink:href") && element.localName === "image";
+          if (!(mediaSource || poster || svgImage) || !path.startsWith("assets/")) continue;
           try {
             let url = cache.get(path);
             if (!url) {
@@ -161,15 +123,13 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
           }
         }
       }
-      if (!abort.signal.aborted)
-        setSrcdoc(subjectDocument.replace("<!-- SUBJECT_CONTENT -->", () => doc.body.innerHTML));
+      if (!abort.signal.aborted) setContent({ body, css: styles.join("\n") });
     };
 
     void build();
 
     onCleanup(() => {
       abort.abort();
-      detach?.();
       urls.forEach((url) => URL.revokeObjectURL(url));
     });
   });
@@ -179,14 +139,7 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
       <Show when={warning()}>
         <p role="status">Some assets could not be loaded.</p>
       </Show>
-      <iframe
-        ref={frame}
-        title={props.title}
-        sandbox="allow-same-origin"
-        class="h-full w-full shrink grow basis-0 bg-transparent"
-        srcdoc={srcdoc()}
-        onLoad={handleLoad}
-      />
+      <ScopedHtml title={props.title} content={content()} baseCss={baseCss} onClick={handleClick} />
     </div>
   );
 }

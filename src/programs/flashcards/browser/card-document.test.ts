@@ -10,11 +10,11 @@ describe("card document isolation", () => {
       ".card{color:blue}",
       { "a.png": new Uint8Array([1]) },
     );
-    expect(result.srcdoc).not.toContain("<script");
-    expect(result.srcdoc).not.toContain("onerror");
-    expect(result.srcdoc).not.toContain("https://example.test");
-    expect(result.srcdoc).toContain("blob:local");
-    expect(result.srcdoc).toContain("default-src 'none'");
+    expect(result.body.innerHTML).not.toContain("<script");
+    expect(result.body.innerHTML).not.toContain("onerror");
+    expect(result.body.innerHTML).not.toContain("https://example.test");
+    expect(result.body.innerHTML).toContain("blob:local");
+    expect(result.css).toContain("color: blue");
     expect(result.urls).toEqual(["blob:local"]);
   });
 });

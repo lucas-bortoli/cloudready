@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import type { TopicItem } from "../../core/learning-program";
+import type { TopicItem } from "../../../core/learning-program";
 
 /** Displays a subject item and its nested topic items as navigation links. */
 export function TopicEntry(props: { item: TopicItem; onSelect: (id: string) => void }) {

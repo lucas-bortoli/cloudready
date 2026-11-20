@@ -13,22 +13,25 @@ test("isolates lesson scripts and remote resources while allowing navigation and
     const fixture =
       await import("/programs/flashcards/pages/subjects/pages/items/pages/lesson/components/LessonBrowserFixture.tsx");
     fixture.mountLessonFixture(
-      `<script>parent.__lessonScript = true</script><img src="https://example.invalid/tracker.png"><img id="local" src="assets/picture.svg"><svg id="inline"><circle cx="5" cy="5" r="5" /></svg><audio id="audio" controls src="assets/sound.mp3"></audio><a id="navigate" href="lap:item/next">Next</a><img src=x onerror="parent.__lessonEvent = true">`,
+      `<style>#styled { color: rgb(1, 2, 3); background-image: url(https://example.invalid/css.png); } :host { display: none; }</style><p id="styled">Styled content</p><script>parent.__lessonScript = true</script><img src="https://example.invalid/tracker.png"><img id="local" src="assets/picture.svg"><svg id="inline"><circle cx="5" cy="5" r="5" /></svg><audio id="audio" controls src="assets/sound.mp3"></audio><a id="navigate" href="lap:item/next">Next</a><img src=x onerror="parent.__lessonEvent = true">`,
     );
   });
-  const frame = page.frameLocator('iframe[title="Lesson"]');
-  await expect(frame.locator("body")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  await expect(frame.locator("body")).toHaveCSS("font-family", /Inter Variable/);
+  const content = page.getByRole("group", { name: "Lesson" });
+  await expect(content.locator(".content-body")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(content.locator(".content-body")).toHaveCSS("font-family", /Inter Variable/);
   expect(
-    await frame.locator("body").evaluate(async (body) => {
+    await content.locator(".content-body").evaluate(async (body) => {
       await body.ownerDocument.fonts.ready;
       return Array.from(body.ownerDocument.fonts).map((font) => `${font.family}: ${font.status}`);
     }),
-  ).toEqual(["Inter Variable: loaded"]);
-  await expect(frame.locator("#local")).toHaveJSProperty("complete", true);
-  await expect(frame.locator("#inline circle")).toHaveCount(1);
-  await expect(frame.locator("#audio")).toHaveAttribute("src", /^blob:/);
-  await frame.locator("#navigate").click();
+  ).toContain("Inter Variable: loaded");
+  await expect(content.locator("#styled")).toHaveCSS("color", "rgb(1, 2, 3)");
+  await expect(content.locator("#styled")).toHaveCSS("background-image", "none");
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await expect(content.locator("#local")).toHaveJSProperty("complete", true);
+  await expect(content.locator("#inline circle")).toHaveCount(1);
+  await expect(content.locator("#audio")).toHaveAttribute("src", /^blob:/);
+  await content.locator("#navigate").click();
   await expect(page.locator('[data-selected="next"]')).toHaveCount(1);
   expect(
     await page.evaluate(() => [
@@ -39,7 +42,7 @@ test("isolates lesson scripts and remote resources while allowing navigation and
   expect(external).toEqual([]);
 });
 
-test("the lesson frame shows the surrounding page background", async ({ page }) => {
+test("the lesson content shows the surrounding page background", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(async () => {
     document.body.innerHTML = "";
@@ -47,18 +50,18 @@ test("the lesson frame shows the surrounding page background", async ({ page }) 
     const fixture =
       await import("/programs/flashcards/pages/subjects/pages/items/pages/lesson/components/LessonBrowserFixture.tsx");
     fixture.mountLessonFixture("");
-    const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Lesson"]')!;
-    frame.style.height = "200px";
-    frame.style.width = "300px";
+    const content = document.querySelector<HTMLDivElement>('[aria-label="Lesson"]')!;
+    content.style.height = "200px";
+    content.style.width = "300px";
   });
-  const frame = page.locator('iframe[title="Lesson"]');
-  await expect(page.frameLocator('iframe[title="Lesson"]').locator("body")).toHaveCSS(
+  const content = page.getByRole("group", { name: "Lesson" });
+  await expect(page.getByRole("group", { name: "Lesson" }).locator(".content-body")).toHaveCSS(
     "font-family",
     /Inter Variable/,
   );
-  const clip = (await frame.boundingBox())!;
+  const clip = (await content.boundingBox())!;
   const visible = await page.screenshot({ clip });
-  await frame.evaluate((element) => (element.style.visibility = "hidden"));
+  await content.evaluate((element) => (element.style.visibility = "hidden"));
   const hidden = await page.screenshot({ clip });
   expect(visible.equals(hidden)).toBe(true);
 });
@@ -76,15 +79,15 @@ test("a lesson opened through LAP blends into its content panel", async ({ page 
   await page.getByRole("option", { name: "spanish-starter.lap" }).click();
   await page.getByRole("button", { name: "Confirm Selection" }).click();
   await page.getByRole("complementary").getByRole("button", { name: "Be polite" }).click();
-  const frame = page.locator('iframe[title="Lesson"]');
+  const content = page.getByRole("group", { name: "Lesson" });
   await expect(
-    page.frameLocator('iframe[title="Lesson"]').getByText("Everyday phrases"),
+    page.getByRole("group", { name: "Lesson" }).getByText("Everyday phrases"),
   ).toBeVisible();
-  await expect(page.frameLocator('iframe[title="Lesson"]').locator("html")).toHaveCSS(
+  await expect(page.getByRole("group", { name: "Lesson" }).locator(".content-body")).toHaveCSS(
     "background-color",
     "rgba(0, 0, 0, 0)",
   );
-  const bounds = (await frame.boundingBox())!;
+  const bounds = (await content.boundingBox())!;
   const clip = {
     x: bounds.x + bounds.width - 30,
     y: bounds.y + bounds.height - 30,
@@ -92,7 +95,7 @@ test("a lesson opened through LAP blends into its content panel", async ({ page 
     height: 20,
   };
   const visible = await page.screenshot({ clip });
-  await frame.evaluate((element) => (element.style.visibility = "hidden"));
+  await content.evaluate((element) => (element.style.visibility = "hidden"));
   const hidden = await page.screenshot({ clip });
   expect(visible.equals(hidden)).toBe(true);
 });
@@ -155,20 +158,20 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
   };
 
   await openDeck();
-  const frame = page.frameLocator('iframe[title="Flashcard"]');
+  const content = page.getByRole("group", { name: "Flashcard" });
   await expect(page.getByText("2 cards · 0 due · 2 new available")).toBeVisible();
   await page.getByRole("button", { name: "Start review" }).click();
-  await expect(frame.getByText("Hello")).toBeVisible();
-  await expect(frame.locator("#local")).toHaveAttribute("src", /^blob:/);
-  await expect(frame.locator("audio")).toHaveAttribute("src", /^blob:/);
+  await expect(content.getByText("Hello")).toBeVisible();
+  await expect(content.locator("#local")).toHaveAttribute("src", /^blob:/);
+  await expect(content.locator("audio")).toHaveAttribute("src", /^blob:/);
   await expect(page.getByText("Some assets could not be loaded.")).toBeVisible();
   await page.getByRole("button", { name: "Show answer" }).click();
-  await expect(frame.getByText("Hola")).toBeVisible();
-  await expect(frame.getByRole("link", { name: "Lesson link" })).toBeVisible();
-  await expect(frame.locator("#local")).toHaveCount(0);
-  await frame.getByRole("link", { name: "Lesson link" }).click();
+  await expect(content.getByText("Hola")).toBeVisible();
+  await expect(content.getByRole("link", { name: "Lesson link" })).toBeVisible();
+  await expect(content.locator("#local")).toHaveCount(0);
+  await content.getByRole("link", { name: "Lesson link" }).click();
   await expect(
-    page.frameLocator('iframe[title="Lesson"]').getByText("Everyday phrases"),
+    page.getByRole("group", { name: "Lesson" }).getByText("Everyday phrases"),
   ).toBeVisible();
   await page
     .getByRole("complementary")
@@ -179,9 +182,9 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
   await expect(page.locator('[x-role="flashcard-deck"]').getByText("Greeting cards")).toBeVisible();
   await page.getByRole("button", { name: "Show answer" }).click();
   await page.getByRole("button", { name: /^Good/ }).click();
-  await expect(frame.getByText("Thank you")).toBeVisible();
+  await expect(content.getByText("Thank you")).toBeVisible();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(frame.getByText("Hello")).toBeVisible();
+  await expect(content.getByText("Hello")).toBeVisible();
   await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Show answer" }).click();
   await page.getByRole("button", { name: /^Easy/ }).click();
@@ -200,7 +203,7 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
   await openDeck();
   await expect(page.getByText("2 cards · 0 due · 1 new available")).toBeVisible();
   await page.getByRole("button", { name: "Start review" }).click();
-  await expect(frame.getByText("Thank you")).toBeVisible();
+  await expect(content.getByText("Thank you")).toBeVisible();
 });
 
 test("changing the visible card side aborts a pending asset read", async ({ page }) => {
@@ -213,6 +216,6 @@ test("changing the visible card side aborts a pending asset read", async ({ page
   await expect(page.locator('[data-asset="loading"]')).toHaveCount(1);
   await page.getByRole("button", { name: "Flip fixture card" }).click();
   await expect(page.locator('[data-asset="aborted"]')).toHaveCount(1);
-  await expect(page.frameLocator('iframe[title="Flashcard"]').getByText("Back")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Flashcard" }).getByText("Back")).toBeVisible();
   await expect(page.getByText("Some assets could not be loaded.")).toHaveCount(0);
 });
