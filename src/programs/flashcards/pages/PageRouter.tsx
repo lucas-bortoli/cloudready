@@ -73,7 +73,7 @@ export default function PageRouter() {
             {(item) => <LessonPage lesson={item()} onSelect={handleSelect} />}
           </Match>
           <Match when={itemOfType(selected(), "exercise-set")}>
-            {(item) => <ExerciseSetPage exerciseSet={item()} />}
+            {(item) => <ExerciseSetPage exerciseSet={item()} onSelect={handleSelect} />}
           </Match>
           <Match when={itemOfType(selected(), "flashcard-deck")}>
             {(item) => <FlashcardDeckPage deck={item()} onSelect={handleSelect} />}

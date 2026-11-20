@@ -12,7 +12,39 @@ vi.mock("../core/subject-package/package", () => ({
   openSubjectPackage: vi.fn(),
   writeSubjectPackage: vi.fn(),
 }));
-afterEach(() => vi.resetAllMocks());
+afterEach(() => {
+  vi.resetAllMocks();
+  vi.unstubAllGlobals();
+});
+
+it("remembers opened paths and restores them in a new controller", async () => {
+  const values = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+  });
+  vi.mocked(filesystem.readFile).mockResolvedValue(new Blob());
+  vi.mocked(openSubjectPackage).mockImplementation(
+    async () => ({ close: vi.fn().mockResolvedValue(undefined) }) as unknown as OpenSubjectPackage,
+  );
+  const mount = () => createRoot((dispose) => ({ controller: createSubjectController(), dispose }));
+  const first = mount();
+  await first.controller.openFile("/first.lap");
+  await first.controller.openFile("/second.lap");
+  first.dispose();
+
+  const restored = mount();
+  try {
+    await vi.waitFor(() =>
+      expect(restored.controller.subjects().map((entry) => entry.path)).toEqual([
+        "/first.lap",
+        "/second.lap",
+      ]),
+    );
+  } finally {
+    restored.dispose();
+  }
+});
 
 it("retains open subjects on failure, reuses matching paths and cleans up on disposal", async () => {
   const first = { close: vi.fn().mockResolvedValue(undefined) } as unknown as OpenSubjectPackage;

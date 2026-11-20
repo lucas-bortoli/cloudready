@@ -37,6 +37,8 @@ Use `npm run build` for production builds.
 - Use `kebab-case` directory names for feature areas, such as `components/window-manager/`.
 - Put one exported component in each `PascalCase.tsx` file. Name components for one entity
   in singular form; use plural names only for collection renderers, such as `WindowsOutlet`.
+- Define and export a named `ComponentNameProps` interface for each component that accepts props;
+  do not define props inline in the component signature.
 - Keep types and helpers within a feature directory until another feature needs them. Promote
   only framework-independent, reusable utilities to `src/lib/`.
 - Name context modules `FeatureContext.tsx`; export a matching `FeatureProvider` and
@@ -95,6 +97,8 @@ const handleApplicationClick = (application: Application) => {
 ```
 
 ### Comment rules
+
+Use blank lines to separate meaningful groups of state and logic, keeping dense controllers easy to scan.
 
 Use comments to explain intent, behavior, or constraints that are not obvious from the code. Keep inline comments brief and close to the code they explain; avoid narrating straightforward operations. Add JSDoc to exported classes and public methods when it helps callers understand their purpose, parameters, return values, examples, or failure modes. Write JSDoc as multiline blocks with a concise summary first, followed by relevant tags such as `@param`, `@returns`, `@example`, and `@throws`. Put the opening `/**` and closing `*/` delimiters on their own lines. Keep descriptions specific and useful, and update comments when behavior changes.
 

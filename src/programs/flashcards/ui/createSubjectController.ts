@@ -73,6 +73,26 @@ export type OpenSubjectEntry = ReturnType<typeof createSubjectEntry>;
 
 // Windows in the same desktop share a draft, so saving from one cannot discard another's ratings.
 const openEntries = new Map<string, { entry: OpenSubjectEntry; windows: number }>();
+const storageKey = "flashcards.open-subjects";
+
+function storedPaths(): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+    if (Array.isArray(value))
+      return [...new Set(value.filter((path): path is string => typeof path === "string"))];
+  } catch {
+    // Storage can be unavailable or contain invalid data.
+  }
+  return [];
+}
+
+function rememberPath(path: string): void {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify([...new Set([...storedPaths(), path])]));
+  } catch {
+    // Opening a subject should still work when storage is unavailable.
+  }
+}
 
 function releaseSubject(entry: OpenSubjectEntry): void {
   const shared = openEntries.get(entry.path);
@@ -108,7 +128,7 @@ export function createSubjectController() {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
   let request: AbortController | undefined;
-  let disposed = false;
+  let lifecycle: "restoring" | "active" | "disposed" = "restoring";
 
   /**
    * Opens a filesystem subject and retains the previous subject on failure.
@@ -116,7 +136,7 @@ export function createSubjectController() {
    *
    * @param path CloudReady filesystem path to a LAP package.
    */
-  async function openFile(path: string): Promise<void> {
+  async function openPath(path: string): Promise<void> {
     request?.abort();
     const current = new AbortController();
     request = current;
@@ -136,7 +156,7 @@ export function createSubjectController() {
         const blob = await filesystem.readFile(path);
         if (current.signal.aborted) return;
         const opened = await openSubjectPackage(blob, { signal: current.signal });
-        if (current.signal.aborted || disposed) {
+        if (current.signal.aborted || lifecycle === "disposed") {
           await opened.close();
           return;
         }
@@ -156,8 +176,9 @@ export function createSubjectController() {
         setSubject(entry.subject);
         setSelection(null);
       });
+      rememberPath(path);
     } catch (cause) {
-      if (!current.signal.aborted && !disposed) {
+      if (!current.signal.aborted && lifecycle !== "disposed") {
         console.error("Could not open subject package.", cause);
         setError(cause instanceof Error ? cause.message : "Could not open subject.");
       }
@@ -169,8 +190,24 @@ export function createSubjectController() {
     }
   }
 
+  async function openFile(path: string): Promise<void> {
+    if (lifecycle === "disposed") return;
+    lifecycle = "active";
+    await openPath(path);
+  }
+
+  async function restoreSubjects(): Promise<void> {
+    for (const path of storedPaths()) {
+      if (lifecycle !== "restoring") return;
+      await openPath(path);
+    }
+    if (lifecycle === "restoring") lifecycle = "active";
+  }
+
+  void restoreSubjects();
+
   onCleanup(() => {
-    disposed = true;
+    lifecycle = "disposed";
     request?.abort();
     subjects().forEach(releaseSubject);
   });

@@ -1,6 +1,8 @@
 import DocumentAdd16 from "@carbon/icons/es/document--add/16.js";
-import Document16 from "@carbon/icons/es/document/16.js";
+import Book16 from "@carbon/icons/es/book/16.js";
+import DocumentMultiple16 from "@carbon/icons/es/document--multiple-01/16.js";
 import Folder16 from "@carbon/icons/es/folder/16.js";
+import Task16 from "@carbon/icons/es/task/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
 import { createEffect, createMemo, For, Show } from "solid-js";
 import Button from "../../components/button/Button";
@@ -14,6 +16,13 @@ import { useCurrentSubjectEntry } from "./components/subjects/useCurrentSubject"
 import type { TopicItem } from "./core/learning-program";
 import { NavigationProvider, useNavigation } from "./navigation/NavigationContext";
 import PageRouter from "./pages/PageRouter";
+
+const itemIcons = {
+  topic: Folder16,
+  lesson: Book16,
+  "exercise-set": Task16,
+  "flashcard-deck": DocumentMultiple16,
+} satisfies Record<TopicItem["type"], typeof Folder16>;
 
 function MainWindow() {
   const subjectOpener = useSubjects();
@@ -88,7 +97,7 @@ function MainWindow() {
     <SidebarItem
       itemKey={itemKey(props.subjectPath, props.item.id)}
       label={props.item.title}
-      icon={props.item.type === "topic" ? Folder16 : Document16}
+      icon={itemIcons[props.item.type]}
       onClick={handleItemClick.bind(null, props.subjectPath, props.item.id)}
     >
       <Show when={props.item.type === "topic"}>
