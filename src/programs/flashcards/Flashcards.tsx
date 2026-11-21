@@ -1,13 +1,13 @@
-import DocumentAdd16 from "@carbon/icons/es/document--add/16.js";
 import Book16 from "@carbon/icons/es/book/16.js";
+import DocumentAdd16 from "@carbon/icons/es/document--add/16.js";
 import DocumentMultiple16 from "@carbon/icons/es/document--multiple-01/16.js";
 import Folder16 from "@carbon/icons/es/folder/16.js";
 import Task16 from "@carbon/icons/es/task/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
 import { createEffect, createMemo, For, Show } from "solid-js";
+import AppFrame from "../../components/app-frame/AppFrame";
 import Button from "../../components/button/Button";
 import useDialog from "../../components/dialog/Dialog";
-import ResizableSidebar from "../../components/sidebar/ResizableSidebar";
 import { SidebarItem } from "../../components/sidebar/SidebarItem";
 import { SidebarSection } from "../../components/sidebar/SidebarSection";
 import useFilePicker from "../file-manager/file-picker/FilePicker";
@@ -129,11 +129,12 @@ function MainWindow() {
   });
 
   return (
-    <div x-role="flashcards" class="@container flex h-full min-h-0 text-neutral-800">
-      <div class="relative flex min-h-0 flex-1">
-        <ResizableSidebar
-          class="flex border-r border-neutral-200 bg-neutral-100"
+    <div x-role="flashcards" class="h-full min-h-0">
+      <AppFrame>
+        <AppFrame.SidebarHeader>Hello</AppFrame.SidebarHeader>
+        <AppFrame.Sidebar
           sizeKey="flashcards.sidebar.width"
+          navigationKey={JSON.stringify(navigation.route())}
           selectedItem={sidebarSelectedItem()}
           setSelectedItem={handleSelect}
         >
@@ -162,38 +163,35 @@ function MainWindow() {
               )}
             </For>
           </SidebarSection>
-        </ResizableSidebar>
-        <section class="flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-neutral-50">
-          <Show when={currentSubject()}>
-            {(entry) => (
-              <header
-                x-role="subject-toolbar"
-                class="flex shrink-0 items-center justify-end gap-2 border-b border-neutral-200 px-4 py-2"
-              >
-                <span role="status" class="text-sm">
-                  <Show
-                    when={entry().saving()}
-                    fallback={<Show when={entry().dirty()}>Unsaved changes</Show>}
-                  >
-                    Saving subject…
-                  </Show>
-                </span>
-                <Button disabled={!entry().dirty()} loading={entry().saving()} onClick={handleSave}>
-                  Save
-                </Button>
-                <Show when={entry().saveError()}>
-                  <p role="alert" class="text-sm text-red-700">
-                    Could not save subject. {entry().saveError()} Select Save to retry.
-                  </p>
+        </AppFrame.Sidebar>
+        <Show when={currentSubject()}>
+          {(entry) => (
+            <AppFrame.Header>
+              <span role="status" class="text-sm">
+                <Show
+                  when={entry().saving()}
+                  fallback={<Show when={entry().dirty()}>Unsaved changes</Show>}
+                >
+                  Saving subject…
                 </Show>
-              </header>
-            )}
-          </Show>
-          <div class="flex min-h-0 flex-1 flex-col">
-            <PageRouter />
-          </div>
-        </section>
-      </div>
+              </span>
+              <Button disabled={!entry().dirty()} loading={entry().saving()} onClick={handleSave}>
+                Save
+              </Button>
+              <Show when={entry().saveError()}>
+                <p role="alert" class="text-sm text-red-700">
+                  Could not save subject. {entry().saveError()} Select Save to retry.
+                </p>
+              </Show>
+            </AppFrame.Header>
+          )}
+        </Show>
+        <AppFrame.Main>
+          <PageRouter />
+        </AppFrame.Main>
+        <AppFrame.Status>Hi</AppFrame.Status>
+        <AppFrame.SidebarStatus>Bye</AppFrame.SidebarStatus>
+      </AppFrame>
     </div>
   );
 }

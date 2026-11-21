@@ -9,6 +9,7 @@ const KEYBOARD_STEP = 10;
 
 export interface ResizableSidebarProps extends FixedSidebarProps {
   class?: string;
+  asideClass?: string;
   "data-show"?: boolean;
   sizeKey?: string;
 }
@@ -84,7 +85,12 @@ export default function ResizableSidebar(props: ResizableSidebarProps) {
       class={cn("relative flex h-full shrink-0", props.class)}
       style={{ width: `${effectiveWidth()}px` }}
     >
-      <FixedSidebar selectedItem={props.selectedItem} setSelectedItem={props.setSelectedItem} fill>
+      <FixedSidebar
+        class={props.asideClass ?? "flex h-full"}
+        selectedItem={props.selectedItem}
+        setSelectedItem={props.setSelectedItem}
+        fill
+      >
         {props.children}
       </FixedSidebar>
       <div
