@@ -1,5 +1,4 @@
 import { Show } from "solid-js";
-import Button from "../../../../components/button/Button";
 import type { AnkiCard } from "../../core/anki";
 import type { Rating } from "../../core/fsrs";
 import type { RenderedCard } from "../../core/template";
@@ -93,25 +92,23 @@ export default function ReviewView(props: ReviewViewProps) {
                 ? `Next review: ${new Date(props.summary.nextDue).toLocaleString()}.`
                 : ""}
             </p>
-            <Button disabled={!props.canUndo || props.saving} onClick={props.onUndo}>
-              Undo last rating
-            </Button>
           </div>
         }
       >
         <CardContent card={props.rendered} revealed={props.revealed} media={props.media} />
-        <ReviewControls
-          revealed={props.revealed}
-          saving={props.saving}
-          saveError={props.saveError}
-          canUndo={props.canUndo}
-          intervalLabel={props.intervalLabel}
-          onReplay={props.onReplay}
-          onReveal={props.onReveal}
-          onRate={props.onRate}
-          onUndo={props.onUndo}
-        />
       </Show>
+      <ReviewControls
+        hasCard={!!props.card}
+        revealed={props.revealed}
+        saving={props.saving}
+        saveError={props.saveError}
+        canUndo={props.canUndo}
+        intervalLabel={props.intervalLabel}
+        onReplay={props.onReplay}
+        onReveal={props.onReveal}
+        onRate={props.onRate}
+        onUndo={props.onUndo}
+      />
     </div>
   );
 }

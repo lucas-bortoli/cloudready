@@ -1,0 +1,77 @@
+.surface {
+  position: relative;
+  width: min(100%, 20rem, 42.857vh);
+  aspect-ratio: 5 / 7;
+  background: #fff;
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.08),
+    0 10px 48px rgb(0 0 0 / 0.12);
+}
+
+.content {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 320px;
+  height: 448px;
+  transform: scale(var(--card-scale, 1));
+  transform-origin: top left;
+}
+
+@keyframes flashcard-flip {
+  0% {
+    transform: perspective(1000px) rotateY(0);
+  }
+  50% {
+    transform: perspective(1000px) rotateY(90deg);
+  }
+  50.001% {
+    transform: perspective(1000px) rotateY(-90deg);
+  }
+  100% {
+    transform: perspective(1000px) rotateY(0);
+  }
+}
+
+@keyframes flashcard-enter {
+  from {
+    opacity: 0;
+    translate: 24px;
+    scale: 0.97;
+  }
+  to {
+    opacity: 1;
+    translate: 0;
+    scale: 1;
+  }
+}
+
+@keyframes flashcard-leave {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    translate: -24px;
+    scale: 0.97;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .enter {
+    animation-name: flashcard-enter, none;
+    animation-duration: 200ms, 300ms;
+    animation-timing-function: ease-out, ease-in-out;
+    animation-fill-mode: both;
+  }
+  .flip {
+    animation-name: flashcard-enter, flashcard-flip;
+  }
+  .leave {
+    animation-name: flashcard-leave, none;
+    animation-duration: 180ms, 300ms;
+    animation-timing-function: ease-in, ease-in-out;
+  }
+  .leave.flip {
+    animation-name: flashcard-leave, flashcard-flip;
+  }
+}

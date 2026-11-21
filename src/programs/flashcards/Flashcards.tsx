@@ -17,6 +17,12 @@ import type { TopicItem } from "./core/learning-program";
 import { NavigationProvider, useNavigation } from "./navigation/NavigationContext";
 import PageRouter from "./pages/PageRouter";
 
+/** An item and the subject path used for sidebar navigation. */
+export interface SidebarEntryProps {
+  item: TopicItem;
+  subjectPath: string;
+}
+
 const itemIcons = {
   topic: Folder16,
   lesson: Book16,
@@ -93,7 +99,7 @@ function MainWindow() {
   const subjectKey = (subjectPath: string) => JSON.stringify([subjectPath]);
   const itemKey = (subjectPath: string, itemId: string) => JSON.stringify([subjectPath, itemId]);
 
-  const SidebarEntry = (props: { item: TopicItem; subjectPath: string }) => (
+  const SidebarEntry = (props: SidebarEntryProps) => (
     <SidebarItem
       itemKey={itemKey(props.subjectPath, props.item.id)}
       label={props.item.title}

@@ -5,6 +5,10 @@ import { emptySubjectProgress } from "../../../../../../core/subject-review";
 import type { OpenSubjectEntry } from "../../../../../../ui/createSubjectController";
 import Session from "./Session";
 
+interface MockUserHtmlProps {
+  html: string;
+}
+
 const dialogMock = vi.hoisted(() => ({ show: vi.fn() }));
 vi.mock("../../../../../../../../components/dialog/Dialog", () => ({
   default: () => dialogMock.show,
@@ -12,7 +16,7 @@ vi.mock("../../../../../../../../components/dialog/Dialog", () => ({
 }));
 
 vi.mock("../../../../../../components/user-html/UserHtml", () => ({
-  UserHtml: (props: { html: string }) => <div>{props.html}</div>,
+  UserHtml: (props: MockUserHtmlProps) => <div>{props.html}</div>,
 }));
 
 it("shows history, reveals an answer and displays the completed score", () => {

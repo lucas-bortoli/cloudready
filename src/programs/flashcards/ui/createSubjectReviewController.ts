@@ -19,6 +19,7 @@ export function createSubjectReviewController(
   const [active, setActive] = createSignal(startImmediately);
   const [selected, setSelected] = createSignal<SubjectReviewCard>();
   const [revealedCard, setRevealedCard] = createSignal<SubjectReviewCard>();
+  const [reviewedCount, setReviewedCount] = createSignal(0);
   const [lastRating, setLastRating] = createSignal<{
     card: SubjectReviewCard;
     previous: SubjectProgress;
@@ -65,6 +66,7 @@ export function createSubjectReviewController(
       setSelected(undefined);
       setRevealedCard(undefined);
       setLastRating(undefined);
+      setReviewedCount(0);
     });
   };
 
@@ -93,6 +95,7 @@ export function createSubjectReviewController(
       setSelected(undefined);
       setNow(timestamp);
       entry.updateProgress(rated);
+      setReviewedCount((count) => count + 1);
     });
   };
 
@@ -105,6 +108,7 @@ export function createSubjectReviewController(
       setSelected(last.card);
       setRevealedCard(undefined);
       setLastRating(undefined);
+      setReviewedCount((count) => count - 1);
     });
   };
 
@@ -121,5 +125,18 @@ export function createSubjectReviewController(
     return `${Math.round(interval / 86400000)}d`;
   };
 
-  return { active, queue, card, revealed, canUndo, start, end, reveal, rate, undo, intervalLabel };
+  return {
+    active,
+    queue,
+    card,
+    revealed,
+    reviewedCount,
+    canUndo,
+    start,
+    end,
+    reveal,
+    rate,
+    undo,
+    intervalLabel,
+  };
 }

@@ -45,6 +45,30 @@ describe("review view", () => {
     root.remove();
   });
 
+  it("keeps undo available and disables card actions when the queue is empty", () => {
+    const props = reviewProps();
+    props.card = undefined;
+    props.canUndo = true;
+    const root = document.createElement("div");
+    document.body.append(root);
+    const dispose = render(() => <ReviewView {...props} />, root);
+    try {
+      const buttons = [...root.querySelectorAll("button")];
+      const undo = buttons.find((button) => button.textContent?.trim() === "Undo")!;
+      expect(undo.getAttribute("aria-disabled")).toBeNull();
+      expect(
+        buttons
+          .filter((button) => button !== undo)
+          .every((button) => button.getAttribute("aria-disabled") === "true"),
+      ).toBe(true);
+      undo.click();
+      expect(props.onUndo).toHaveBeenCalledOnce();
+    } finally {
+      dispose();
+      root.remove();
+    }
+  });
+
   it("routes rating shortcuts only after the answer is shown", () => {
     const props = reviewProps();
     props.revealed = true;

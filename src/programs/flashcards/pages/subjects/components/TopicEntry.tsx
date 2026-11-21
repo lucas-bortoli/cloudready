@@ -1,8 +1,14 @@
 import { For, Show } from "solid-js";
 import type { TopicItem } from "../../../core/learning-program";
 
+/** The subject item and its navigation callback. */
+export interface TopicEntryProps {
+  item: TopicItem;
+  onSelect: (id: string) => void;
+}
+
 /** Displays a subject item and its nested topic items as navigation links. */
-export function TopicEntry(props: { item: TopicItem; onSelect: (id: string) => void }) {
+export function TopicEntry(props: TopicEntryProps) {
   return (
     <li>
       <button

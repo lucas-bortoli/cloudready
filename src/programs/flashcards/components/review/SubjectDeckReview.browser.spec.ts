@@ -113,3 +113,75 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
   await page.getByRole("button", { name: "Start review" }).click();
   await expect(content.getByText("Thank you")).toBeVisible();
 });
+
+test("animates a revealed card and respects reduced motion", async ({ page }) => {
+  const sample = await readFile("spanish-starter.lap");
+  await page.goto("/");
+  await page.evaluate(async (bytes) => {
+    const { mountLapFixture } = await import(Reflect.get(window, "lapFixtureUrl"));
+    mountLapFixture(new Blob([new Uint8Array(bytes)]));
+  }, Array.from(sample));
+  await page.getByRole("button", { name: "Add Subject..." }).click();
+  await page.getByRole("option", { name: "spanish-starter.lap" }).click();
+  await page.getByRole("button", { name: "Confirm Selection" }).click();
+  await page.getByRole("button", { name: "Greeting cards" }).first().click();
+  await page.getByRole("button", { name: "Start review" }).click();
+  const card = page.getByRole("group", { name: "Flashcard" }).locator("../..");
+  const animationNames = () =>
+    card.evaluate((element) =>
+      element.getAnimations().flatMap((animation) => {
+        if (animation instanceof CSSAnimation) return [animation.animationName];
+        return [];
+      }),
+    );
+  expect(await animationNames()).toEqual([expect.stringContaining("flashcard-enter")]);
+  const visibleImmediately = await page
+    .getByRole("button", { name: "Show answer" })
+    .evaluate((button) => {
+      (button as HTMLButtonElement).click();
+      return document.querySelector('[aria-label="Flashcard"]')?.shadowRoot?.textContent;
+    });
+  expect(visibleImmediately).toContain("Hello");
+  await expect.poll(animationNames).toContainEqual(expect.stringContaining("flashcard-flip"));
+  await expect(card.getByText("Hola")).toBeVisible();
+  const afterRating = await page.getByRole("button", { name: /^Good/ }).evaluate((button) => {
+    (button as HTMLButtonElement).click();
+    return {
+      queue: document.querySelector('[x-role="flashcard-deck"] [role="status"]')?.textContent,
+      face: document.querySelector('[aria-label="Flashcard"]')?.shadowRoot?.textContent,
+    };
+  });
+  expect(afterRating.queue).toContain("1 new available");
+  expect(afterRating.face).toContain("Hola");
+  await expect.poll(animationNames).toContainEqual(expect.stringContaining("flashcard-leave"));
+  await expect(card.getByText("Thank you")).toBeVisible();
+  expect(await animationNames()).toEqual([expect.stringContaining("flashcard-enter")]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(card.getByText("Hello")).toBeVisible();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(animationNames).toEqual([]);
+  const reviewPanel = page.locator('[x-role="flashcard-deck"]');
+  const reviewHeight = await reviewPanel.evaluate((element) => element.scrollHeight);
+  const cardHeight = await card.evaluate((element) => element.clientHeight);
+  for (const answer of ["Hola", "Gracias"]) {
+    await page.getByRole("button", { name: "Show answer" }).click();
+    await expect(card.getByText(answer)).toBeVisible();
+    await page.getByRole("button", { name: /^Good/ }).click();
+  }
+  const completion = page.getByRole("heading", { name: "Review complete!" });
+  await expect(completion).toBeVisible();
+  await expect(page.getByText("2 cards reviewed")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Show answer" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Good/ })).toHaveCount(0);
+  expect(await completion.locator("../../..").evaluate((element) => element.clientHeight)).toBe(
+    cardHeight,
+  );
+  expect(await reviewPanel.evaluate((element) => element.scrollHeight)).toBe(reviewHeight);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(card.getByText("Thank you")).toBeVisible();
+  await page.getByRole("button", { name: "Show answer" }).click();
+  await page.getByRole("button", { name: /^Good/ }).click();
+  await expect(page.getByText("2 cards reviewed")).toBeVisible();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "All caught up" })).toBeVisible();
+});

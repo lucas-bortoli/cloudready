@@ -2,8 +2,13 @@ import { Show } from "solid-js";
 import { SubjectContents } from "./components/SubjectContents";
 import { useCurrentSubject } from "../../components/subjects/useCurrentSubject";
 
+/** Navigation callback for the subject page. */
+export interface SubjectPageProps {
+  onSelect: (id: string) => void;
+}
+
 /** Displays the subject root and its package metadata. */
-export default function SubjectPage(props: { onSelect: (id: string) => void }) {
+export default function SubjectPage(props: SubjectPageProps) {
   const subject = useCurrentSubject();
 
   return (
