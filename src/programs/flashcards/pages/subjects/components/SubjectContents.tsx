@@ -1,10 +1,10 @@
 import { createMemo, createSignal, For, Show, type ParentProps } from "solid-js";
 import Button from "../../../../../components/button/Button";
+import { SubjectDeckReview } from "../../../components/review/SubjectDeckReview";
+import { useCurrentSubjectEntry } from "../../../components/subjects/useCurrentSubject";
 import type { TopicItem } from "../../../core/learning-program";
 import { collectReviewDecks } from "../../../core/subject-review";
-import { SubjectDeckReview } from "../../../components/review/SubjectDeckReview";
 import { TopicEntry } from "./TopicEntry";
-import { useCurrentSubjectEntry } from "../../../components/subjects/useCurrentSubject";
 
 // Retain only matching items and the topics needed to show their hierarchy.
 function itemTree(items: TopicItem[], type: "exercise-set" | "flashcard-deck"): TopicItem[] {
@@ -56,7 +56,7 @@ export function SubjectContents(
       keyed
       fallback={
         <div class="h-full w-full p-4">
-          <h1 class="text-2xl">{props.title}</h1>
+          <h1 class="text-3xl">{props.title}</h1>
           {props.children}
           <Show when={props.items.length > 0} fallback={<p>{props.emptyMessage}</p>}>
             <Show when={otherItems().length > 0}>

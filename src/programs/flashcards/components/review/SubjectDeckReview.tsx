@@ -1,10 +1,10 @@
 import { createMemo, Show, untrack } from "solid-js";
 import Button from "../../../../components/button/Button";
-import ReviewControls from "./ReviewControls";
-import { SubjectHtmlView } from "../subjects/SubjectHtmlView";
 import type { FlashcardDeck } from "../../core/learning-program";
 import type { OpenSubjectEntry } from "../../ui/createSubjectController";
 import { createSubjectReviewController } from "../../ui/createSubjectReviewController";
+import { UserHtml } from "../user-html/UserHtml";
+import ReviewControls from "./ReviewControls";
 
 /** Displays the same review controls for a single deck or a collection of decks. */
 export function SubjectDeckReview(props: {
@@ -71,12 +71,7 @@ export function SubjectDeckReview(props: {
                 <Show when={props.onEnd}>
                   <p class="mb-2 text-sm">{deck.title}</p>
                 </Show>
-                <SubjectHtmlView
-                  subject={props.entry.subject}
-                  title="Flashcard"
-                  html={visibleHtml()}
-                  onSelect={props.onSelect}
-                />
+                <UserHtml title="Flashcard" html={visibleHtml()} onSelect={props.onSelect} />
               </div>
             );
           }}

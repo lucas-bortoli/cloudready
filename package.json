@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "test:lap-browser": "playwright test tests/lap-browser.spec.ts"
+    "test:lap-browser": "playwright test"
   },
   "dependencies": {
     "@carbon/icons": "^11.88.0",

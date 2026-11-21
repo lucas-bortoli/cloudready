@@ -1,16 +1,16 @@
 import { createMemo, Show } from "solid-js";
 import { useCurrentSubjectEntry } from "../../../../../../components/subjects/useCurrentSubject";
 import type { ExerciseSet } from "../../../../../../core/learning-program";
-import ExerciseSession from "./ExerciseSession";
+import Session from "./Session";
 
 /** The set and navigation callback for links in its content. */
-export interface ExerciseSetPageProps {
+export interface SetPageProps {
   exerciseSet: ExerciseSet;
   onSelect: (id: string) => void;
 }
 
 /** Opens a fresh session when the subject or set changes. */
-export default function ExerciseSetPage(props: ExerciseSetPageProps) {
+export default function SetPage(props: SetPageProps) {
   const entry = useCurrentSubjectEntry();
   const route = createMemo(() => {
     const current = entry();
@@ -19,7 +19,7 @@ export default function ExerciseSetPage(props: ExerciseSetPageProps) {
   return (
     <Show when={route()} keyed>
       {(current) => (
-        <ExerciseSession
+        <Session
           entry={current.entry}
           exerciseSet={current.exerciseSet}
           onSelect={props.onSelect}

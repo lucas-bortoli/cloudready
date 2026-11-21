@@ -2,6 +2,7 @@ import { createEffect } from "solid-js";
 
 export interface ScopedHtmlProps {
   title: string;
+  class?: string;
   /** Prepared markup and CSS. The renderer moves the body's children into its shadow root. */
   content: { body: HTMLElement; css: string } | undefined;
   baseCss?: string;
@@ -14,7 +15,9 @@ export interface ScopedHtmlProps {
  * Callers must sanitize any untrusted markup and CSS before passing them in.
  */
 export function ScopedHtml(props: ScopedHtmlProps) {
-  const host = (<div role="group" aria-label={props.title} />) as HTMLDivElement;
+  const host = (
+    <div role="group" aria-label={props.title} class={props.class} />
+  ) as HTMLDivElement;
   const root = host.attachShadow({ mode: "open" });
   const base = document.createElement("style");
   const styles = document.createElement("style");

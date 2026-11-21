@@ -2,7 +2,7 @@ import { createRoot, createSignal } from "solid-js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ExerciseSet } from "../../../../../../core/learning-program";
 import { emptySubjectProgress } from "../../../../../../core/subject-review";
-import { createExerciseSessionController } from "./createExerciseSessionController";
+import { createSessionController } from "./createSessionController";
 
 const set: ExerciseSet = {
   id: "set",
@@ -32,7 +32,7 @@ afterEach(() => vi.useRealTimers());
 function mount(exerciseSet = set) {
   return createRoot((dispose) => {
     const [progress, updateProgress] = createSignal(emptySubjectProgress("UTC"));
-    const session = createExerciseSessionController({ progress, updateProgress }, exerciseSet);
+    const session = createSessionController({ progress, updateProgress }, exerciseSet);
     return { dispose, progress, session };
   });
 }

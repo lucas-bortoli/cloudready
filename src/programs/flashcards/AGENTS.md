@@ -35,7 +35,7 @@ pages/
     pages/items/pages/
       topic/TopicPage.tsx
       lesson/LessonPage.tsx
-      exercise-set/ExerciseSetPage.tsx
+      exercise-set/SetPage.tsx
       flashcard-deck/FlashcardDeckPage.tsx
 ```
 
@@ -55,5 +55,5 @@ pages/
 ## Verification
 
 Use the repository's npm scripts and focused tests relevant to the change.
-Browser tests for the lesson fixture are in `tests/lap-browser.spec.ts` at the
-repository root; update their fixture path if it moves.
+Browser tests are co-located with the features they cover as `*.browser.spec.ts`.
+Shared browser fixtures are in `src/programs/flashcards/tests/fixtures/`.

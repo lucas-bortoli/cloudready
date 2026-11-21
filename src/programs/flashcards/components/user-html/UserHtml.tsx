@@ -1,28 +1,31 @@
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
-import type { OpenSubjectPackage } from "../../core/subject-package/types";
-import { contentMarkup, contentStyles } from "../../browser/content-markup";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 import { ScopedHtml } from "../../../../components/scoped-html/ScopedHtml";
-import baseCss from "./subject-content.css?raw";
+import { contentMarkup, contentStyles } from "../../browser/content-markup";
+import { useOptionalCurrentSubject } from "../subjects/useCurrentSubject";
+import baseCss from "./base.css?raw";
 
 /**
- * Properties for isolated subject content.
+ * Properties for isolated HTML content.
  */
-export interface SubjectHtmlViewProps {
-  subject: OpenSubjectPackage;
+export interface UserHtmlProps {
   title: string;
   html: string;
   onSelect: (id: string) => void;
+  class?: string;
 }
 
 /**
  * Displays sanitized LAP HTML with scoped styles and local media.
  * Object URLs and pending reads are released when the content changes or closes.
  *
- * @param props The open package, HTML, and internal navigation handler.
+ * @param props The HTML and internal navigation handler.
  */
-export function SubjectHtmlView(props: SubjectHtmlViewProps) {
+export function UserHtml(props: UserHtmlProps) {
+  const currentSubject = useOptionalCurrentSubject();
   const [content, setContent] = createSignal<{ body: HTMLElement; css: string }>();
-  const [warning, setWarning] = createSignal(false);
+
+  // TODO: forward UserHtml warnings to a context provider, so the app can display errors in a centralized way in the header bar
+  const [, setWarning] = createSignal(false);
 
   const handleClick = (event: MouseEvent, root: ShadowRoot) => {
     if (!(event.target instanceof Element)) return;
@@ -47,7 +50,7 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
 
   createEffect(() => {
     const html = props.html;
-    const subject = props.subject;
+    const subject = currentSubject();
     const abort = new AbortController();
     const urls: string[] = [];
     setContent(undefined);
@@ -65,7 +68,7 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
           element.removeAttribute("href");
           element.removeAttribute("xlink:href");
           element.removeAttribute("target");
-          if (/^(lap:item\/|#|https?:\/\/)/i.test(href)) {
+          if (/^(#|https?:\/\/)/i.test(href) || (subject && /^lap:item\//i.test(href))) {
             element.setAttribute("data-lap-link", href);
             element.setAttribute("href", "#");
           }
@@ -90,6 +93,10 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
           const svgImage =
             (attr === "href" || attr === "xlink:href") && element.localName === "image";
           if (!(mediaSource || poster || svgImage) || !path.startsWith("assets/")) continue;
+          if (!subject) {
+            setWarning(true);
+            continue;
+          }
           try {
             let url = cache.get(path);
             if (!url) {
@@ -135,11 +142,12 @@ export function SubjectHtmlView(props: SubjectHtmlViewProps) {
   });
 
   return (
-    <div class="flex min-h-0 flex-1 flex-col">
-      <Show when={warning()}>
-        <p role="status">Some assets could not be loaded.</p>
-      </Show>
-      <ScopedHtml title={props.title} content={content()} baseCss={baseCss} onClick={handleClick} />
-    </div>
+    <ScopedHtml
+      title={props.title}
+      class={props.class}
+      content={content()}
+      baseCss={baseCss}
+      onClick={handleClick}
+    />
   );
 }

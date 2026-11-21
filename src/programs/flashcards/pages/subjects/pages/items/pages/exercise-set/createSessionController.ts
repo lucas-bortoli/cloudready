@@ -8,7 +8,7 @@ import type {
 import type { OpenSubjectEntry } from "../../../../../../ui/createSubjectController";
 
 /** Manages an attempt against the open subject's progress draft. */
-export function createExerciseSessionController(
+export function createSessionController(
   entry: Pick<OpenSubjectEntry, "progress" | "updateProgress">,
   exerciseSet: ExerciseSet,
 ) {

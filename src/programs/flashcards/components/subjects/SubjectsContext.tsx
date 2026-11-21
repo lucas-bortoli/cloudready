@@ -1,7 +1,7 @@
 import { createContext, useContext, type ParentProps } from "solid-js";
 import { createSubjectController } from "../../ui/createSubjectController";
 
-const SubjectsContext = createContext<ReturnType<typeof createSubjectController>>();
+export const SubjectsContext = createContext<ReturnType<typeof createSubjectController>>();
 
 /** Owns the subject files open in a Flashcards window. */
 export function SubjectsProvider(props: ParentProps) {

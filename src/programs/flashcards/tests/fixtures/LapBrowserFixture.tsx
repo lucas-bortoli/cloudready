@@ -1,17 +1,30 @@
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onMount, type ParentProps } from "solid-js";
 import { render } from "solid-js/web";
-import { ContextMenuProvider } from "../../../../../../../../../components/context-menu/ContextMenuContext";
-import { LayerProvider } from "../../../../../../../../../components/layer-manager/LayerContext";
+import { ContextMenuProvider } from "../../../../components/context-menu/ContextMenuContext";
+import { LayerProvider } from "../../../../components/layer-manager/LayerContext";
 import {
   WindowManagerProvider,
   useWindowManager,
-} from "../../../../../../../../../components/window-manager/WindowManagerContext";
-import WindowsOutlet from "../../../../../../../../../components/window-manager/WindowsOutlet";
-import { filesystem } from "../../../../../../../../../filesystem/FileSystemClient";
-import { SubjectHtmlView } from "../../../../../../../components/subjects/SubjectHtmlView";
-import type { OpenSubjectPackage } from "../../../../../../../core/subject-package/types";
-import Flashcards from "../../../../../../../Flashcards";
-import { LessonView } from "./LessonView";
+} from "../../../../components/window-manager/WindowManagerContext";
+import WindowsOutlet from "../../../../components/window-manager/WindowsOutlet";
+import { filesystem } from "../../../../filesystem/FileSystemClient";
+import { SubjectsContext } from "../../components/subjects/SubjectsContext";
+import { UserHtml } from "../../components/user-html/UserHtml";
+import type { OpenSubjectPackage } from "../../core/subject-package/types";
+import Flashcards from "../../Flashcards";
+import { NavigationContext } from "../../navigation/NavigationContext";
+
+function FixtureSubject(props: ParentProps<{ subject: OpenSubjectPackage }>) {
+  const navigation = {
+    route: () => ({ id: "/subjects/:subjectId", subjectId: "fixture" }),
+  } as never;
+  const subjects = { subjects: () => [{ path: "fixture", subject: props.subject }] } as never;
+  return (
+    <NavigationContext.Provider value={navigation}>
+      <SubjectsContext.Provider value={subjects}>{props.children}</SubjectsContext.Provider>
+    </NavigationContext.Provider>
+  );
+}
 
 /**
  * Mounts a lesson with in-memory media for browser isolation tests.
@@ -33,11 +46,13 @@ export function mountLessonFixture(html: string) {
   } as unknown as OpenSubjectPackage;
   const dispose = render(
     () => (
-      <LessonView
-        html={html}
-        subject={subject}
-        onSelect={(id) => root.setAttribute("data-selected", id)}
-      />
+      <FixtureSubject subject={subject}>
+        <UserHtml
+          title="Lesson"
+          html={html}
+          onSelect={(id) => root.setAttribute("data-selected", id)}
+        />
+      </FixtureSubject>
     ),
     root,
   );
@@ -148,7 +163,9 @@ export function mountPendingCardFixture() {
     () => (
       <>
         <button onClick={flip}>Flip fixture card</button>
-        <SubjectHtmlView subject={subject} html={html()} title="Flashcard" onSelect={select} />
+        <FixtureSubject subject={subject}>
+          <UserHtml html={html()} title="Flashcard" onSelect={select} />
+        </FixtureSubject>
       </>
     ),
     root,

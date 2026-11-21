@@ -2,7 +2,7 @@
 export default function UnavailablePage() {
   return (
     <div class="h-full w-full p-4">
-      <h1 class="text-2xl">Unavailable</h1>
+      <h1 class="text-3xl">Unavailable</h1>
       <p>This subject or item is unavailable.</p>
     </div>
   );

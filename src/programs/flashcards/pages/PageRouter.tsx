@@ -2,7 +2,7 @@ import { createMemo, Match, Switch } from "solid-js";
 import { useCurrentSubject } from "../components/subjects/useCurrentSubject";
 import type { TopicItem } from "../core/learning-program";
 import { useNavigation } from "../navigation/NavigationContext";
-import ExerciseSetPage from "./subjects/pages/items/pages/exercise-set/ExerciseSetPage";
+import SetPage from "./subjects/pages/items/pages/exercise-set/SetPage";
 import FlashcardDeckPage from "./subjects/pages/items/pages/flashcard-deck/FlashcardDeckPage";
 import LessonPage from "./subjects/pages/items/pages/lesson/LessonPage";
 import SubjectPage from "./subjects/SubjectPage";
@@ -73,7 +73,7 @@ export default function PageRouter() {
             {(item) => <LessonPage lesson={item()} onSelect={handleSelect} />}
           </Match>
           <Match when={itemOfType(selected(), "exercise-set")}>
-            {(item) => <ExerciseSetPage exerciseSet={item()} onSelect={handleSelect} />}
+            {(item) => <SetPage exerciseSet={item()} onSelect={handleSelect} />}
           </Match>
           <Match when={itemOfType(selected(), "flashcard-deck")}>
             {(item) => <FlashcardDeckPage deck={item()} onSelect={handleSelect} />}

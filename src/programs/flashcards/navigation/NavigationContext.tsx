@@ -16,7 +16,7 @@ function createNavigation() {
   return { route, navigate };
 }
 
-const NavigationContext = createContext<ReturnType<typeof createNavigation>>();
+export const NavigationContext = createContext<ReturnType<typeof createNavigation>>();
 
 /** Provides navigation state to one Flashcards window. */
 export function NavigationProvider(props: ParentProps) {
