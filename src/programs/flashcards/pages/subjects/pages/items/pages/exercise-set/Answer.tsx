@@ -41,12 +41,12 @@ export default function Answer(props: AnswerProps) {
   return (
     <div class="mt-4 flex flex-col gap-2 border-l-2 border-neutral-300 pt-2 pl-4">
       <Show when={isMultipleChoice()}>
-        <Show when={isCorrect()}>
+        <Show when={!isCorrect()}>
           <p class="inline-flex items-center gap-2 text-lg font-medium text-amber-800">
             <CarbonIcon icon={CloseFilled16} /> Not quite
           </p>
         </Show>
-        <Show when={!isCorrect()}>
+        <Show when={isCorrect()}>
           <p class="inline-flex items-center gap-2 text-lg font-medium text-emerald-900">
             <CarbonIcon icon={CheckmarkFilled16} /> Correct!
           </p>
