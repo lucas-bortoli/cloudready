@@ -47,7 +47,7 @@
   body,
   #app {
     overscroll-behavior: none;
-    overflow: hidden;
+    overflow: clip;
     touch-action: none;
   }
 

@@ -9,7 +9,7 @@ import WindowSwitcher from "../window-manager/WindowSwitcher";
 export default function Desktop() {
   const [selectedIcons, setSelectedIcons] = createSignal(new Set());
   return (
-    <div x-role="desktop" class="relative h-full w-full overflow-hidden text-base">
+    <div x-role="desktop" class="relative h-full w-full overflow-clip text-base">
       <WindowsOutlet />
       <Taskbar />
       <WindowSwitcher />
