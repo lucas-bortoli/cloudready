@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 
-import { createSignal, type JSX } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
 import Dropdown, { type DropdownOption } from "./Dropdown";
 
@@ -31,6 +33,36 @@ function renderDropdown(dropdown: () => JSX.Element) {
 }
 
 describe("Dropdown", () => {
+  it("tracks controlled values and changing options without diagnostics", async () => {
+    const { artifact } = await captureArtifact(async () => {
+      const [value, setValue] = createSignal<string | null>("light");
+      const [choices, setChoices] = createSignal<readonly DropdownOption[]>(options);
+      const { dispose, element } = renderDropdown(() => (
+        <Dropdown onValueChange={setValue} options={choices()} value={value()} />
+      ));
+
+      setValue("dark");
+      flush();
+      expect(element.value).toBe("dark");
+      setChoices([{ label: "Light", value: "light" }]);
+      flush();
+      expect(element.selectedIndex).toBe(-1);
+      setChoices(options);
+      flush();
+      expect(element.value).toBe("dark");
+      setChoices([{ label: "New", value: "new" }]);
+      setValue("new");
+      flush();
+      expect(element.value).toBe("new");
+      setChoices([{ label: "Remaining", value: "remaining" }]);
+      setValue(null);
+      flush();
+      expect(element.selectedIndex).toBe(-1);
+      dispose();
+    });
+    expectNoDiagnostics(artifact);
+  });
+
   it("renders controlled native options and forwards safe native props", () => {
     const { dispose, element } = renderDropdown(() => (
       <Dropdown
@@ -81,6 +113,7 @@ describe("Dropdown", () => {
     ));
 
     setValue("dark");
+    flush();
 
     expect(element.value).toBe("dark");
 
@@ -96,9 +129,11 @@ describe("Dropdown", () => {
     expect(element.selectedIndex).toBe(-1);
 
     setValue("dark");
+    flush();
     expect(element.value).toBe("dark");
 
     setValue(null);
+    flush();
     expect(element.selectedIndex).toBe(-1);
 
     dispose();

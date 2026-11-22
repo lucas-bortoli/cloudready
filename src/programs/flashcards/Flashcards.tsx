@@ -47,8 +47,7 @@ function MainWindow() {
   });
 
   // show a message box error whenever a package fails to load
-  createEffect(() => {
-    const error = subjectOpener.error();
+  createEffect(subjectOpener.error, (error) => {
     if (!error) return;
     subjectOpener.clearError();
     void showDialog({

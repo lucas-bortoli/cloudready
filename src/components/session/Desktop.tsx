@@ -1,13 +1,10 @@
 import { createSignal } from "solid-js";
 import { layer } from "../layer-manager/layer";
-import { selectionBoundary } from "../range-select/rangeSelect";
+import { createSelectionBoundaryRef } from "../range-select/rangeSelect";
 import { SelectionProvider } from "../range-select/SelectionContext";
 import Taskbar from "../taskbar/TaskBar";
 import WindowsOutlet from "../window-manager/WindowsOutlet";
 import WindowSwitcher from "../window-manager/WindowSwitcher";
-
-void selectionBoundary;
-void layer;
 
 export default function Desktop() {
   const [selectedIcons, setSelectedIcons] = createSignal(new Set());
@@ -19,8 +16,7 @@ export default function Desktop() {
       <SelectionProvider selectedItems={selectedIcons} setSelectedItems={setSelectedIcons}>
         <section
           x-role="desktop icons"
-          use:selectionBoundary
-          use:layer="background"
+          ref={[layer(() => "background"), createSelectionBoundaryRef()]}
           class="absolute h-full w-full overflow-hidden"
         />
       </SelectionProvider>

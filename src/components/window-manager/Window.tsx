@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, Show, untrack } from "solid-js";
+import { createSignal, onCleanup, onSettled, Show, untrack } from "solid-js";
 import focusTrap from "../../lib/focus-trap";
 import { CurrentWindowProvider } from "./CurrentWindowContext";
 import DockPreview from "./DockPreview";
@@ -10,8 +10,12 @@ import "./Window.css";
 import type { WindowDock, WindowEntry } from "./WindowManager";
 import { useWindowManager } from "./WindowManagerContext";
 
+export interface WindowProps {
+  entry: WindowEntry;
+}
+
 /** Renders one framed application window. */
-export default function Window(props: { entry: WindowEntry }) {
+export default function Window(props: WindowProps) {
   const interaction = useWindowInteraction(untrack(() => props.entry));
   const windowManager = useWindowManager();
   const handlePointerDown = () => props.entry.layerItem.bringToTop();
@@ -28,6 +32,8 @@ export default function Window(props: { entry: WindowEntry }) {
     windowManager.setDock(props.entry.id, dock as WindowDock);
   };
   const [hasOpened, setHasOpened] = createSignal(false);
+  let frame: HTMLElement;
+  onSettled(() => windowManager.registerFrame(props.entry.id, frame));
   onCleanup(() => windowManager.unregisterFrame(props.entry.id));
 
   const handleAnimationEnd = (event: AnimationEvent) => {
@@ -41,7 +47,7 @@ export default function Window(props: { entry: WindowEntry }) {
       x-role="window"
       ref={(element) => {
         interaction.setWindowElement(element);
-        windowManager.registerFrame(props.entry.id, element);
+        frame = element;
       }}
       class="group/window absolute box-content flex flex-col overflow-hidden rounded-lg border border-neutral-400 shadow-2xl outline-none"
       data-dock={props.entry.dock ?? undefined}
@@ -61,7 +67,7 @@ export default function Window(props: { entry: WindowEntry }) {
         ...getFrameStyle(props.entry.dock),
         "z-index": props.entry.zIndex(),
       }}
-      tabIndex={-1}
+      tabindex={-1}
       onPointerDown={handlePointerDown}
       onKeyDown={handleKeyDown}
       onAnimationEnd={handleAnimationEnd}
@@ -69,15 +75,17 @@ export default function Window(props: { entry: WindowEntry }) {
       <Titlebar entry={props.entry} onPointerDown={interaction.onTitlebarPointerDown} />
       <main
         x-role="client content container"
-        ref={interaction.setClientElement}
-        class={`relative z-0 w-full overflow-hidden bg-white text-neutral-600 ${props.entry.dock ? "min-h-0 flex-1" : "shrink-0"}`}
+        ref={[interaction.setClientElement, focusTrap()]}
+        class={[
+          "relative z-0 w-full overflow-hidden bg-white text-neutral-600",
+          { "min-h-0 flex-1": !!props.entry.dock, "shrink-0": !props.entry.dock },
+        ]}
         style={{
           height: props.entry.dock ? undefined : integerPixels(props.entry.size.height),
           "min-height": props.entry.dock
             ? undefined
             : integerPixels(props.entry.minimumSize.height),
         }}
-        use:focusTrap={focusTrap}
       >
         <CurrentWindowProvider windowId={props.entry.id}>
           {props.entry.content()}

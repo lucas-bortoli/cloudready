@@ -1,9 +1,6 @@
-import { splitProps, type JSX } from "solid-js";
+import { omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { cn } from "../../lib/dom";
-import { directivePropNames, forwardDirectives } from "../directives";
-
-// Solid directives must remain in scope for the compiler.
-void forwardDirectives;
 
 /** Visual emphasis applied to a {@link Button}. */
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -72,14 +69,11 @@ export type ButtonProps = ButtonCommonProps & {
  * It defaults to a non-submitting button and forwards safe native button attributes. Setting
  * `disabled` or `loading` adds `aria-disabled`, keeps the element focusable, prevents the click's
  * default action, and skips `onClick`; the event is deliberately allowed to bubble. `x-role` is
- * forwarded only when a caller supplies it. Registered `use:*` directives apply to the button.
- *
- * @throws {ContextMenuContextError} When a context menu lacks its provider.
- * @throws {SelectionContextError} When a selection directive lacks its provider.
- * @throws {LayerContextError} When a selection boundary lacks its layer provider.
+ * forwarded only when a caller supplies it. A supplied ref receives the native button.
  */
 export default function Button(props: ButtonProps) {
-  const [button, nativeProps] = splitProps(props, [
+  const nativeProps = omit(
+    props,
     "aria-label",
     "children",
     "class",
@@ -90,14 +84,13 @@ export default function Button(props: ButtonProps) {
     "startIcon",
     "title",
     "type",
-    ...directivePropNames,
     "variant",
     "x-role",
-  ]);
-  const isDisabled = () => button.disabled ?? false;
-  const isLoading = () => button.loading ?? false;
+  );
+  const isDisabled = () => props.disabled ?? false;
+  const isLoading = () => props.loading ?? false;
   const isInactive = () => isDisabled() || isLoading();
-  const variant = () => button.variant ?? "secondary";
+  const variant = () => props.variant ?? "secondary";
 
   const handleClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (event) => {
     // Unlike native disabled buttons, inactive buttons remain reachable by keyboard navigation.
@@ -106,16 +99,15 @@ export default function Button(props: ButtonProps) {
       return;
     }
 
-    button.onClick?.(event);
+    props.onClick?.(event);
   };
 
   return (
     <button
       {...nativeProps}
-      use:forwardDirectives={button}
-      aria-busy={isLoading() || undefined}
-      aria-disabled={isInactive() || undefined}
-      aria-label={button["aria-label"] ?? button.title}
+      aria-busy={isLoading() ? "true" : undefined}
+      aria-disabled={isInactive() ? "true" : undefined}
+      aria-label={props["aria-label"] ?? props.title}
       class={cn(
         "relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xs font-medium text-neutral-600 shadow outline-sky-300 transition-colors *:pointer-events-none focus:outline-2 focus:outline-offset-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         variant() === "primary" &&
@@ -127,23 +119,23 @@ export default function Button(props: ButtonProps) {
         variant() === "danger" &&
           "border border-neutral-400 bg-neutral-100 text-neutral-600 hover:border-red-400 hover:bg-red-50 hover:text-red-700 focus:border-red-400 focus:bg-red-50 focus:text-red-700 active:bg-red-100",
         "h-7 gap-1.5 px-4",
-        button.class,
+        props.class,
       )}
-      title={button.title}
-      type={button.type ?? "button"}
-      x-role={button["x-role"]}
+      title={props.title}
+      type={props.type ?? "button"}
+      x-role={props["x-role"]}
       onClick={handleClick}
     >
       <span class={isLoading() ? "invisible contents" : "contents"}>
-        {button.startIcon && (
+        {props.startIcon && (
           <span aria-hidden="true" class="inline-flex shrink-0">
-            {button.startIcon}
+            {props.startIcon}
           </span>
         )}
-        {button.children}
-        {button.endIcon && (
+        {props.children}
+        {props.endIcon && (
           <span aria-hidden="true" class="inline-flex shrink-0">
-            {button.endIcon}
+            {props.endIcon}
           </span>
         )}
       </span>

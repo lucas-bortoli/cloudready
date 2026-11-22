@@ -1,5 +1,5 @@
-import { createEffect, createSignal, onCleanup, onMount, Show, type Accessor } from "solid-js";
-import { Portal } from "solid-js/web";
+import { createEffect, createSignal, onCleanup, onSettled, Show, type Accessor } from "solid-js";
+import { Portal } from "@solidjs/web";
 import { useLayerItem } from "../layer-manager/LayerContext";
 import type { WindowId } from "./WindowManager";
 
@@ -11,14 +11,15 @@ interface WindowBounds {
 }
 
 /** Draws a layer-managed outline around the window selected in the switcher. */
-export default function WindowSwitchPreview(props: {
+export interface WindowSwitchPreviewProps {
   selectedWindowId: Accessor<WindowId | undefined>;
-}) {
+}
+
+export default function WindowSwitchPreview(props: WindowSwitchPreviewProps) {
   const layerItem = useLayerItem("windowing:pinned");
   const [bounds, setBounds] = createSignal<WindowBounds>();
 
-  const updateBounds = () => {
-    const selectedWindowId = props.selectedWindowId();
+  const updateBounds = (selectedWindowId: WindowId | undefined) => {
     const selectedWindow = [...document.querySelectorAll<HTMLElement>("[data-window-id]")].find(
       (element) => element.dataset.windowId === selectedWindowId,
     );
@@ -31,9 +32,11 @@ export default function WindowSwitchPreview(props: {
     setBounds({ top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left });
   };
 
-  createEffect(updateBounds);
-  onMount(() => window.addEventListener("resize", updateBounds));
-  onCleanup(() => window.removeEventListener("resize", updateBounds));
+  const handleResize = () => updateBounds(props.selectedWindowId());
+
+  createEffect(() => props.selectedWindowId(), updateBounds);
+  onSettled(() => window.addEventListener("resize", handleResize));
+  onCleanup(() => window.removeEventListener("resize", handleResize));
 
   return (
     <Show when={bounds()}>

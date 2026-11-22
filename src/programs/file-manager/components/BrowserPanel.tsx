@@ -9,11 +9,14 @@ import Search16 from "@carbon/icons/es/search/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
 import Upload16 from "@carbon/icons/es/upload/16.js";
 import VmdkDisk16 from "@carbon/icons/es/vmdk-disk/16.js";
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import Button from "../../../components/button/Button";
-import { contextMenu } from "../../../components/context-menu/contextMenu";
+import { createContextMenuRef } from "../../../components/context-menu/contextMenu";
 import type { ContextMenuItem } from "../../../components/context-menu/ContextMenuContext";
-import { selectionBoundary, selectionItem } from "../../../components/range-select/rangeSelect";
+import {
+  createSelectionBoundaryRef,
+  createSelectionItemRef,
+} from "../../../components/range-select/rangeSelect";
 import { SelectionProvider } from "../../../components/range-select/SelectionContext";
 import StatusBar from "../../../components/status-bar/StatusBar";
 import StatusBarItem from "../../../components/status-bar/StatusBarItem";
@@ -26,11 +29,6 @@ import IconFile from "../icons/file.svg";
 import IconDirectory from "../icons/folder.svg";
 import { type NavigationController } from "../navigation-controller";
 import PathBar from "./PathBar";
-
-// Solid directives must remain in scope for the compiler.
-void selectionBoundary;
-void selectionItem;
-void contextMenu;
 
 function SidebarCategory(props: {
   label: string;
@@ -45,7 +43,7 @@ function SidebarCategory(props: {
           children={(item) => (
             <li
               class="flex h-5 cursor-pointer items-center gap-1 rounded-xs bg-neutral-100 outline-sky-300 focus-within:bg-sky-200 focus-within:outline-1 hover:bg-neutral-200 focus-within:hover:bg-sky-200 active:bg-neutral-300"
-              tabIndex={0}
+              tabindex={0}
             >
               <CarbonIcon icon={item.icon} /> <h4>{item.label}</h4>
             </li>
@@ -64,6 +62,10 @@ function EntryIcon(props: {
   handleDoubleClick: () => void;
   contextMenu: ContextMenuItem[];
 }) {
+  function handleDoubleClick() {
+    props.handleDoubleClick();
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
       return;
@@ -79,13 +81,15 @@ function EntryIcon(props: {
         props.selected && "bg-sky-200",
         !props.selected && "hover:bg-sky-100",
       )}
-      onDblClick={props.handleDoubleClick}
+      onDblClick={handleDoubleClick}
       onKeyDown={handleKeyDown}
-      aria-selected={props.selected}
-      use:selectionItem={props.entryName}
-      use:contextMenu={props.contextMenu}
+      aria-selected={(props.selected ?? false).toString() as "true" | "false"}
+      ref={[
+        createSelectionItemRef(() => props.entryName),
+        createContextMenuRef(() => props.contextMenu),
+      ]}
       role="option"
-      tabIndex={0}
+      tabindex={0}
     >
       <img src={props.type === "file" ? IconFile : IconDirectory} class="inline-block h-8 w-8" />
       <span class="line-clamp-2 text-center leading-3">{props.name}</span>
@@ -94,19 +98,20 @@ function EntryIcon(props: {
 }
 
 export default function BrowserPanel(props: { controller: NavigationController }) {
-  const {
-    path,
-    navigateTo,
-    canGoBack,
-    canGoForward,
-    goBack,
-    goForward,
-    entries,
-    selectedItems,
-    setSelectedItems,
-    searchQuery,
-    setSearchQuery,
-  } = props.controller;
+  const path = () => props.controller.path();
+  const navigateTo: NavigationController["navigateTo"] = (value) =>
+    props.controller.navigateTo(value);
+  const canGoBack = () => props.controller.canGoBack();
+  const canGoForward = () => props.controller.canGoForward();
+  const goBack = () => props.controller.goBack();
+  const goForward = () => props.controller.goForward();
+  const entries = () => props.controller.entries();
+  const selectedItems = () => props.controller.selectedItems();
+  const setSelectedItems: NavigationController["setSelectedItems"] = (value) =>
+    props.controller.setSelectedItems(value);
+  const searchQuery = () => props.controller.searchQuery();
+  const setSearchQuery: NavigationController["setSearchQuery"] = (value) =>
+    props.controller.setSearchQuery(value);
   let entryList: HTMLOListElement | undefined;
   let importInput: HTMLInputElement | undefined;
   let importPath = "/";
@@ -139,14 +144,12 @@ export default function BrowserPanel(props: { controller: NavigationController }
   }
 
   createEffect(
-    on(
-      path,
-      () => {
-        // Entries from the previous directory may disappear when the listing arrives.
-        if (entryList?.contains(document.activeElement)) entryList.focus();
-      },
-      { defer: true },
-    ),
+    path,
+    () => {
+      // Entries from the previous directory may disappear when the listing arrives.
+      if (entryList?.contains(document.activeElement)) entryList.focus();
+    },
+    { defer: true },
   );
 
   function handleEntryDoubleClick(name: string) {
@@ -206,7 +209,7 @@ export default function BrowserPanel(props: { controller: NavigationController }
           onClick={goBack}
           startIcon={<CarbonIcon icon={ArrowLeft16} />}
           class="px-1.5!"
-          use:contextMenu={[{ type: "label", label: "Hello!" }]}
+          ref={createContextMenuRef(() => [{ type: "label", label: "Hello!" }])}
         />
         <Button
           title="Forward"
@@ -240,7 +243,11 @@ export default function BrowserPanel(props: { controller: NavigationController }
             <p role="alert">{importError()}</p>
           </Show>
           <ol
-            ref={entryList}
+            ref={[
+              (element) => (entryList = element),
+              createContextMenuRef(buildPanelContextMenu),
+              createSelectionBoundaryRef(),
+            ]}
             role="listbox"
             aria-label="Files and folders"
             aria-multiselectable="true"
@@ -248,9 +255,7 @@ export default function BrowserPanel(props: { controller: NavigationController }
               "relative min-w-0 grow overflow-y-auto p-2",
               "-outline-offset-2 outline-sky-300 focus:outline-1",
             )}
-            use:selectionBoundary
-            use:contextMenu={buildPanelContextMenu()}
-            tabIndex={0}
+            tabindex={0}
           >
             <For each={entries()}>
               {(entry) => (

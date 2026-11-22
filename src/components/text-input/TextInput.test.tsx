@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 
-import { createSignal, type JSX } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
 import TextInput from "./TextInput";
 
@@ -25,6 +27,24 @@ function renderTextInput(input: () => JSX.Element) {
 }
 
 describe("TextInput", () => {
+  it("updates controlled and forwarded properties without Solid diagnostics", async () => {
+    const { artifact } = await captureArtifact(async () => {
+      const [value, setValue] = createSignal("Initial");
+      const [placeholder, setPlaceholder] = createSignal("First");
+      const { dispose, element } = renderTextInput(() => (
+        <TextInput onValueChange={setValue} placeholder={placeholder()} value={value()} />
+      ));
+
+      setValue("Updated");
+      setPlaceholder("Second");
+      flush();
+      expect(element.value).toBe("Updated");
+      expect(element.placeholder).toBe("Second");
+      dispose();
+    });
+    expectNoDiagnostics(artifact);
+  });
+
   it("renders a controlled compact single-line textarea by default", () => {
     const onValueChange = vi.fn();
     const { dispose, element } = renderTextInput(() => (
@@ -50,6 +70,7 @@ describe("TextInput", () => {
     ));
 
     setValue("Updated");
+    flush();
 
     expect(element.value).toBe("Updated");
 

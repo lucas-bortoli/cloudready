@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createSignal, onSettled, Show } from "solid-js";
 import Button from "../../components/button/Button";
 import DEFAULT_PICTURES from "../../data/default-user-pictures/pictures";
 import defaultWallpaper from "../../data/default-wallpaper.png";
@@ -26,7 +26,7 @@ export default function Oobe(props: { onCreated: (user: UserProfile) => void }) 
   const [createdUser, setCreatedUser] = createSignal<UserProfile>();
   const [saving, setSaving] = createSignal(false);
 
-  onMount(() => {
+  onSettled(() => {
     // Warm the browser cache before profile creation needs to upload the chosen bundled image.
     for (const picture of Object.values(DEFAULT_PICTURES)) {
       void fetch(picture).catch(() => undefined);

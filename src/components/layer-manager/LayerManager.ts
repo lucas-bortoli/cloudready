@@ -84,7 +84,8 @@ export default class LayerManager {
    * @returns A handle for reading and changing the item's stacking position.
    */
   public createItem(layer: Layer): LayerItem {
-    const [zIndex, setZIndex] = createSignal(0);
+    // Registering or removing a component can update other items during rendering.
+    const [zIndex, setZIndex] = createSignal(0, { ownedWrite: true });
     const state: ItemState = { layer, disposed: false, setZIndex };
     this.itemsByLayer[layer].push(state);
     this.updateZIndexes();

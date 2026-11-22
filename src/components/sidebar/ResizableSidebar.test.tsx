@@ -1,4 +1,6 @@
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { flush } from "solid-js";
 import { expect, it, vi } from "vitest";
 import ResizableSidebar from "./ResizableSidebar";
 
@@ -16,13 +18,17 @@ it("resizes with the keyboard and respects its limits", () => {
       () => <ResizableSidebar selectedItem={null} setSelectedItem={vi.fn()} />,
       root,
     );
+    flush();
     const divider = root.querySelector("[role=separator]")!;
     expect(divider.getAttribute("aria-valuenow")).toBe("200");
     divider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    flush();
     expect(divider.getAttribute("aria-valuenow")).toBe("210");
     divider.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    flush();
     expect(divider.getAttribute("aria-valuenow")).toBe("160");
     divider.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    flush();
     expect(divider.getAttribute("aria-valuenow")).toBe("480");
     dispose();
     root.remove();
@@ -57,6 +63,7 @@ it("restores and saves a sidebar width using its size key", () => {
       ),
       root,
     );
+    flush();
     const divider = root.querySelector("[role=separator]")!;
     expect(divider.getAttribute("aria-valuenow")).toBe("300");
     divider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
@@ -66,5 +73,38 @@ it("restores and saves a sidebar width using its size key", () => {
     vi.unstubAllGlobals();
     root.remove();
     globalThis.ResizeObserver = original;
+  }
+});
+
+it("disconnects its resize observer without Solid diagnostics", async () => {
+  const disconnect = vi.fn();
+  const observe = vi.fn();
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      public observe = observe;
+      public disconnect = disconnect;
+    },
+  );
+  try {
+    const { artifact } = await captureArtifact(
+      () => {
+        const root = document.createElement("div");
+        document.body.append(root);
+        const dispose = render(
+          () => <ResizableSidebar selectedItem={null} setSelectedItem={vi.fn()} />,
+          root,
+        );
+        flush();
+        expect(observe).toHaveBeenCalledWith(root);
+        dispose();
+        expect(disconnect).toHaveBeenCalledOnce();
+        root.remove();
+      },
+      { scenario: "resizable-sidebar-lifecycle" },
+    );
+    expectNoDiagnostics(artifact);
+  } finally {
+    vi.unstubAllGlobals();
   }
 });

@@ -1,12 +1,9 @@
-import { For, createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { For, createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LayerProvider } from "../layer-manager/LayerContext";
 import { SelectionProvider } from "./SelectionContext";
-import { selectionBoundary, selectionItem } from "./rangeSelect";
-
-void selectionBoundary;
-void selectionItem;
+import { createSelectionBoundaryRef, createSelectionItemRef } from "./rangeSelect";
 
 const cleanups: Array<() => void> = [];
 
@@ -32,6 +29,7 @@ function pointer(
       ...options,
     }),
   );
+  flush();
 }
 
 function setup(initialSelection: string[] = [], scrollTop = 0) {
@@ -45,14 +43,16 @@ function setup(initialSelection: string[] = [], scrollTop = 0) {
     () => (
       <LayerProvider>
         <SelectionProvider selectedItems={selectedItems} setSelectedItems={setSelectedItems}>
-          <ol use:selectionBoundary>
+          <ol ref={createSelectionBoundaryRef()}>
             <For each={entries()}>
               {(name) => (
                 <li
                   role="option"
                   data-entry-name={name}
-                  use:selectionItem={name}
-                  aria-selected={selectedItems().has(name)}
+                  ref={createSelectionItemRef(() => name)}
+                  aria-selected={
+                    (selectedItems().has(name) ?? false).toString() as "true" | "false"
+                  }
                 >
                   {name}
                 </li>
@@ -80,7 +80,7 @@ function setup(initialSelection: string[] = [], scrollTop = 0) {
   ) {
     if (this === list) return new DOMRect(100, 50, 300, 300);
     if (this.dataset.entryName) {
-      const index = entries().indexOf(this.dataset.entryName);
+      const index = Array.from(list.children).indexOf(this);
       return new DOMRect(120 + index * 60, 70 - list.scrollTop, 40, 40);
     }
     if (this.parentElement === document.body && this.classList.contains("pointer-events-none")) {
@@ -92,6 +92,7 @@ function setup(initialSelection: string[] = [], scrollTop = 0) {
 
   // Populate after mounting to exercise Solid's dynamic list insertion.
   setEntries(["first", "second", "third"]);
+  flush();
   return { list, selectedItems, capture, dispose, setEntries };
 }
 
@@ -107,6 +108,7 @@ describe("rangeSelect", () => {
     list.dispatchEvent(
       new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
     );
+    flush();
     expect(document.activeElement).toBe(entries[0]);
     expect([...selectedItems()]).toEqual(["first"]);
     entries[0].dispatchEvent(
@@ -117,6 +119,7 @@ describe("rangeSelect", () => {
         cancelable: true,
       }),
     );
+    flush();
     expect(document.activeElement).toBe(entries[1]);
     expect([...selectedItems()]).toEqual(["first", "second"]);
     entries[1].dispatchEvent(
@@ -127,20 +130,24 @@ describe("rangeSelect", () => {
         cancelable: true,
       }),
     );
+    flush();
     expect(document.activeElement).toBe(entries[2]);
     expect([...selectedItems()]).toEqual(["first", "second"]);
     entries[2].dispatchEvent(
       new KeyboardEvent("keydown", { key: " ", ctrlKey: true, bubbles: true, cancelable: true }),
     );
+    flush();
     expect([...selectedItems()]).toEqual(["first", "second", "third"]);
     entries[2].dispatchEvent(
       new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }),
     );
+    flush();
     expect(document.activeElement).toBe(entries[0]);
     expect([...selectedItems()]).toEqual(["first"]);
     entries[0].dispatchEvent(
       new KeyboardEvent("keydown", { key: "a", ctrlKey: true, bubbles: true, cancelable: true }),
     );
+    flush();
     expect([...selectedItems()]).toEqual(["first", "second", "third"]);
   });
 
@@ -163,10 +170,12 @@ describe("rangeSelect", () => {
     entries[1].dispatchEvent(
       new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
     );
+    flush();
     expect(document.activeElement).toBe(entries[2]);
     entries[2].dispatchEvent(
       new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }),
     );
+    flush();
     expect(document.activeElement).toBe(entries[0]);
   });
 
@@ -176,12 +185,15 @@ describe("rangeSelect", () => {
       const { list, selectedItems } = setup();
       const entries = list.querySelectorAll("li");
       entries[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      flush();
       const target = focus === "boundary" ? list : entries[1];
       target.tabIndex = 0;
       target.focus();
       target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      flush();
       expect(selectedItems().size).toBe(0);
       entries[2].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+      flush();
       expect([...selectedItems()]).toEqual(["third"]);
     },
   );
@@ -190,10 +202,13 @@ describe("rangeSelect", () => {
     const { list, selectedItems } = setup(["first", "second"]);
     const entries = list.querySelectorAll("li");
     entries[0].dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    flush();
     expect([...selectedItems()]).toEqual(["first", "second"]);
     entries[2].dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+    flush();
     expect([...selectedItems()]).toEqual(["third"]);
     entries[0].dispatchEvent(new MouseEvent("click", { bubbles: true, shiftKey: true }));
+    flush();
     expect([...selectedItems()]).toEqual(["first", "second", "third"]);
   });
 

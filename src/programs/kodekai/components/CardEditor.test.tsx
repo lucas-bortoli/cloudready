@@ -1,13 +1,20 @@
 // @vitest-environment happy-dom
 
-import { render } from "solid-js/web";
-import { describe, expect, it, vi } from "vitest";
+import { render } from "@solidjs/web";
+import { flush } from "solid-js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { formatIsoDateTime } from "../../../lib/iso-date-time";
 import { LayerProvider } from "../../../components/layer-manager/LayerContext";
 import { WindowManagerProvider } from "../../../components/window-manager/WindowManagerContext";
 import WindowsOutlet from "../../../components/window-manager/WindowsOutlet";
 import { Model } from "../model/model";
 import CardEditor from "./CardEditor";
+
+afterEach(() => {
+  vi.useRealTimers();
+  document.body.replaceChildren();
+});
 
 function renderEditor(card?: ReturnType<Model["getCard"]>) {
   const projectId = Model.empty().createProject({ title: "Project" });
@@ -52,6 +59,7 @@ function dialogAction(label: string) {
 }
 
 function finishClosingDialog() {
+  flush();
   document
     .querySelector<HTMLElement>('[x-role="window"][data-window-motion="closing"]')
     ?.dispatchEvent(new Event("animationend", { bubbles: true }));
@@ -63,6 +71,7 @@ describe("CardEditor", () => {
     const title = root.querySelector("textarea")!;
     title.value = "Write tests";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     const form = root.querySelector("form")!;
     form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
 
@@ -94,6 +103,7 @@ describe("CardEditor", () => {
     const { dispose, onUpdate, root } = renderEditor(card);
     root.querySelector("textarea")!.value = "  ";
     root.querySelector("textarea")!.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     root
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
@@ -101,9 +111,11 @@ describe("CardEditor", () => {
 
     root.querySelector("textarea")!.value = "Updated";
     root.querySelector("textarea")!.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     const prioritySelect = root.querySelector("select")!;
     prioritySelect.value = "urgent";
     prioritySelect.dispatchEvent(new Event("change", { bubbles: true }));
+    flush();
     root
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
@@ -126,11 +138,14 @@ describe("CardEditor", () => {
     )!;
 
     deleteButton.click();
+    flush();
     expect(onDelete).not.toHaveBeenCalled();
     deleteButton.click();
+    flush();
     dialogAction("Excluir").click();
     await Promise.resolve();
     finishClosingDialog();
+    flush();
     expect(onDelete).toHaveBeenCalledWith(card);
     expect(root.querySelector(".kodekai-editor-closing")).not.toBeNull();
     vi.runAllTimers();
@@ -145,6 +160,7 @@ describe("CardEditor", () => {
     [...root.querySelectorAll("button")]
       .find((button) => button.textContent === "Cancelar")!
       .click();
+    flush();
     expect(root.querySelector(".kodekai-editor-closing")).not.toBeNull();
     vi.runAllTimers();
     expect(onClose).toHaveBeenCalledOnce();
@@ -158,25 +174,32 @@ describe("CardEditor", () => {
     const title = root.querySelector("textarea")!;
     title.value = "Unsaved card";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
 
     [...root.querySelectorAll("button")]
       .find((button) => button.textContent === "Cancelar")!
       .click();
+    flush();
     dialogAction("Continuar editando").click();
     await Promise.resolve();
     finishClosingDialog();
+    flush();
 
     title.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    flush();
     dialogAction("Continuar editando").click();
     await Promise.resolve();
     finishClosingDialog();
+    flush();
 
     root
       .querySelector('[x-role="kodekai card editor backdrop"]')!
       .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    flush();
     dialogAction("Continuar editando").click();
     await Promise.resolve();
     finishClosingDialog();
+    flush();
 
     expect(document.querySelectorAll('[x-role="window"]')).toHaveLength(0);
     expect(onClose).not.toHaveBeenCalled();
@@ -190,14 +213,18 @@ describe("CardEditor", () => {
     const title = root.querySelector("textarea")!;
     title.value = "Unsaved card";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
 
     [...root.querySelectorAll("button")]
       .find((button) => button.textContent === "Cancelar")!
       .click();
 
+    flush();
     dialogAction("Descartar").click();
     await Promise.resolve();
     finishClosingDialog();
+    flush();
+    await Promise.resolve();
     vi.runAllTimers();
 
     expect(onClose).toHaveBeenCalledOnce();

@@ -118,10 +118,10 @@ export function ToastProvider(props: ParentProps) {
   onCleanup(() => dismissalTimers.forEach(clearTimeout));
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext value={{ showToast }}>
       {props.children}
       <ToastOutlet dismiss={dismiss} toasts={toasts} />
-    </ToastContext.Provider>
+    </ToastContext>
   );
 }
 

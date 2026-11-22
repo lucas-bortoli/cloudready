@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { WindowDock, WindowEntry } from "./WindowManager";
 
 export const taskbarHeight = 48;

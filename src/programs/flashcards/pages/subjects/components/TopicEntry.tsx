@@ -9,11 +9,15 @@ export interface TopicEntryProps {
 
 /** Displays a subject item and its nested topic items as navigation links. */
 export function TopicEntry(props: TopicEntryProps) {
+  function handleSelect() {
+    props.onSelect(props.item.id);
+  }
+
   return (
     <li>
       <button
         class="text-left outline-sky-300 hover:underline focus:outline-2 focus:outline-offset-2"
-        onClick={props.onSelect.bind(null, props.item.id)}
+        onClick={handleSelect}
       >
         {props.item.title}
       </button>

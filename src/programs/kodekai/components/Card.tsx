@@ -3,8 +3,7 @@ import {
   createMemo,
   createSignal,
   For,
-  onCleanup,
-  onMount,
+  onSettled,
   Show,
   type Accessor,
 } from "solid-js";
@@ -47,35 +46,42 @@ export default function Card(props: CardProps) {
   let titleRef: HTMLHeadingElement | undefined;
   let contentRef: HTMLParagraphElement | undefined;
   let truncateCard: ((title: string, content: string) => void) | undefined;
+  let measurementFrame: number | undefined;
 
-  createEffect(() => {
-    const title = props.card.title;
-    const content = props.card.content;
-    queueMicrotask(() => truncateCard?.(title, content));
-  });
+  createEffect(
+    () => ({ title: props.card.title, content: props.card.content }),
+    ({ title, content }) => truncateCard?.(title, content),
+  );
 
-  onMount(() => {
+  onSettled(() => {
     truncateCard = (title, content) => {
-      if (!cardRef || !titleRef || !contentRef) return;
+      if (measurementFrame !== undefined) cancelAnimationFrame(measurementFrame);
+      measurementFrame = requestAnimationFrame(() => {
+        measurementFrame = undefined;
+        if (!cardRef || !titleRef || !contentRef) return;
 
-      setVisibleTitle(
-        truncateTextToFit(title, titleRef, () => titleRef.scrollHeight <= titleRef.clientHeight),
-      );
-      setVisibleContent(
-        truncateTextToFit(
-          content,
-          contentRef,
-          () =>
-            cardRef.scrollHeight <= cardRef.clientHeight &&
-            contentRef.scrollHeight <= contentRef.clientHeight,
-        ),
-      );
+        setVisibleTitle(
+          truncateTextToFit(title, titleRef, () => titleRef.scrollHeight <= titleRef.clientHeight),
+        );
+        setVisibleContent(
+          truncateTextToFit(
+            content,
+            contentRef,
+            () =>
+              cardRef.scrollHeight <= cardRef.clientHeight &&
+              contentRef.scrollHeight <= contentRef.clientHeight,
+          ),
+        );
+      });
     };
 
     const observer = new ResizeObserver(() => truncateCard?.(props.card.title, props.card.content));
     observer.observe(cardRef!);
     truncateCard(props.card.title, props.card.content);
-    onCleanup(() => observer.disconnect());
+    return () => {
+      observer.disconnect();
+      if (measurementFrame !== undefined) cancelAnimationFrame(measurementFrame);
+    };
   });
 
   const hasExpiration = createMemo(() => props.card.expiration !== null);
@@ -107,11 +113,11 @@ export default function Card(props: CardProps) {
       ref={cardRef}
       data-kodekai-card={props.card.id}
       role="button"
-      tabIndex={0}
-      class="flex max-h-32 shrink-0 touch-none flex-col gap-1 overflow-hidden rounded-xs border border-neutral-400 bg-white p-2 shadow-sm **:pointer-events-none focus:outline-2 focus:outline-offset-2 focus:outline-sky-300"
-      classList={{
-        "opacity-0": props.draggingCardId() === props.card.id,
-      }}
+      tabindex={0}
+      class={[
+        "flex max-h-32 shrink-0 touch-none flex-col gap-1 overflow-hidden rounded-xs border border-neutral-400 bg-white p-2 shadow-sm **:pointer-events-none focus:outline-2 focus:outline-offset-2 focus:outline-sky-300",
+        { "opacity-0": props.draggingCardId() === props.card.id },
+      ]}
       onPointerDown={handlePointerDown}
       onClick={handleClick}
       onKeyDown={handleKeyDown}

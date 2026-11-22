@@ -24,9 +24,6 @@ export function UserHtml(props: UserHtmlProps) {
   const currentSubject = useOptionalCurrentSubject();
   const [content, setContent] = createSignal<{ body: HTMLElement; css: string }>();
 
-  // TODO: forward UserHtml warnings to a context provider, so the app can display errors in a centralized way in the header bar
-  const [, setWarning] = createSignal(false);
-
   const handleClick = (event: MouseEvent, root: ShadowRoot) => {
     if (!(event.target instanceof Element)) return;
     const link = event.target.closest("a[data-lap-link]");
@@ -48,98 +45,100 @@ export function UserHtml(props: UserHtmlProps) {
     }
   };
 
-  createEffect(() => {
-    const html = props.html;
-    const subject = currentSubject();
-    const abort = new AbortController();
-    const urls: string[] = [];
-    setContent(undefined);
-    setWarning(false);
-    const build = async () => {
-      const body = contentMarkup(html);
-      const styles = Array.from(body.querySelectorAll("style"), (style) => {
-        style.remove();
-        return contentStyles(style.textContent ?? "");
-      });
-      const cache = new Map<string, string>();
-      for (const element of body.querySelectorAll("*")) {
-        if (element.localName === "a") {
-          const href = element.getAttribute("href") ?? "";
-          element.removeAttribute("href");
-          element.removeAttribute("xlink:href");
-          element.removeAttribute("target");
-          if (/^(#|https?:\/\/)/i.test(href) || (subject && /^lap:item\//i.test(href))) {
-            element.setAttribute("data-lap-link", href);
-            element.setAttribute("href", "#");
-          }
-          continue;
-        }
-        for (const attr of ["src", "href", "poster", "xlink:href"]) {
-          const value = element.getAttribute(attr);
-          if (value === null) continue;
-          if (value.startsWith("#") && (attr === "href" || attr === "xlink:href")) continue;
-          element.removeAttribute(attr);
-          if (!value) continue;
-          let path: string;
-          try {
-            path = decodeURIComponent(value.split(/[?#]/)[0]);
-          } catch {
-            setWarning(true);
-            continue;
-          }
-          const mediaSource =
-            attr === "src" && /^(?:img|audio|video|source|track)$/.test(element.localName);
-          const poster = attr === "poster" && element.localName === "video";
-          const svgImage =
-            (attr === "href" || attr === "xlink:href") && element.localName === "image";
-          if (!(mediaSource || poster || svgImage) || !path.startsWith("assets/")) continue;
-          if (!subject) {
-            setWarning(true);
-            continue;
-          }
-          try {
-            let url = cache.get(path);
-            if (!url) {
-              const blob = await new Response(
-                subject.getAsset(path).openStream({ signal: abort.signal }),
-              ).blob();
-              if (abort.signal.aborted) return;
-              const ext = path.split(".").pop()?.toLowerCase();
-              const mime: Record<string, string> = {
-                svg: "image/svg+xml",
-                png: "image/png",
-                jpg: "image/jpeg",
-                jpeg: "image/jpeg",
-                webp: "image/webp",
-                mp3: "audio/mpeg",
-                ogg: "audio/ogg",
-                wav: "audio/wav",
-                mp4: "video/mp4",
-                webm: "video/webm",
-              };
-              url = URL.createObjectURL(
-                new Blob([blob], { type: mime[ext ?? ""] ?? "application/octet-stream" }),
-              );
-              urls.push(url);
-              cache.set(path, url);
+  let cleanupContent: (() => void) | undefined;
+  onCleanup(() => cleanupContent?.());
+
+  createEffect(
+    () => [props.html, currentSubject()] as const,
+    ([html, subject]) => {
+      cleanupContent?.();
+      const abort = new AbortController();
+      const urls: string[] = [];
+      setContent(undefined);
+      const build = async () => {
+        const body = contentMarkup(html);
+        const styles = Array.from(body.querySelectorAll("style"), (style) => {
+          style.remove();
+          return contentStyles(style.textContent ?? "");
+        });
+        const cache = new Map<string, string>();
+        for (const element of body.querySelectorAll("*")) {
+          if (element.localName === "a") {
+            const href = element.getAttribute("href") ?? "";
+            element.removeAttribute("href");
+            element.removeAttribute("xlink:href");
+            element.removeAttribute("target");
+            if (/^(#|https?:\/\/)/i.test(href) || (subject && /^lap:item\//i.test(href))) {
+              element.setAttribute("data-lap-link", href);
+              element.setAttribute("href", "#");
             }
-            element.setAttribute(attr, url);
-          } catch {
-            if (abort.signal.aborted) return;
-            setWarning(true);
+            continue;
+          }
+          for (const attr of ["src", "href", "poster", "xlink:href"]) {
+            const value = element.getAttribute(attr);
+            if (value === null) continue;
+            if (value.startsWith("#") && (attr === "href" || attr === "xlink:href")) continue;
+            element.removeAttribute(attr);
+            if (!value) continue;
+            let path: string;
+            try {
+              path = decodeURIComponent(value.split(/[?#]/)[0]);
+            } catch {
+              continue;
+            }
+            const mediaSource =
+              attr === "src" && /^(?:img|audio|video|source|track)$/.test(element.localName);
+            const poster = attr === "poster" && element.localName === "video";
+            const svgImage =
+              (attr === "href" || attr === "xlink:href") && element.localName === "image";
+            if (!(mediaSource || poster || svgImage) || !path.startsWith("assets/")) continue;
+            if (!subject) {
+              continue;
+            }
+            try {
+              let url = cache.get(path);
+              if (!url) {
+                const blob = await new Response(
+                  subject.getAsset(path).openStream({ signal: abort.signal }),
+                ).blob();
+                if (abort.signal.aborted) return;
+                const ext = path.split(".").pop()?.toLowerCase();
+                const mime: Record<string, string> = {
+                  svg: "image/svg+xml",
+                  png: "image/png",
+                  jpg: "image/jpeg",
+                  jpeg: "image/jpeg",
+                  webp: "image/webp",
+                  mp3: "audio/mpeg",
+                  ogg: "audio/ogg",
+                  wav: "audio/wav",
+                  mp4: "video/mp4",
+                  webm: "video/webm",
+                };
+                url = URL.createObjectURL(
+                  new Blob([blob], { type: mime[ext ?? ""] ?? "application/octet-stream" }),
+                );
+                urls.push(url);
+                cache.set(path, url);
+              }
+              element.setAttribute(attr, url);
+            } catch {
+              if (abort.signal.aborted) return;
+              // TODO: Report unavailable assets through a shared warning provider.
+            }
           }
         }
-      }
-      if (!abort.signal.aborted) setContent({ body, css: styles.join("\n") });
-    };
+        if (!abort.signal.aborted) setContent({ body, css: styles.join("\n") });
+      };
 
-    void build();
+      void build();
 
-    onCleanup(() => {
-      abort.abort();
-      urls.forEach((url) => URL.revokeObjectURL(url));
-    });
-  });
+      cleanupContent = () => {
+        abort.abort();
+        urls.forEach((url) => URL.revokeObjectURL(url));
+      };
+    },
+  );
 
   return (
     <ScopedHtml

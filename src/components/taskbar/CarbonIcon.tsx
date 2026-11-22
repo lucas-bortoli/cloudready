@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic } from "@solidjs/web";
 
 interface CarbonIconNode {
   attrs: Record<string, string | number>;

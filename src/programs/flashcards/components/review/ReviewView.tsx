@@ -62,7 +62,7 @@ export default function ReviewView(props: ReviewViewProps) {
   return (
     <div
       class="flex min-h-0 flex-1 flex-col gap-3 overflow-auto"
-      tabIndex={0}
+      tabindex={0}
       onKeyDown={handleKey}
     >
       <div class="flex flex-wrap items-center gap-3">

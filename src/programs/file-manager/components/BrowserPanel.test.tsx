@@ -1,5 +1,6 @@
-import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LayerProvider } from "../../../components/layer-manager/LayerContext";
 import { ContextMenuProvider } from "../../../components/context-menu/ContextMenuContext";
@@ -43,13 +44,14 @@ function setup() {
     setSearchQuery,
     refresh: vi.fn(),
   };
+  const [currentController, setCurrentController] = createSignal(controller);
   const container = document.createElement("div");
   document.body.append(container);
   const dispose = render(
     () => (
       <LayerProvider>
         <ContextMenuProvider>
-          <BrowserPanel controller={controller} />
+          <BrowserPanel controller={currentController()} />
         </ContextMenuProvider>
       </LayerProvider>
     ),
@@ -63,16 +65,48 @@ function setup() {
     container,
     list: container.querySelector<HTMLOListElement>('[role="option"]')!.parentElement!,
     entry: container.querySelector<HTMLElement>('[role="option"]')!,
+    path,
     navigateTo,
     setEntries,
     setCanGoBack,
     setCanGoForward,
     goBack,
     goForward,
+    controller,
+    setCurrentController,
   };
 }
 
 describe("BrowserPanel navigation focus", () => {
+  it("uses the replacement controller for rendering and actions without diagnostics", async () => {
+    const { container, controller, setCurrentController } = setup();
+    const replacementBack = vi.fn();
+    const [replacementPath, setReplacementPath] = createSignal("/replacement");
+    const [replacementCanGoBack, setReplacementCanGoBack] = createSignal(false);
+    const [replacementEntries, setReplacementEntries] = createSignal<FileSystemEntry[]>([
+      directory,
+    ]);
+    const replacement: NavigationController = {
+      ...controller,
+      path: replacementPath,
+      canGoBack: replacementCanGoBack,
+      goBack: replacementBack,
+      entries: replacementEntries,
+    };
+    const { artifact } = await captureArtifact(() => {
+      setCurrentController(replacement);
+      setReplacementPath("/updated-replacement");
+      setReplacementCanGoBack(true);
+      setReplacementEntries([]);
+      flush();
+      expect(container.textContent).toContain("updated-replacement");
+      expect(container.querySelectorAll('[role="option"]')).toHaveLength(0);
+      container.querySelector<HTMLButtonElement>('[aria-label="Back"]')!.click();
+      expect(replacementBack).toHaveBeenCalledOnce();
+    });
+    expectNoDiagnostics(artifact);
+  });
+
   it("enables history controls when navigation is available", () => {
     const { container, setCanGoBack, setCanGoForward, goBack, goForward } = setup();
     const back = container.querySelector<HTMLButtonElement>('[aria-label="Back"]')!;
@@ -85,6 +119,7 @@ describe("BrowserPanel navigation focus", () => {
     expect(goForward).not.toHaveBeenCalled();
     setCanGoBack(true);
     setCanGoForward(true);
+    flush();
     back.click();
     forward.click();
     expect(goBack).toHaveBeenCalledOnce();
@@ -98,6 +133,7 @@ describe("BrowserPanel navigation focus", () => {
     entry.dispatchEvent(
       new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }),
     );
+    flush();
     expect(entry.getAttribute("aria-selected")).toBe("true");
   });
 
@@ -107,8 +143,10 @@ describe("BrowserPanel navigation focus", () => {
     entry.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
     );
+    flush();
     expect(document.activeElement).toBe(list);
     setEntries([]);
+    flush();
     expect(document.activeElement).toBe(list);
   });
 
@@ -116,8 +154,10 @@ describe("BrowserPanel navigation focus", () => {
     const { list, entry, setEntries } = setup();
     entry.focus();
     entry.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    flush();
     expect(document.activeElement).toBe(list);
     setEntries([]);
+    flush();
     expect(document.activeElement).toBe(list);
   });
 
@@ -126,8 +166,10 @@ describe("BrowserPanel navigation focus", () => {
     const search = container.querySelector<HTMLTextAreaElement>("textarea")!;
     search.focus();
     navigateTo("/Folder");
+    flush();
     expect(document.activeElement).toBe(search);
     setEntries([]);
+    flush();
     expect(document.activeElement).toBe(search);
     expect(entry.isConnected).toBe(false);
   });
@@ -139,6 +181,7 @@ describe("BrowserPanel navigation focus", () => {
     const search = container.querySelector<HTMLTextAreaElement>("textarea")!;
     search.focus();
     setEntries([]);
+    flush();
     expect(document.activeElement).toBe(search);
   });
 
@@ -150,9 +193,30 @@ describe("BrowserPanel navigation focus", () => {
     );
     await Promise.resolve();
     document.querySelector<HTMLButtonElement>('[role="menuitem"]')!.click();
+    flush();
     expect(document.activeElement).toBe(list);
     setEntries([]);
+    flush();
     expect(document.activeElement).toBe(list);
+  });
+
+  it("navigates from a breadcrumb without reactive diagnostics", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const { container, navigateTo, path } = setup();
+        navigateTo("/one/two");
+        flush();
+        const segment = Array.from(container.querySelectorAll("li")).find(
+          (element) => element.textContent === "one",
+        );
+        expect(segment).toBeDefined();
+        segment!.click();
+        flush();
+        expect(path()).toBe("/one");
+      },
+      { scenario: "file-manager-breadcrumb-navigation" },
+    );
+    expectNoDiagnostics(artifact);
   });
 
   it("imports a local file into the chosen directory", async () => {
@@ -160,6 +224,7 @@ describe("BrowserPanel navigation focus", () => {
     const write = vi.spyOn(filesystem, "writeFile").mockResolvedValue({} as never);
     const { container, navigateTo } = setup();
     navigateTo("/Folder");
+    flush();
     container.querySelector<HTMLButtonElement>('[title="Import files"]')!.click();
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     const file = new File(["hello"], "sample.lap");

@@ -51,16 +51,20 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
   const [dropTarget, setDropTarget] = createSignal<DropTarget>();
   const [draggingLayerItem, setDraggingLayerItem] = createSignal<LayerItem>();
   const [preview, setPreview] = createSignal<HTMLLIElement>();
+  let currentPreview: HTMLLIElement | undefined;
+  let currentLayerItem: LayerItem | undefined;
+  let currentDropTarget: DropTarget | undefined;
   const bucketLists = new Map<Bucket, HTMLUListElement>();
   let pendingDrag: PendingDrag | undefined;
   let suppressNextCardClick = false;
   let cancelCardRepositionAnimation: (() => void) | undefined;
 
-  createEffect(() => {
-    const element = preview();
-    const layerItem = draggingLayerItem();
-    if (element && layerItem) element.style.zIndex = String(layerItem.zIndex());
-  });
+  createEffect(
+    () => ({ element: preview(), zIndex: draggingLayerItem()?.zIndex() }),
+    ({ element, zIndex }) => {
+      if (element && zIndex !== undefined) element.style.zIndex = String(zIndex);
+    },
+  );
 
   const removeDocumentListeners = () => {
     document.removeEventListener("pointermove", onDocumentPointerMove);
@@ -147,24 +151,28 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     }
 
     options.model().moveCard(card.id, destination);
-    focusCard(card.id);
-    animateCardRepositioning(previousPositions);
+    queueMicrotask(() => {
+      focusCard(card.id);
+      animateCardRepositioning(previousPositions);
+    });
   };
 
   const endDrag = (commit: boolean, suppressClick = false) => {
     const drag = pendingDrag;
-    const target = dropTarget();
-    const currentPreview = preview();
+    const target = currentDropTarget;
     const previewPosition = currentPreview?.getBoundingClientRect();
     const wasDragging = Boolean(currentPreview);
 
     removeDocumentListeners();
     currentPreview?.remove();
+    currentPreview = undefined;
     setPreview();
-    draggingLayerItem()?.dispose();
+    currentLayerItem?.dispose();
+    currentLayerItem = undefined;
     setDraggingLayerItem();
     pendingDrag = undefined;
     setDraggingCardId();
+    currentDropTarget = undefined;
     setDropTarget();
     suppressNextCardClick ||= suppressClick && wasDragging;
 
@@ -187,7 +195,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
   };
 
   const updatePreview = (event: PointerEvent) => {
-    const element = preview();
+    const element = currentPreview;
     if (!element || !pendingDrag) return;
     element.style.left = `${event.clientX - (pendingDrag.startX - pendingDrag.source.getBoundingClientRect().left)}px`;
     element.style.top = `${event.clientY - (pendingDrag.startY - pendingDrag.source.getBoundingClientRect().top)}px`;
@@ -216,6 +224,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
       ).length;
 
       if (bucket === pendingDrag.card.bucket && displayIndex === pendingDrag.card.displayIndex) {
+        currentDropTarget = undefined;
         setDropTarget();
         return;
       }
@@ -231,10 +240,12 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
           ? allCards[allCards.length - 1].getBoundingClientRect().bottom - listRect.top
           : 0;
 
-      setDropTarget({ bucket, displayIndex, lineTop });
+      currentDropTarget = { bucket, displayIndex, lineTop };
+      setDropTarget(currentDropTarget);
       return;
     }
 
+    currentDropTarget = undefined;
     setDropTarget();
   };
 
@@ -255,7 +266,9 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     dragPreview.style.pointerEvents = "none";
     dragPreview.style.cursor = "grabbing";
     dragPreview.style.opacity = "1";
-    setDraggingLayerItem(layerManager.createItem("dragging-items"));
+    currentLayerItem = layerManager.createItem("dragging-items");
+    setDraggingLayerItem(currentLayerItem);
+    currentPreview = dragPreview;
     setPreview(dragPreview);
     document.body.append(dragPreview);
     setDraggingCardId(pendingDrag.card.id);
@@ -267,7 +280,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
     const drag = pendingDrag;
     if (!drag || event.pointerId !== drag.pointerId) return;
 
-    if (!preview()) {
+    if (!currentPreview) {
       const distance = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
       if (distance < dragThreshold) return;
       beginDragging(event);
@@ -280,7 +293,7 @@ export default function useCardDrag(options: UseCardDragOptions): CardDragContro
 
   const onDocumentPointerUp = (event: PointerEvent) => {
     if (pendingDrag?.pointerId === event.pointerId) {
-      endDrag(Boolean(preview() && dropTarget()), true);
+      endDrag(Boolean(currentPreview && currentDropTarget), true);
     }
   };
 

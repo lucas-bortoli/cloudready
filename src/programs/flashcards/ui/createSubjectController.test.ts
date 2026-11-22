@@ -1,4 +1,5 @@
-import { createRoot } from "solid-js";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createRoot, flush } from "solid-js";
 import { afterEach, expect, it, vi } from "vitest";
 import { filesystem } from "../../../filesystem/FileSystemClient";
 import { openSubjectPackage, writeSubjectPackage } from "../core/subject-package/package";
@@ -15,6 +16,34 @@ vi.mock("../core/subject-package/package", () => ({
 afterEach(() => {
   vi.resetAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("restores stored subjects without reactive write diagnostics", async () => {
+  vi.stubGlobal("localStorage", {
+    getItem: () => JSON.stringify(["/restored.lap"]),
+    setItem: vi.fn(),
+  });
+  const subject = { close: vi.fn().mockResolvedValue(undefined) } as unknown as OpenSubjectPackage;
+  vi.mocked(filesystem.readFile).mockResolvedValue(new Blob());
+  vi.mocked(openSubjectPackage).mockResolvedValue(subject);
+
+  const { artifact } = await captureArtifact(
+    async () => {
+      const { controller, dispose } = createRoot((dispose) => ({
+        controller: createSubjectController(),
+        dispose,
+      }));
+      flush();
+      try {
+        await vi.waitFor(() => expect(controller.subjects()).toHaveLength(1));
+      } finally {
+        dispose();
+      }
+    },
+    { scenario: "subject-controller-restore" },
+  );
+  expectNoDiagnostics(artifact);
+  expect(subject.close).toHaveBeenCalledOnce();
 });
 
 it("remembers opened paths and restores them in a new controller", async () => {
@@ -34,6 +63,7 @@ it("remembers opened paths and restores them in a new controller", async () => {
   first.dispose();
 
   const restored = mount();
+  flush();
   try {
     await vi.waitFor(() =>
       expect(restored.controller.subjects().map((entry) => entry.path)).toEqual([
@@ -183,6 +213,7 @@ it("shares drafts across windows and releases the archive after the last window 
     const [entry] = first.controller.subjects();
     const progress = { ...entry.progress(), introduced: { "2026-11-19": { deck: 1 } } };
     entry.updateProgress(progress);
+    flush();
     expect(second.controller.subjects()[0].progress()).toBe(progress);
     expect(filesystem.readFile).toHaveBeenCalledOnce();
   } finally {

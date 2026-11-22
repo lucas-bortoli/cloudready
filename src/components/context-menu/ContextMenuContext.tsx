@@ -12,7 +12,7 @@ import {
   useContext,
   type ParentProps,
 } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "@solidjs/web";
 import { useLayerItem } from "../layer-manager/LayerContext";
 import type WindowManager from "../window-manager/WindowManager";
 import type { WindowId, WindowOverlayRegistration } from "../window-manager/WindowManager";
@@ -61,6 +61,7 @@ export class ContextMenuContextError extends Error {
  */
 export function ContextMenuProvider(props: ParentProps) {
   const [menu, setMenu] = createSignal<OpenMenu | null>(null);
+  const [menuOwner, setMenuOwner] = createSignal<OpenMenu["owner"]>();
   const hasIcons = createMemo(
     () =>
       menu()?.items.some(
@@ -71,13 +72,18 @@ export function ContextMenuProvider(props: ParentProps) {
   let menuElement: HTMLDivElement | undefined;
   let ownership: WindowOverlayRegistration | undefined;
 
-  createEffect(() => {
-    const ownerInfo = menu()?.owner;
-    if (!ownerInfo) return;
-    const { windowId, windowManager } = ownerInfo;
-    const owner = windowManager.getWindows().find((entry) => entry.id === windowId);
-    if (!owner || owner.isClosing || owner.isMinimized) close();
-  });
+  createEffect(
+    () => {
+      const ownerInfo = menuOwner();
+      if (!ownerInfo) return false;
+      const { windowId, windowManager } = ownerInfo;
+      const owner = windowManager.getWindows().find((entry) => entry.id === windowId);
+      return !owner || owner.isClosing || owner.isMinimized;
+    },
+    (shouldClose) => {
+      if (shouldClose) close();
+    },
+  );
 
   function close() {
     setMenu(null);
@@ -93,6 +99,7 @@ export function ContextMenuProvider(props: ParentProps) {
     if (!next.items.length) return;
     close();
     layer.bringToTop();
+    setMenuOwner(next.owner);
     setMenu(next);
     // Read the latest owner once after rendering; focusing is an imperative opening step.
     queueMicrotask(() =>
@@ -184,7 +191,7 @@ export function ContextMenuProvider(props: ParentProps) {
   });
 
   return (
-    <ContextMenuContext.Provider value={{ open, close, closeFor }}>
+    <ContextMenuContext value={{ open, close, closeFor }}>
       {props.children}
       <Show when={menu()}>
         {(current) => (
@@ -192,7 +199,7 @@ export function ContextMenuProvider(props: ParentProps) {
             <div
               ref={menuElement}
               role="menu"
-              tabIndex={-1}
+              tabindex={-1}
               class="fixed min-w-40 border border-neutral-300 bg-white p-1 text-sm text-neutral-800 shadow-lg"
               style={{
                 left: `${current().x}px`,
@@ -216,7 +223,7 @@ export function ContextMenuProvider(props: ParentProps) {
                           icon={action().icon}
                           disabled={action().disabled}
                           showIconColumn={hasIcons()}
-                          onSelect={handleSelect.bind(null, action())}
+                          onSelect={handleSelect.bind(null, item as ContextMenuAction)}
                         />
                       )}
                     </Match>
@@ -227,7 +234,7 @@ export function ContextMenuProvider(props: ParentProps) {
           </Portal>
         )}
       </Show>
-    </ContextMenuContext.Provider>
+    </ContextMenuContext>
   );
 }
 

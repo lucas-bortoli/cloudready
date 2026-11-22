@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { miStartAuthorization } from "../../lib/kernel-rpc/machine-intelligence";
 import {

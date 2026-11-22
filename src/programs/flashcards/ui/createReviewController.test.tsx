@@ -1,5 +1,6 @@
-import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { filesystem } from "../../../filesystem/FileSystemClient";
 import { FileSystemEntryNotFoundError } from "../../../filesystem/errors";
@@ -30,19 +31,27 @@ describe("review controller", () => {
     };
     const first: LoadedPackage = { hash: "first", collection, store: firstStore };
     const second: LoadedPackage = { hash: "second", collection, store: secondStore };
-    let setLoaded!: (value: LoadedPackage) => LoadedPackage;
-    const root = document.createElement("div");
-    const dispose = render(() => {
-      const [loaded, updateLoaded] = createSignal<LoadedPackage | undefined>(first);
-      setLoaded = updateLoaded;
-      const review = createReviewController(loaded);
-      return <span>{review.deckId()}</span>;
-    }, root);
-    expect(firstSubscribe).toHaveBeenCalledOnce();
-    setLoaded(second);
-    expect(firstUnsubscribe).toHaveBeenCalledOnce();
-    expect(secondSubscribe).toHaveBeenCalledOnce();
-    dispose();
-    expect(secondUnsubscribe).toHaveBeenCalledOnce();
+    const { artifact } = await captureArtifact(
+      () => {
+        let setLoaded!: (value: LoadedPackage) => LoadedPackage;
+        const root = document.createElement("div");
+        const dispose = render(() => {
+          const [loaded, updateLoaded] = createSignal<LoadedPackage | undefined>(first);
+          setLoaded = updateLoaded;
+          const review = createReviewController(loaded);
+          return <span>{review.deckId()}</span>;
+        }, root);
+        flush();
+        expect(firstSubscribe).toHaveBeenCalledOnce();
+        setLoaded(second);
+        flush();
+        expect(firstUnsubscribe).toHaveBeenCalledOnce();
+        expect(secondSubscribe).toHaveBeenCalledOnce();
+        dispose();
+        expect(secondUnsubscribe).toHaveBeenCalledOnce();
+      },
+      { scenario: "review-controller-subscriptions" },
+    );
+    expectNoDiagnostics(artifact);
   });
 });

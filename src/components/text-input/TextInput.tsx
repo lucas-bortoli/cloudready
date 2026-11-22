@@ -1,4 +1,5 @@
-import { splitProps, type JSX } from "solid-js";
+import { omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { cn } from "../../lib/dom";
 
 type NativeTextareaProps = Omit<
@@ -72,7 +73,8 @@ function removeLineBreaks(value: string) {
  * reject edits without stopping event propagation. The component never throws.
  */
 export default function TextInput(props: TextInputProps) {
-  const [local, nativeProps] = splitProps(props, [
+  const nativeProps = omit(
+    props,
     "class",
     "disabled",
     "multiLine",
@@ -82,9 +84,9 @@ export default function TextInput(props: TextInputProps) {
     "spellcheck",
     "value",
     "x-role",
-  ]);
-  const isInactive = () => local.disabled ?? false;
-  const isMultiLine = () => local.multiLine ?? false;
+  );
+  const isInactive = () => props.disabled ?? false;
+  const isMultiLine = () => props.multiLine ?? false;
 
   function preventEdits(event: InputEvent | ClipboardEvent | DragEvent) {
     if (isInactive()) {
@@ -96,7 +98,7 @@ export default function TextInput(props: TextInputProps) {
     const textarea = event.currentTarget;
 
     if (isInactive()) {
-      textarea.value = local.value;
+      textarea.value = props.value;
       return;
     }
 
@@ -106,7 +108,7 @@ export default function TextInput(props: TextInputProps) {
       textarea.value = nextValue;
     }
 
-    local.onValueChange(nextValue);
+    props.onValueChange(nextValue);
   }
 
   const handleKeyDown: JSX.EventHandler<HTMLTextAreaElement, KeyboardEvent> = (event) => {
@@ -114,27 +116,27 @@ export default function TextInput(props: TextInputProps) {
       event.preventDefault();
     }
 
-    local.onKeyDown?.(event);
+    props.onKeyDown?.(event);
   };
 
   return (
     <textarea
       {...nativeProps}
-      aria-disabled={isInactive() || undefined}
-      aria-multiline={isMultiLine() ? undefined : false}
+      aria-disabled={isInactive() ? "true" : undefined}
+      aria-multiline={isMultiLine() ? undefined : "false"}
       class={cn(
         "block min-w-0 rounded-xs border border-neutral-400 bg-neutral-50 text-neutral-800 placeholder:text-neutral-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         isMultiLine()
           ? "min-h-20 resize-none overflow-y-auto px-2 py-1.5"
           : "h-7 resize-none overflow-y-hidden px-2 pt-0.75 leading-5 whitespace-nowrap",
-        local.class,
+        props.class,
       )}
       role={isMultiLine() ? undefined : "textbox"}
-      rows={isMultiLine() ? (local.rows ?? 3) : 1}
-      spellcheck={local.spellcheck ?? false}
-      value={local.value}
+      rows={isMultiLine() ? (props.rows ?? 3) : 1}
+      spellcheck={(props.spellcheck ?? false).toString() as "true" | "false"}
+      value={props.value}
       wrap={isMultiLine() ? undefined : "off"}
-      x-role={local["x-role"]}
+      x-role={props["x-role"]}
       onBeforeInput={preventEdits}
       onDrop={preventEdits}
       onInput={handleInput}

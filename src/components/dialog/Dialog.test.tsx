@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 
-import { onMount } from "solid-js";
-import { render } from "solid-js/web";
-import { describe, expect, it } from "vitest";
+import { createSignal, flush, Show } from "solid-js";
+import { render } from "@solidjs/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { describe, expect, it, vi } from "vitest";
 import { LayerProvider } from "../layer-manager/LayerContext";
 import WindowManager from "../window-manager/WindowManager";
 import { WindowManagerProvider, useWindowManager } from "../window-manager/WindowManagerContext";
@@ -22,7 +23,7 @@ function DialogLauncher(props: DialogLauncherProps) {
   const createDialog = useDialog();
   const windowManager = useWindowManager();
 
-  onMount(() => {
+  const handleOpen = () => {
     props.onWindowManager(windowManager);
     props.onDialogCreated(
       createDialog({
@@ -32,13 +33,18 @@ function DialogLauncher(props: DialogLauncherProps) {
         actions: { confirm: "Delete", cancel: "Keep" },
       }),
     );
-  });
+  };
 
-  return <WindowsOutlet />;
+  return (
+    <>
+      <button onClick={handleOpen}>Open dialog</button>
+      <WindowsOutlet />
+    </>
+  );
 }
 
 /** Mounts a dialog fixture and returns its promise, manager, and DOM cleanup function. */
-function renderDialog() {
+function renderDialog(settle = true) {
   const container = document.createElement("div");
   document.body.append(container);
   let dialog: DialogHandle<"confirm" | "cancel"> | undefined;
@@ -56,6 +62,9 @@ function renderDialog() {
     ),
     container,
   );
+
+  container.querySelector<HTMLButtonElement>("button")!.click();
+  if (settle) flush();
 
   if (!dialog || !windowManager) {
     throw new Error("Dialog was not created.");
@@ -87,6 +96,115 @@ function button(container: HTMLElement, label: string) {
 }
 
 describe("useDialog", () => {
+  it("cleans up a dialog when its owner is removed during settlement", async () => {
+    const { artifact } = await captureArtifact(
+      async () => {
+        const container = document.createElement("div");
+        let dialog: DialogHandle<"confirm" | "cancel"> | undefined;
+        let manager: WindowManager | undefined;
+        const [visible, setVisible] = createSignal(true);
+        const dispose = render(
+          () => (
+            <LayerProvider>
+              <WindowManagerProvider>
+                <Show when={visible()}>
+                  <DialogLauncher
+                    onDialogCreated={(value) => (dialog = value)}
+                    onWindowManager={(value) => (manager = value)}
+                  />
+                </Show>
+              </WindowManagerProvider>
+            </LayerProvider>
+          ),
+          container,
+        );
+        container.querySelector<HTMLButtonElement>("button")!.click();
+        flush();
+        const rejection = expect(dialog!.result).rejects.toBe(RejectReasonDialogCancelled);
+        const finishDestroy = vi.spyOn(manager!, "finishDestroyWindow");
+        setVisible(false);
+        flush();
+        expect(dialog!.exists()).toBe(false);
+        expect(finishDestroy).not.toHaveBeenCalled();
+        await rejection;
+        await Promise.resolve();
+        flush();
+        expect(finishDestroy).toHaveBeenCalledOnce();
+        expect(manager!.getWindows()).toHaveLength(0);
+        dispose();
+      },
+      { scenario: "dialog-owner-reactive-disposal" },
+    );
+    expectNoDiagnostics(artifact);
+  });
+
+  it("emphasizes a dialog before its window has settled", async () => {
+    const { artifact } = await captureArtifact(
+      async () => {
+        const { dialog, dispose, windowManager } = renderDialog(false);
+        const rejection = expect(dialog.result).rejects.toBe(RejectReasonDialogCancelled);
+        const otherId = windowManager.createWindow({ isPinned: true });
+        dialog.emphasize();
+        await Promise.resolve();
+        flush();
+
+        const windows = windowManager.getWindows();
+        const other = windows.find((window) => window.id === otherId)!;
+        const dialogWindow = windows.find((window) => window.id !== otherId)!;
+        expect(dialogWindow.zIndex()).toBeGreaterThan(other.zIndex());
+        dispose();
+        await rejection;
+      },
+      { scenario: "dialog-immediate-emphasis" },
+    );
+    expectNoDiagnostics(artifact);
+  });
+
+  it("cancels a dialog disposed in the same turn it is opened", async () => {
+    const { artifact } = await captureArtifact(
+      async () => {
+        const { dialog, dispose, windowManager } = renderDialog(false);
+        const rejection = expect(dialog.result).rejects.toBe(RejectReasonDialogCancelled);
+
+        expect(dialog.exists()).toBe(true);
+        dispose();
+        expect(dialog.exists()).toBe(false);
+        await rejection;
+        await Promise.resolve();
+        flush();
+        expect(windowManager.getWindows()).toHaveLength(0);
+      },
+      { scenario: "dialog-immediate-disposal" },
+    );
+    expectNoDiagnostics(artifact);
+  });
+
+  it("positions and sizes the dialog after settlement without diagnostics", async () => {
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(75);
+    try {
+      const { artifact } = await captureArtifact(
+        async () => {
+          const { dialog, dispose, windowManager } = renderDialog();
+          const rejection = expect(dialog.result).rejects.toBe(RejectReasonDialogCancelled);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          flush();
+
+          expect(windowManager.getWindows()[0]).toMatchObject({
+            size: { width: 400, height: 150 },
+            isAutoPositioned: true,
+            position: { x: expect.any(Number), y: expect.any(Number) },
+          });
+          dispose();
+          await rejection;
+        },
+        { scenario: "dialog-settlement-placement-and-sizing" },
+      );
+      expectNoDiagnostics(artifact);
+    } finally {
+      scrollHeight.mockRestore();
+    }
+  });
+
   it("cancels outstanding dialogs and removes their windows when unmounted", async () => {
     const { dialog, dispose, windowManager } = renderDialog();
     // Attach the rejection assertion before disposal triggers the cleanup synchronously.

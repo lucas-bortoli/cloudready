@@ -10,23 +10,16 @@ const focusableSelector = [
   "[contenteditable='true']",
 ].join(",");
 
-declare module "solid-js" {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace JSX {
-    interface Directives {
-      focusTrap: typeof focusTrap;
-    }
-  }
-}
-
 /**
  * Keeps keyboard tab navigation within an element's focusable descendants.
  *
- * Attach with `use:focusTrap={focusTrap}`. The directive wraps focus from the
+ * Attach with `ref={focusTrap()}`. The callback wraps focus from the
  * last descendant to the first, and vice versa for Shift+Tab, then removes its
  * listener when Solid disposes the element.
  */
-export default function focusTrap(element: HTMLElement): void {
+export default function focusTrap(): (element: HTMLElement) => void {
+  let element: HTMLElement;
+
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Tab") return;
 
@@ -51,6 +44,10 @@ export default function focusTrap(element: HTMLElement): void {
     }
   };
 
-  element.addEventListener("keydown", onKeyDown);
-  onCleanup(() => element.removeEventListener("keydown", onKeyDown));
+  onCleanup(() => element?.removeEventListener("keydown", onKeyDown));
+
+  return (target) => {
+    element = target;
+    element.addEventListener("keydown", onKeyDown);
+  };
 }

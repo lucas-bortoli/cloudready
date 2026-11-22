@@ -4,8 +4,19 @@ import { fileURLToPath } from "node:url";
 
 const fixtureUrl = `/@fs${fileURLToPath(new URL("../../tests/fixtures/LapBrowserFixture.tsx", import.meta.url))}`;
 
+const diagnostics = new WeakMap<object, string[]>();
+
 test.beforeEach(async ({ page }) => {
+  const messages: string[] = [];
+  diagnostics.set(page, messages);
+  page.on("console", (message) => {
+    if (/\[[A-Z][A-Z_]+\]/.test(message.text())) messages.push(message.text());
+  });
   await page.addInitScript((url) => Reflect.set(window, "lapFixtureUrl", url), fixtureUrl);
+});
+
+test.afterEach(async ({ page }) => {
+  expect(diagnostics.get(page)).toEqual([]);
 });
 
 test("reviews LAP cards, preserves the draft across navigation, and reopens saved progress", async ({
@@ -42,7 +53,7 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
     });
     const deck = findDeck(subject.content.topics)!;
     deck.cards[0].front +=
-      '<img id="local" src="assets/sun.svg"><audio controls src="assets/chime.wav"></audio><img src="assets/missing.svg">';
+      '<img id="local" src="assets/sun.svg"><audio controls src="assets/chime.wav"></audio><img id="missing" src="assets/missing.svg">';
     deck.cards[0].back += '<a href="lap:item/polite">Lesson link</a>';
     const stream = new TransformStream();
     const [archive] = await Promise.all([
@@ -72,7 +83,7 @@ test("reviews LAP cards, preserves the draft across navigation, and reopens save
   await expect(content.getByText("Hello")).toBeVisible();
   await expect(content.locator("#local")).toHaveAttribute("src", /^blob:/);
   await expect(content.locator("audio")).toHaveAttribute("src", /^blob:/);
-  await expect(page.getByText("Some assets could not be loaded.")).toBeVisible();
+  await expect(content.locator("#missing")).not.toHaveAttribute("src");
   await page.getByRole("button", { name: "Show answer" }).click();
   await expect(content.getByText("Hola")).toBeVisible();
   await expect(content.getByRole("link", { name: "Lesson link" })).toBeVisible();

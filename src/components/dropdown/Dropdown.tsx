@@ -1,5 +1,6 @@
 import ChevronDown16 from "@carbon/icons/es/chevron--down/16.js";
-import { createEffect, For, splitProps, type JSX } from "solid-js";
+import { createEffect, For, omit, onSettled } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { cn } from "../../lib/dom";
 import CarbonIcon from "../taskbar/CarbonIcon";
 
@@ -67,7 +68,8 @@ export interface DropdownProps extends NativeSelectProps {
  * to bubble. This component never throws.
  */
 export default function Dropdown(props: DropdownProps) {
-  const [local, nativeProps] = splitProps(props, [
+  const nativeProps = omit(
+    props,
     "class",
     "disabled",
     "onKeyDown",
@@ -75,31 +77,37 @@ export default function Dropdown(props: DropdownProps) {
     "options",
     "value",
     "x-role",
-  ]);
+  );
   let select: HTMLSelectElement | undefined;
-  const isInactive = () => local.disabled ?? false;
+  const isInactive = () => props.disabled ?? false;
 
-  const synchronizeSelection = (options = local.options) => {
+  const synchronizeSelection = (
+    options: readonly DropdownOption[],
+    value: string | null | undefined,
+  ) => {
     if (!select) return;
 
-    if (local.value == null || !options.some((option) => option.value === local.value)) {
+    if (value == null || !options.some((option) => option.value === value)) {
       select.selectedIndex = -1;
     } else {
-      select.value = local.value;
+      select.value = value;
     }
   };
 
-  createEffect(() => {
-    synchronizeSelection(local.options);
-  });
+  createEffect(
+    () => ({ options: props.options, value: props.value }),
+    () => {
+      onSettled(() => synchronizeSelection(props.options, props.value));
+    },
+  );
 
   const handleChange: JSX.EventHandler<HTMLSelectElement, Event> = (event) => {
     if (isInactive()) {
-      synchronizeSelection();
+      synchronizeSelection(props.options, props.value);
       return;
     }
 
-    local.onValueChange(event.currentTarget.value);
+    props.onValueChange(event.currentTarget.value);
   };
 
   const handleKeyDown: JSX.EventHandler<HTMLSelectElement, KeyboardEvent> = (event) => {
@@ -107,7 +115,7 @@ export default function Dropdown(props: DropdownProps) {
       event.preventDefault();
     }
 
-    local.onKeyDown?.(event);
+    props.onKeyDown?.(event);
   };
 
   return (
@@ -120,14 +128,13 @@ export default function Dropdown(props: DropdownProps) {
       <select
         {...nativeProps}
         ref={select}
-        aria-disabled={isInactive() || undefined}
+        aria-disabled={isInactive() ? "true" : undefined}
         class="relative z-0 block h-full w-full appearance-none py-0 pr-7 pl-2 outline-none"
-        value={local.value ?? undefined}
-        x-role={local["x-role"]}
+        x-role={props["x-role"]}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
       >
-        <For each={local.options}>
+        <For each={props.options}>
           {(option) => (
             <option disabled={option.disabled} value={option.value}>
               {option.label}

@@ -43,7 +43,7 @@ export default function Titlebar(props: {
       <div class="ml-auto inline-flex gap-0.5">
         <button
           aria-label={props.entry.isPinned ? "Unpin window" : "Pin window"}
-          aria-pressed={props.entry.isPinned}
+          aria-pressed={(props.entry.isPinned ?? false).toString() as "true" | "false"}
           class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
           type="button"
           onPointerDown={stopPointerDown}

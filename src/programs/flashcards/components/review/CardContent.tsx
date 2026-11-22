@@ -1,4 +1,4 @@
-import { createEffect, createMemo, onCleanup } from "solid-js";
+import { createEffect, createMemo } from "solid-js";
 import { cardDocument } from "../../browser/card-document";
 import type { RenderedCard } from "../../core/template";
 import { ScopedHtml } from "../../../../components/scoped-html/ScopedHtml";
@@ -23,15 +23,14 @@ export default function CardContent(props: CardContentProps) {
     const html = props.revealed ? props.card.back : props.card.front;
     return cardDocument(html, props.card.css, props.media);
   });
-  createEffect(() => {
-    const current = document();
-    // Each document owns its URLs until it is replaced or the view is removed.
-    onCleanup(() => {
+  createEffect(
+    () => document(),
+    (current) => () => {
       current?.urls.forEach((url) => {
         URL.revokeObjectURL(url);
       });
-    });
-  });
+    },
+  );
   return (
     <div class="min-h-48 w-full flex-auto shrink-0 rounded border bg-white">
       <ScopedHtml title="Flashcard" content={document()} bodyClass="card" />

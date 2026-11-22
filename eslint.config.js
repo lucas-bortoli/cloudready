@@ -1,11 +1,12 @@
 import js from "@eslint/js";
 import globals from "globals";
 import solid from "eslint-plugin-solid";
+import solid2 from "eslint-plugin-solid/configs/v2";
 import tseslint from "typescript-eslint";
 
 export default [
   {
-    ignores: ["node_modules/", "target/"],
+    ignores: ["node_modules/", "target/", "test-results/", "playwright-report/"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -17,8 +18,9 @@ export default [
     plugins: {
       solid,
     },
+    settings: solid2.settings,
     rules: {
-      ...solid.configs.typescript.rules,
+      ...solid2.rules,
       "no-unassigned-vars": "off",
     },
   },

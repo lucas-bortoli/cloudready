@@ -1,5 +1,5 @@
-import { createEffect, createResource } from "solid-js";
 import LegalConsent from "./LegalConsent";
+import { useLegalDocument } from "./useLegalDocument";
 
 async function loadPrivacyPolicy(): Promise<string> {
   const response = await fetch("/privacy-policy.txt");
@@ -12,15 +12,13 @@ export default function PrivacyPolicyStep(props: {
   onAcceptedChange: (accepted: boolean) => void;
   onReadyChange: (ready: boolean) => void;
 }) {
-  const [privacyPolicy] = createResource(loadPrivacyPolicy);
-
-  createEffect(() => props.onReadyChange(privacyPolicy() !== undefined));
+  const privacyPolicy = useLegalDocument(loadPrivacyPolicy, (ready) => props.onReadyChange(ready));
 
   return (
     <LegalConsent
       accepted={props.accepted}
-      document={privacyPolicy()}
-      error={privacyPolicy.error}
+      document={privacyPolicy.document()}
+      error={privacyPolicy.error()}
       name="privacy policy"
       onAcceptedChange={props.onAcceptedChange}
     />

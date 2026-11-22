@@ -1,4 +1,5 @@
-import { createEffect, createSignal, on, onCleanup, type Accessor, type JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 import { cn } from "../../../../lib/dom";
 import styles from "./flashcard.module.css";
 
@@ -17,26 +18,29 @@ export default function Flashcard(props: FlashcardProps) {
   let observer: ResizeObserver | undefined;
   let midpoint: number | undefined;
   let end: number | undefined;
-  const [visibleBack, setVisibleBack] = createSignal(props.showBack);
+  const [visibleBack, setVisibleBack] = createSignal(false);
   const [flipping, setFlipping] = createSignal(false);
+  let initialSide = true;
 
   createEffect(
-    on(
-      () => props.showBack,
-      (showBack) => {
-        window.clearTimeout(midpoint);
-        window.clearTimeout(end);
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-          setVisibleBack(showBack);
-          setFlipping(false);
-          return;
-        }
-        setFlipping(true);
-        midpoint = window.setTimeout(() => setVisibleBack(showBack), 150);
-        end = window.setTimeout(() => setFlipping(false), 300);
-      },
-      { defer: true },
-    ),
+    () => props.showBack,
+    (showBack) => {
+      if (initialSide) {
+        initialSide = false;
+        setVisibleBack(showBack);
+        return;
+      }
+      window.clearTimeout(midpoint);
+      window.clearTimeout(end);
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setVisibleBack(showBack);
+        setFlipping(false);
+        return;
+      }
+      setFlipping(true);
+      midpoint = window.setTimeout(() => setVisibleBack(showBack), 150);
+      end = window.setTimeout(() => setFlipping(false), 300);
+    },
   );
 
   const observeSize = (element: HTMLDivElement) => {

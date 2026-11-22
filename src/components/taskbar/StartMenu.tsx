@@ -2,7 +2,7 @@ import Folder16 from "@carbon/icons/es/folder/16.js";
 import Power16 from "@carbon/icons/es/power/16.js";
 import Search16 from "@carbon/icons/es/search/16.js";
 import Settings16 from "@carbon/icons/es/settings/16.js";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import fallbackProfilePicture from "../../data/default-user-pictures/fallback-picture.png";
 import focusTrap from "../../lib/focus-trap";
 import FileManager from "../../programs/file-manager/FileManager";
@@ -91,14 +91,14 @@ export default function StartMenu(props: StartMenuProps) {
   const session = useSession();
   const windowManager = useWindowManager();
   const [query, setQuery] = createSignal("");
-  const [profilePictureUrl, setProfilePictureUrl] = createSignal(fallbackProfilePicture);
   let searchInput: HTMLTextAreaElement | undefined;
 
-  onMount(() => {
+  const profilePictureUrl = () => {
     if (session.user().profilePicture) {
-      setProfilePictureUrl(sessions.profilePictureUrl(session.user().id));
+      return sessions.profilePictureUrl(session.user().id);
     }
-  });
+    return fallbackProfilePicture;
+  };
 
   const matchingApplications = () => {
     const normalizedQuery = query().trim().toLowerCase();
@@ -119,7 +119,7 @@ export default function StartMenu(props: StartMenuProps) {
     if (event.key === "Escape") props.onClose();
   };
 
-  onMount(() => {
+  onSettled(() => {
     if (props.shouldFocusSearch) searchInput?.focus();
   });
 
@@ -130,7 +130,7 @@ export default function StartMenu(props: StartMenuProps) {
       class="absolute top-13 left-1 w-2xl overflow-hidden rounded-xs border border-neutral-200 bg-white text-neutral-600 shadow-2xl"
       style={{ "z-index": layerItem.zIndex() }}
       onKeyDown={handleKeyDown}
-      use:focusTrap={focusTrap}
+      ref={focusTrap()}
     >
       <header class="flex w-full items-center gap-1 border-b border-neutral-200 p-4">
         <div class="flex items-center gap-2">

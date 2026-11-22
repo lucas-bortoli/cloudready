@@ -1,4 +1,4 @@
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
 import type { ReviewViewProps } from "./ReviewView";
 import ReviewView from "./ReviewView";

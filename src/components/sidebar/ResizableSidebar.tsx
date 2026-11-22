@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import { cn } from "../../lib/dom";
 import FixedSidebar, { type FixedSidebarProps } from "./FixedSidebar";
 
@@ -24,18 +24,22 @@ export default function ResizableSidebar(props: ResizableSidebarProps) {
   const maxWidth = () =>
     Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, availableWidth() - MIN_CONTENT_WIDTH));
   const effectiveWidth = () => Math.min(width(), maxWidth());
-  const resize = (value: number) => setWidth(Math.max(MIN_WIDTH, Math.min(maxWidth(), value)));
+  const resize = (value: number) => {
+    const nextWidth = Math.max(MIN_WIDTH, Math.min(maxWidth(), value));
+    setWidth(nextWidth);
+    return nextWidth;
+  };
 
-  const saveWidth = () => {
+  const saveWidth = (value: number) => {
     if (!props.sizeKey) return;
     try {
-      localStorage.setItem(props.sizeKey, String(width()));
+      localStorage.setItem(props.sizeKey, String(value));
     } catch {
       // Storage may be unavailable or full; resizing still works for this session.
     }
   };
 
-  onMount(() => {
+  onSettled(() => {
     if (props.sizeKey) {
       try {
         const stored = localStorage.getItem(props.sizeKey);
@@ -49,7 +53,7 @@ export default function ResizableSidebar(props: ResizableSidebarProps) {
     if (!parent) return;
     const observer = new ResizeObserver(([entry]) => setAvailableWidth(entry.contentRect.width));
     observer.observe(parent);
-    onCleanup(() => observer.disconnect());
+    return () => observer.disconnect();
   });
 
   const handlePointerDown = (event: PointerEvent) => {
@@ -66,17 +70,18 @@ export default function ResizableSidebar(props: ResizableSidebarProps) {
   const handlePointerEnd = (event: PointerEvent) => {
     if (drag?.pointerId === event.pointerId) {
       drag = undefined;
-      saveWidth();
+      saveWidth(width());
     }
   };
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "ArrowLeft") resize(effectiveWidth() - KEYBOARD_STEP);
-    else if (event.key === "ArrowRight") resize(effectiveWidth() + KEYBOARD_STEP);
-    else if (event.key === "Home") resize(MIN_WIDTH);
-    else if (event.key === "End") resize(maxWidth());
+    let nextWidth: number;
+    if (event.key === "ArrowLeft") nextWidth = resize(effectiveWidth() - KEYBOARD_STEP);
+    else if (event.key === "ArrowRight") nextWidth = resize(effectiveWidth() + KEYBOARD_STEP);
+    else if (event.key === "Home") nextWidth = resize(MIN_WIDTH);
+    else if (event.key === "End") nextWidth = resize(maxWidth());
     else return;
     event.preventDefault();
-    saveWidth();
+    saveWidth(nextWidth);
   };
 
   return (
@@ -100,7 +105,7 @@ export default function ResizableSidebar(props: ResizableSidebarProps) {
         aria-valuemin={MIN_WIDTH}
         aria-valuemax={maxWidth()}
         aria-valuenow={effectiveWidth()}
-        tabIndex={0}
+        tabindex={0}
         class="absolute inset-y-0 -right-0.5 z-10 hidden w-1 cursor-col-resize touch-none outline-sky-300 hover:bg-sky-300/50 focus:bg-sky-300/50 focus:outline-2 focus:outline-offset-2 @min-[600px]:block"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

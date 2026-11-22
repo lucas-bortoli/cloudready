@@ -1,4 +1,4 @@
-import { createEffect, createRoot } from "solid-js";
+import { createEffect, createRoot, flush } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WindowManager, {
   WindowActivationOwnerError,
@@ -18,6 +18,7 @@ function setup() {
   const manager = new WindowManager();
   const first = manager.createWindow();
   const second = manager.createWindow();
+  flush();
   const container = document.createElement("div");
   document.body.append(container);
   function button(parent: HTMLElement = container) {
@@ -56,18 +57,24 @@ describe("window activation", () => {
     const registration = manager.registerOwnedOverlay(first, overlay);
     manager.registerOwnedOverlay(first, otherOverlay);
     child.focus();
+    flush();
     expect(manager.activeWindowId()).toBe(first);
     overlay.focus();
+    flush();
     expect(manager.activeWindowId()).toBe(first);
     otherOverlay.focus();
     registration.dispose();
     registration.dispose();
+    flush();
     expect(manager.activeWindowId()).toBe(first);
     otherFrame.focus();
+    flush();
     expect(manager.activeWindowId()).toBe(second);
     overlay.focus();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     outside.focus();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
   });
 
@@ -78,7 +85,10 @@ describe("window activation", () => {
     const changes: Array<string | null> = [];
     createRoot((dispose) => {
       cleanups.push(dispose);
-      createEffect(() => changes.push(manager.activeWindowId()));
+      createEffect(manager.activeWindowId, (id) => {
+        changes.push(id);
+      });
+      flush();
     });
     overlay.focus();
     frame.focus();
@@ -91,18 +101,25 @@ describe("window activation", () => {
     const nested = button(frame);
     nested.focus();
     const inner = manager.registerOwnedOverlay(second, nested);
+    flush();
     expect(manager.activeWindowId()).toBe(second);
     inner.dispose();
+    flush();
     expect(manager.activeWindowId()).toBe(first);
     overlay.focus();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     const registration = manager.registerOwnedOverlay(first, overlay);
+    flush();
     expect(manager.activeWindowId()).toBe(first);
     registration.dispose();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     manager.registerFrame(first, overlay);
+    flush();
     expect(manager.activeWindowId()).toBe(first);
     manager.unregisterFrame(first);
+    flush();
     expect(manager.activeWindowId()).toBeNull();
   });
 
@@ -110,15 +127,19 @@ describe("window activation", () => {
     const { manager, first, frame, outside } = setup();
     frame.focus();
     window.dispatchEvent(new Event("blur"));
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     outside.focus();
     frame.focus();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     window.dispatchEvent(new Event("focus"));
+    flush();
     expect(manager.activeWindowId()).toBe(first);
     outside.focus();
     window.dispatchEvent(new Event("blur"));
     window.dispatchEvent(new Event("focus"));
+    flush();
     expect(manager.activeWindowId()).toBeNull();
   });
 
@@ -127,6 +148,7 @@ describe("window activation", () => {
     frame.focus();
     frame.blur();
     await Promise.resolve();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
   });
 
@@ -155,19 +177,25 @@ describe("window activation", () => {
     const registration = manager.registerOwnedOverlay(first, overlay);
     overlay.focus();
     manager.destroyWindow(first);
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     manager.finishDestroyWindow(first);
     const replacement = manager.registerOwnedOverlay(second, overlay);
     registration.dispose();
+    flush();
     expect(manager.activeWindowId()).toBe(second);
     replacement.dispose();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     otherFrame.focus();
     manager.setMinimized(second, true);
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     manager.setMinimized(second, false);
+    flush();
     expect(manager.activeWindowId()).toBe(second);
     frame.focus();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
   });
 
@@ -179,6 +207,7 @@ describe("window activation", () => {
     });
     manager.setMinimized(first, true);
     expect(manager.getWindows()[0].isMinimized).toBe(false);
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     expect(() => manager.registerOwnedOverlay(first, overlay)).toThrow(WindowActivationOwnerError);
   });
@@ -194,12 +223,14 @@ describe("window activation", () => {
     overlay.focus();
     window.dispatchEvent(new Event("focus"));
     await Promise.resolve();
+    flush();
     expect(manager.activeWindowId()).toBeNull();
     const restart = manager.attachActivationTracking(document);
     cleanups.push(restart);
     const replacement = manager.registerOwnedOverlay(second, overlay);
     window.dispatchEvent(new Event("focus"));
     registration.dispose();
+    flush();
     expect(manager.activeWindowId()).toBe(second);
     replacement.dispose();
   });

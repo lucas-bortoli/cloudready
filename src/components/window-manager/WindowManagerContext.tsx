@@ -1,8 +1,8 @@
-import { createContext, onCleanup, onMount, useContext, type ParentProps } from "solid-js";
+import { createContext, onCleanup, onSettled, useContext, type ParentProps } from "solid-js";
 import { useLayerManager } from "../layer-manager/LayerContext";
 import WindowManager from "./WindowManager";
 
-const WindowManagerContext = createContext<WindowManager>();
+const WindowManagerContext = createContext<WindowManager | null>(null);
 
 /**
  * Provides one {@link WindowManager} instance to a Solid component subtree.
@@ -13,16 +13,12 @@ export function WindowManagerProvider(props: ParentProps) {
   const layerManager = useLayerManager();
   const windowManager = new WindowManager(layerManager);
   let stopTracking: (() => void) | undefined;
-  onMount(() => {
+  onSettled(() => {
     stopTracking = windowManager.attachActivationTracking(document);
   });
   onCleanup(() => stopTracking?.());
 
-  return (
-    <WindowManagerContext.Provider value={windowManager}>
-      {props.children}
-    </WindowManagerContext.Provider>
-  );
+  return <WindowManagerContext value={windowManager}>{props.children}</WindowManagerContext>;
 }
 
 /**
@@ -44,5 +40,5 @@ export function useWindowManager(): WindowManager {
  * Returns the nearest window manager, or undefined outside its provider.
  */
 export function useOptionalWindowManager(): WindowManager | undefined {
-  return useContext(WindowManagerContext);
+  return useContext(WindowManagerContext) ?? undefined;
 }

@@ -1,4 +1,4 @@
-import { batch, createEffect, createMemo, createSignal, on, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import generateUuid from "../../../lib/uuid";
 import { newCard, schedule, type Rating } from "../core/fsrs";
 import type { FlashcardDeck, SubjectProgress } from "../core/learning-program";
@@ -40,15 +40,16 @@ export function createSubjectReviewController(
     return cards[0];
   });
   // Another window can move the current card out of the shared queue.
+  let previousCard: SubjectReviewCard | undefined;
   createEffect(
-    on(
-      card,
-      (current) => {
-        setRevealedCard(undefined);
-        if (selected() !== current) setSelected(undefined);
-      },
-      { defer: true },
-    ),
+    () => ({ current: card(), selection: selected() }),
+    ({ current, selection }) => {
+      if (current === previousCard) return;
+      previousCard = current;
+      setRevealedCard(undefined);
+      if (selection !== current) setSelected(undefined);
+    },
+    { defer: true },
   );
   const revealed = () => !!card() && card() === revealedCard();
   const canUndo = () => lastRating()?.rated === entry.progress();
@@ -61,13 +62,11 @@ export function createSubjectReviewController(
   };
 
   const end = (): void => {
-    batch(() => {
-      setActive(false);
-      setSelected(undefined);
-      setRevealedCard(undefined);
-      setLastRating(undefined);
-      setReviewedCount(0);
-    });
+    setActive(false);
+    setSelected(undefined);
+    setRevealedCard(undefined);
+    setLastRating(undefined);
+    setReviewedCount(0);
   };
 
   const reveal = (): void => {
@@ -89,27 +88,23 @@ export function createSubjectReviewController(
       timestamp,
       generateUuid(),
     );
-    batch(() => {
-      setLastRating({ card: current, previous, rated });
-      setRevealedCard(undefined);
-      setSelected(undefined);
-      setNow(timestamp);
-      entry.updateProgress(rated);
-      setReviewedCount((count) => count + 1);
-    });
+    setLastRating({ card: current, previous, rated });
+    setRevealedCard(undefined);
+    setSelected(undefined);
+    setNow(timestamp);
+    entry.updateProgress(rated);
+    setReviewedCount((count) => count + 1);
   };
 
   const undo = (): void => {
     const last = lastRating();
     if (!last || !canUndo()) return;
-    batch(() => {
-      // Only restore a snapshot while it is still the draft’s latest edit.
-      entry.updateProgress(last.previous);
-      setSelected(last.card);
-      setRevealedCard(undefined);
-      setLastRating(undefined);
-      setReviewedCount((count) => count - 1);
-    });
+    // Only restore a snapshot while it is still the draft’s latest edit.
+    entry.updateProgress(last.previous);
+    setSelected(last.card);
+    setRevealedCard(undefined);
+    setLastRating(undefined);
+    setReviewedCount((count) => count - 1);
   };
 
   const intervalLabel = (rating: Rating): string => {

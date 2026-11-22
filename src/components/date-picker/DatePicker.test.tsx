@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 
-import { createSignal, type JSX } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
 import DatePicker from "./DatePicker";
 
@@ -26,6 +28,28 @@ function renderDatePicker(input: () => JSX.Element) {
 }
 
 describe("DatePicker", () => {
+  it("tracks controlled and forwarded properties without diagnostics", async () => {
+    const { artifact } = await captureArtifact(async () => {
+      const [value, setValue] = createSignal("2026-09-27");
+      const [name, setName] = createSignal("start");
+      const [disabled, setDisabled] = createSignal(false);
+      const { dispose, element, wrapper } = renderDatePicker(() => (
+        <DatePicker disabled={disabled()} name={name()} onValueChange={setValue} value={value()} />
+      ));
+
+      setValue("2026-10-01");
+      setName("end");
+      setDisabled(true);
+      flush();
+      expect(element.value).toBe("2026-10-01");
+      expect(element.name).toBe("end");
+      expect(element.getAttribute("aria-disabled")).toBe("true");
+      expect(wrapper.getAttribute("aria-disabled")).toBe("true");
+      dispose();
+    });
+    expectNoDiagnostics(artifact);
+  });
+
   it("renders a controlled native date input and forwards safe native props", () => {
     const { dispose, element, wrapper } = renderDatePicker(() => (
       <DatePicker
@@ -59,6 +83,7 @@ describe("DatePicker", () => {
     ));
 
     setValue("2026-10-01");
+    flush();
 
     expect(element.value).toBe("2026-10-01");
 

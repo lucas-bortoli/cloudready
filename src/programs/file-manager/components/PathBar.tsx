@@ -18,6 +18,10 @@ export default function PathBar(props: PathBarProps) {
     props.onPathSegmentClicked(targetPath);
   };
 
+  const handleIndexedSegmentClick = (index: () => number) => {
+    handleSegmentClick(index() + 1);
+  };
+
   return (
     <ol
       class={cn(
@@ -27,7 +31,7 @@ export default function PathBar(props: PathBarProps) {
     >
       <li
         class="inline-flex h-full cursor-pointer items-center bg-transparent px-2 py-1 transition-colors hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 active:bg-neutral-300"
-        tabIndex={0}
+        tabindex={0}
         onClick={handleSegmentClick.bind(null, 0)}
       >
         <CarbonIcon icon={VmdkDisk16} />
@@ -39,8 +43,8 @@ export default function PathBar(props: PathBarProps) {
             <CarbonIcon icon={CaretRight16} />
             <li
               class="inline-flex h-full cursor-pointer items-center bg-transparent px-2 py-1 transition-colors hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 active:bg-neutral-300"
-              tabIndex={0}
-              onClick={handleSegmentClick.bind(null, index() + 1)}
+              tabindex={0}
+              onClick={handleIndexedSegmentClick.bind(null, index)}
             >
               {segment}
             </li>

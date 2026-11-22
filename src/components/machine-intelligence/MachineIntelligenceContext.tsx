@@ -1,4 +1,5 @@
-import { createContext, onCleanup, useContext, type JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createContext, onCleanup, useContext } from "solid-js";
 import { KernelRpcApiError } from "../../lib/kernel-rpc/core";
 import {
   miDisconnect,
@@ -177,11 +178,7 @@ export function MachineIntelligenceProvider(props: { children: JSX.Element }) {
     client.dispose();
     if (activeClient === client) activeClient = undefined;
   });
-  return (
-    <MachineIntelligenceContext.Provider value={client}>
-      {props.children}
-    </MachineIntelligenceContext.Provider>
-  );
+  return <MachineIntelligenceContext value={client}>{props.children}</MachineIntelligenceContext>;
 }
 
 /**

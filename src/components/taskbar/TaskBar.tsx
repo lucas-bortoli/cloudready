@@ -1,8 +1,8 @@
+import type { JSX } from "@solidjs/web";
 import Apps16 from "@carbon/icons/es/apps/16.js";
 import FitToScreen16 from "@carbon/icons/es/fit-to-screen/16.js";
 import Wifi16 from "@carbon/icons/es/wifi/16.js";
-import { createSignal, For, onCleanup, onMount, Show, splitProps, type JSX } from "solid-js";
-import { cn } from "../../lib/dom";
+import { createSignal, For, onCleanup, onSettled, Show, omit } from "solid-js";
 import focusTrap from "../../lib/focus-trap";
 import createFairyIcon from "../../programs/fairy/createFairyIcon";
 import FairyPopover from "../../programs/fairy/FairyPopover";
@@ -21,18 +21,18 @@ import VolumeUpImage from "./volume-up.svg";
 
 /** Renders a taskbar control with the shared pointer and keyboard-focus treatment. */
 function TaskbarButton(props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const [button, nativeProps] = splitProps(props, ["children", "class", "type"]);
+  const nativeProps = omit(props, "children", "class", "type");
 
   return (
     <button
       {...nativeProps}
-      class={cn(
+      class={[
         "z-0 cursor-pointer outline-sky-300 transition-colors focus:z-10 focus:outline-2 focus:outline-offset-2",
-        button.class,
-      )}
-      type={button.type ?? "button"}
+        props.class,
+      ]}
+      type={props.type ?? "button"}
     >
-      {button.children}
+      {props.children}
     </button>
   );
 }
@@ -143,7 +143,7 @@ export default function Taskbar() {
     }
   };
 
-  onMount(() => {
+  onSettled(() => {
     document.addEventListener("fullscreenchange", handleFullscreenChange);
   });
 
@@ -166,11 +166,11 @@ export default function Taskbar() {
       x-role="taskbar"
       class="absolute top-0 right-0 left-0 flex h-12 items-center border-b border-neutral-700 bg-neutral-800 p-1 text-neutral-100"
       style={{ "z-index": layerItem.zIndex() }}
-      use:focusTrap={focusTrap}
+      ref={focusTrap()}
     >
       <TaskbarButton
         aria-controls="start-menu"
-        aria-expanded={isStartMenuOpen()}
+        aria-expanded={isStartMenuOpen().toString() as "true" | "false"}
         class="inline-flex h-10 items-center gap-2 rounded-xs bg-neutral-800 px-3 hover:bg-neutral-700"
         onClick={handleStartMenuButtonClick}
       >
@@ -195,7 +195,7 @@ export default function Taskbar() {
       <Separator />
       <TaskbarButton
         aria-controls="fairy-conversation"
-        aria-expanded={isFairyOpen()}
+        aria-expanded={isFairyOpen().toString() as "true" | "false"}
         class="inline-flex h-10 items-center gap-2 rounded-xs bg-neutral-800 px-3 hover:bg-neutral-700"
         onClick={toggleFairy}
       >
@@ -235,7 +235,7 @@ export default function Taskbar() {
       <Clock />
       <div class="relative">
         <TaskbarButton
-          aria-expanded={isAccountMenuOpen()}
+          aria-expanded={isAccountMenuOpen().toString() as "true" | "false"}
           class="h-10 rounded-xs px-3 hover:bg-neutral-700"
           onClick={toggleAccountMenu}
         >

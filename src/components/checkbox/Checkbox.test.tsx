@@ -1,7 +1,9 @@
+import type { JSX } from "@solidjs/web";
 // @vitest-environment happy-dom
 
-import { createSignal, type JSX } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
 import Checkbox from "./Checkbox";
 
@@ -91,6 +93,7 @@ describe("Checkbox", () => {
     expect(indicator.dataset.state).toBe("mixed");
 
     input.click();
+    flush();
 
     expect(input.checked).toBe(true);
     expect(input.indeterminate).toBe(false);
@@ -98,6 +101,30 @@ describe("Checkbox", () => {
     expect(indicator.dataset.state).toBe("checked");
 
     dispose();
+  });
+
+  it("updates the mixed state without Solid diagnostics", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const [mixed, setMixed] = createSignal(false);
+        const { dispose, input } = renderCheckbox(() => (
+          <Checkbox checked={false} indeterminate={mixed()} onCheckedChange={() => undefined}>
+            Select all
+          </Checkbox>
+        ));
+        flush();
+        expect(input.indeterminate).toBe(false);
+        setMixed(true);
+        flush();
+        expect(input.indeterminate).toBe(true);
+        setMixed(false);
+        flush();
+        expect(input.indeterminate).toBe(false);
+        dispose();
+      },
+      { scenario: "checkbox-mixed-state" },
+    );
+    expectNoDiagnostics(artifact);
   });
 
   it("forwards x-role only when supplied", () => {

@@ -1,4 +1,5 @@
-import { createMemo, For, type JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createMemo, For } from "solid-js";
 import type { ResizeDirection } from "./useWindowInteraction";
 
 const resizeDirections: ResizeDirection[] = ["n", "e", "s", "w", "nw", "ne", "se", "sw"];
