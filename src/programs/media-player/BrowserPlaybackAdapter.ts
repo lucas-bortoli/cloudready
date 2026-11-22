@@ -7,7 +7,6 @@ export default class BrowserPlaybackAdapter implements PlaybackAdapter {
   private element: HTMLVideoElement | null = null;
   private surface: HTMLElement | null = null;
   private volume = 1;
-  private muted = false;
 
   /**
    * Places the active video element inside the supplied surface.
@@ -30,7 +29,6 @@ export default class BrowserPlaybackAdapter implements PlaybackAdapter {
     const video = document.createElement("video");
     video.playsInline = true;
     video.volume = this.volume;
-    video.muted = this.muted;
     video.addEventListener("play", () => notify({ type: "play" }));
     video.addEventListener("pause", () => notify({ type: "pause" }));
     video.addEventListener("ended", () => notify({ type: "ended" }));
@@ -87,16 +85,6 @@ export default class BrowserPlaybackAdapter implements PlaybackAdapter {
     if (this.element) this.element.volume = volume;
   }
 
-  /**
-   * Sets mute for the current and subsequent sessions.
-   *
-   * @param muted Whether audio is muted.
-   */
-  public setMuted(muted: boolean): void {
-    this.muted = muted;
-    if (this.element) this.element.muted = muted;
-  }
-
   private release(): void {
     if (!this.element) return;
     this.element.pause();
@@ -104,6 +92,13 @@ export default class BrowserPlaybackAdapter implements PlaybackAdapter {
     this.element.load();
     this.element.remove();
     this.element = null;
+  }
+
+  /**
+   * Releases the active media session while retaining its video surface.
+   */
+  public clear(): void {
+    this.release();
   }
 
   /**

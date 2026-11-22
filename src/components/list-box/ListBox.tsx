@@ -1,15 +1,35 @@
 import { For } from "solid-js";
 
+/**
+ * Items, selection, and callbacks for a controlled list box.
+ *
+ * @param T The type of item displayed in the list.
+ */
 export interface ListBoxProps<T> {
+  /** Accessible name for the list box. */
+  ariaLabel: string;
+  /** Additional classes applied to the list box. */
+  class?: string;
+  /** Items displayed in order. */
   items: readonly T[];
+  /** Selected item, compared by identity, or null when nothing is selected. */
   selected: T | null;
-  current: T | null;
+  /** Returns the text displayed for an item. */
   label: (item: T) => string;
+  /** Requests a selection change; the caller must update `selected`. */
   onSelect: (item: T) => void;
+  /** Called when an item is double-clicked or the selected item is activated with Enter. */
   onActivate: (item: T) => void;
 }
 
-/** A selectable list with a separately indicated current item. */
+/**
+ * Displays a controlled, selectable list of items.
+ *
+ * Arrow keys, Home, and End request a selection change; Enter activates the
+ * selected item. Clicking selects an item, and double-clicking activates it.
+ *
+ * @param props The items, selected item, labels, and interaction callbacks.
+ */
 export default function ListBox<T>(props: ListBoxProps<T>) {
   function handleKeyDown(event: KeyboardEvent) {
     const index = props.items.indexOf(props.selected as T);
@@ -28,31 +48,30 @@ export default function ListBox<T>(props: ListBoxProps<T>) {
   }
 
   return (
-    <div
+    <ol
       x-role="listbox"
       role="listbox"
-      aria-label="Playback queue"
+      aria-label={props.ariaLabel}
       tabindex="0"
-      class="min-h-20 flex-1 overflow-auto border border-neutral-400 outline-sky-300 focus:outline-2 focus:outline-offset-2"
+      class={[
+        "min-h-20 flex-1 overflow-x-hidden overflow-y-auto border border-neutral-400 outline-sky-300 focus:outline-2 focus:outline-offset-2",
+        props.class,
+      ]}
       onKeyDown={handleKeyDown}
     >
       <For each={props.items}>
         {(item) => (
-          <div
+          <li
             role="option"
             aria-selected={item === props.selected ? "true" : "false"}
-            class={[
-              "cursor-pointer px-2 py-1",
-              { "bg-sky-200": item === props.selected, "font-bold": item === props.current },
-            ]}
+            class={["cursor-pointer truncate px-2 py-1", { "bg-sky-200": item === props.selected }]}
             onClick={props.onSelect.bind(null, item)}
             onDblClick={props.onActivate.bind(null, item)}
           >
-            {item === props.current ? "▶ " : ""}
             {props.label(item)}
-          </div>
+          </li>
         )}
       </For>
-    </div>
+    </ol>
   );
 }

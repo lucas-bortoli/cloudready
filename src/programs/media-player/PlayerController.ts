@@ -19,7 +19,6 @@ export interface PlayerSnapshot {
   selected: QueueItem | null;
   currentIndex: number | null;
   playing: boolean;
-  muted: boolean;
   volume: number;
   time: number;
   duration: number;
@@ -59,11 +58,9 @@ export interface PlaybackAdapter {
    */
   setVolume(volume: number): void;
   /**
-   * Sets whether audio is muted.
-   *
-   * @param muted Whether to mute audio.
+   * Releases the active media session while keeping the adapter available.
    */
-  setMuted(muted: boolean): void;
+  clear(): void;
   /**
    * Releases playback resources.
    */
@@ -84,7 +81,6 @@ export default class PlayerController {
     selected: null,
     currentIndex: null,
     playing: false,
-    muted: false,
     volume: 1,
     time: 0,
     duration: 0,
@@ -143,6 +139,37 @@ export default class PlayerController {
    */
   public select(item: QueueItem): void {
     if (this.state.queue.includes(item)) this.update({ selected: item });
+  }
+
+  /**
+   * Removes the selected entry, stopping playback if it was the active entry.
+   * Selects the next entry, or the previous one when removing the last entry.
+   */
+  public removeSelected(): void {
+    if (this.disposed) return;
+    const index = this.state.queue.indexOf(this.state.selected as QueueItem);
+    if (index < 0) return;
+
+    const queue = this.state.queue.filter((_, itemIndex) => itemIndex !== index);
+    const selected = queue[index] ?? queue[index - 1] ?? null;
+    const currentIndex = this.state.currentIndex;
+    if (currentIndex === index) {
+      this.generation++;
+      this.adapter.clear();
+      this.update({
+        queue,
+        selected,
+        currentIndex: null,
+        playing: false,
+        time: 0,
+        duration: 0,
+        error: null,
+      });
+    } else {
+      let nextCurrentIndex = currentIndex;
+      if (currentIndex !== null && index < currentIndex) nextCurrentIndex = currentIndex - 1;
+      this.update({ queue, selected, currentIndex: nextCurrentIndex });
+    }
   }
 
   /**
@@ -241,14 +268,6 @@ export default class PlayerController {
   public setVolume(volume: number): void {
     this.adapter.setVolume(volume);
     this.update({ volume });
-  }
-
-  /**
-   * Sets whether playback is muted.
-   */
-  public setMuted(muted: boolean): void {
-    this.adapter.setMuted(muted);
-    this.update({ muted });
   }
 
   /**

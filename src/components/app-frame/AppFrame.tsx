@@ -12,11 +12,15 @@ import { useWindowBack } from "../window-manager/WindowBackContext";
 export interface AppFrameProps {
   /** Direct children must be AppFrame slots, optionally wrapped in Solid control flow. */
   children?: JSX.Element;
+  /** Additional classes applied to the frame. */
+  class?: string;
 }
 
 /** Content displayed in the main pane. */
 export interface AppFrameMainProps {
   children?: JSX.Element;
+  /** Additional classes applied to the main pane. */
+  class?: string;
 }
 
 /** Content and optional CSS classes for the main header. */
@@ -27,18 +31,46 @@ export interface AppFrameHeaderProps {
 /** Content displayed in the main status bar. */
 export interface AppFrameStatusProps {
   children?: JSX.Element;
+  /** Additional classes applied to the status bar. */
+  class?: string;
+}
+/** Content and accessible name for the right-hand sidebar. */
+export interface AppFrameSecondarySidebarProps {
+  children?: JSX.Element;
+  /** Accessible name used for the sidebar and its narrow-screen button. */
+  label: string;
+  /** Additional classes applied to the sidebar container. */
+  class?: string;
+}
+/** Content displayed above the secondary sidebar body. */
+export interface AppFrameSecondarySidebarHeaderProps {
+  children?: JSX.Element;
+  /** Additional classes applied to the header. */
+  class?: string;
+}
+/** Content displayed below the secondary sidebar body. */
+export interface AppFrameSecondarySidebarStatusProps {
+  children?: JSX.Element;
+  /** Additional classes applied to the status bar. */
+  class?: string;
 }
 /** Content displayed above the sidebar body. */
 export interface AppFrameSidebarHeaderProps {
   children?: JSX.Element;
+  /** Additional classes applied to the header. */
+  class?: string;
 }
 /** Content displayed below the sidebar body. */
 export interface AppFrameSidebarStatusProps {
   children?: JSX.Element;
+  /** Additional classes applied to the status bar. */
+  class?: string;
 }
 
 /** Sidebar content, controlled selection, and optional persistence. */
-export interface AppFrameSidebarProps extends AppFrameProps {
+export interface AppFrameSidebarProps extends Omit<AppFrameProps, "class"> {
+  /** Additional classes applied to the sidebar container. */
+  class?: string;
   /** Local storage key for the docked sidebar width. */
   sizeKey?: string;
   /** Changing this value closes the narrow drawer after navigation. */
@@ -51,11 +83,24 @@ export interface AppFrameSidebarProps extends AppFrameProps {
 
 const slotType = Symbol("AppFrame slot");
 
-type SlotName = "main" | "header" | "status" | "sidebar" | "sidebarHeader" | "sidebarStatus";
+type SlotName =
+  | "main"
+  | "header"
+  | "status"
+  | "sidebar"
+  | "sidebarHeader"
+  | "sidebarStatus"
+  | "secondarySidebar"
+  | "secondarySidebarHeader"
+  | "secondarySidebarStatus";
 type Slot = {
   [Name in SlotName]: {
     [slotType]: Name;
-    props: Name extends "sidebar" ? AppFrameSidebarProps : AppFrameHeaderProps;
+    props: Name extends "sidebar"
+      ? AppFrameSidebarProps
+      : Name extends "secondarySidebar"
+        ? AppFrameSecondarySidebarProps
+        : AppFrameHeaderProps;
   };
 }[SlotName];
 
@@ -84,6 +129,18 @@ function Sidebar(props: AppFrameSidebarProps) {
   return slotElement({ [slotType]: "sidebar", props });
 }
 
+function SecondarySidebar(props: AppFrameSecondarySidebarProps) {
+  return slotElement({ [slotType]: "secondarySidebar", props });
+}
+
+function SecondarySidebarHeader(props: AppFrameSecondarySidebarHeaderProps) {
+  return slotElement({ [slotType]: "secondarySidebarHeader", props });
+}
+
+function SecondarySidebarStatus(props: AppFrameSecondarySidebarStatusProps) {
+  return slotElement({ [slotType]: "secondarySidebarStatus", props });
+}
+
 function SidebarHeader(props: AppFrameSidebarHeaderProps) {
   return slotElement({ [slotType]: "sidebarHeader", props });
 }
@@ -93,8 +150,8 @@ function SidebarStatus(props: AppFrameSidebarStatusProps) {
 }
 
 /**
- * Lays out an application's main pane and optional resizable sidebar.
- * At widths below 600px, the sidebar appears as an overlay drawer.
+ * Lays out an application's main pane and optional sidebars.
+ * At widths below 600px, sidebars appear as overlay drawers.
  * Header and status slots on each side share rows while the sidebar is docked.
  * Direct children must be AppFrame slots, optionally wrapped in Solid control flow.
  *
@@ -112,6 +169,9 @@ function SidebarStatus(props: AppFrameSidebarStatusProps) {
  *   <AppFrame.SidebarHeader>Notes</AppFrame.SidebarHeader>
  *   <AppFrame.Header class="px-4">Toolbar</AppFrame.Header>
  *   <AppFrame.Main><Page /></AppFrame.Main>
+ *   <AppFrame.SecondarySidebar label="Details">Details</AppFrame.SecondarySidebar>
+ *   <AppFrame.SecondarySidebarHeader>Inspector</AppFrame.SecondarySidebarHeader>
+ *   <AppFrame.SecondarySidebarStatus>One item</AppFrame.SecondarySidebarStatus>
  *   <AppFrame.Status>Ready</AppFrame.Status>
  *   <AppFrame.SidebarStatus>Pages</AppFrame.SidebarStatus>
  * </AppFrame>
@@ -123,6 +183,7 @@ function AppFrame(props: AppFrameProps) {
   const slots = createMemo(() => {
     const named: Partial<Record<SlotName, AppFrameHeaderProps>> & {
       sidebar?: AppFrameSidebarProps;
+      secondarySidebar?: AppFrameSecondarySidebarProps;
     } = {};
     for (const child of frameChildren.toArray()) {
       if (child == null || typeof child === "boolean") continue;
@@ -133,6 +194,8 @@ function AppFrame(props: AppFrameProps) {
       }
       if (child[slotType] === "sidebar") {
         named.sidebar = child.props;
+      } else if (child[slotType] === "secondarySidebar") {
+        named.secondarySidebar = child.props;
       } else {
         named[child[slotType]] = child.props;
       }
@@ -140,12 +203,16 @@ function AppFrame(props: AppFrameProps) {
     return named;
   });
   const sidebar = () => slots().sidebar;
+  const secondarySidebar = () => slots().secondarySidebar;
   const [narrow, setNarrow] = createSignal(false);
   const [open, setOpen] = createSignal(false);
+  const [secondaryOpen, setSecondaryOpen] = createSignal(false);
   const [progress, setProgress] = createSignal<number | null>(null);
   let frame: HTMLElement | undefined;
   let menuButton: HTMLButtonElement | undefined;
   let drawer: HTMLDivElement | undefined;
+  let secondaryButton: HTMLButtonElement | undefined;
+  let secondaryDrawer: HTMLElement | undefined;
   let drag: { x: number; y: number; start: number; active: boolean } | undefined;
 
   // Use the application window width, which may differ from the viewport width.
@@ -155,6 +222,7 @@ function AppFrame(props: AppFrameProps) {
       const next = entry.contentRect.width < 600;
       if (next !== narrow()) {
         setOpen(false);
+        setSecondaryOpen(false);
         setProgress(null);
         setNarrow(next);
       }
@@ -175,17 +243,53 @@ function AppFrame(props: AppFrameProps) {
 
   const close = () => {
     setOpen(false);
-    menuButton?.focus();
+    onSettled(() => {
+      if (!open() && !secondaryOpen()) menuButton?.focus({ preventScroll: true });
+    });
   };
-  useWindowBack("dismiss", { available: () => narrow() && open(), run: close });
+  const closeSecondary = () => {
+    setSecondaryOpen(false);
+    onSettled(() => {
+      if (!open() && !secondaryOpen()) secondaryButton?.focus({ preventScroll: true });
+    });
+  };
+  const closeActive = () => {
+    if (secondaryOpen()) closeSecondary();
+    else close();
+  };
+  useWindowBack("dismiss", {
+    available: () => narrow() && (open() || secondaryOpen()),
+    run: closeActive,
+  });
   const show = () => {
+    setSecondaryOpen(false);
     setOpen(true);
-    requestAnimationFrame(() =>
-      drawer?.querySelector<HTMLElement>("button, [tabindex='0']")?.focus(),
-    );
+    requestAnimationFrame(() => {
+      if (!open()) return;
+      const focusTarget = drawer?.querySelector<HTMLElement>(
+        "button:not([disabled]), a[href], input:not([disabled]), [tabindex='0']",
+      );
+      if (focusTarget) focusTarget.focus({ preventScroll: true });
+      else drawer?.focus({ preventScroll: true });
+    });
+  };
+  const showSecondary = () => {
+    setOpen(false);
+    setSecondaryOpen(true);
+    requestAnimationFrame(() => {
+      // Let the drawer's visibility change reach the browser before focusing its contents.
+      requestAnimationFrame(() => {
+        if (!secondaryOpen()) return;
+        const focusTarget = secondaryDrawer?.querySelector<HTMLElement>(
+          "button:not([disabled]), a[href], input:not([disabled]), [tabindex='0']",
+        );
+        if (focusTarget) focusTarget.focus({ preventScroll: true });
+        else secondaryDrawer?.focus({ preventScroll: true });
+      });
+    });
   };
   const pointerDown = (event: PointerEvent) => {
-    if (!narrow() || !sidebar() || event.button !== 0) return;
+    if (!narrow() || !sidebar() || secondaryOpen() || event.button !== 0) return;
     if (!open() && event.clientX - (frame?.getBoundingClientRect().left ?? 0) > 24) return;
     drag = { x: event.clientX, y: event.clientY, start: open() ? 1 : 0, active: false };
   };
@@ -205,26 +309,31 @@ function AppFrame(props: AppFrameProps) {
     );
   };
   const pointerEnd = () => {
-    if (drag?.active) setOpen((progress() ?? 0) >= 0.5);
+    if (drag?.active) {
+      if ((progress() ?? 0) >= 0.5) show();
+      else if (open()) close();
+      else setOpen(false);
+    }
     drag = undefined;
     setProgress(null);
   };
   const keyDown = (event: KeyboardEvent) => {
-    if (!open() || !narrow()) return;
+    if ((!open() && !secondaryOpen()) || !narrow()) return;
     if (event.key === "Escape") {
       event.preventDefault();
-      close();
+      closeActive();
       return;
     }
-    if (event.key !== "Tab" || !drawer) return;
+    const activeDrawer = secondaryOpen() ? secondaryDrawer : drawer;
+    if (event.key !== "Tab" || !activeDrawer) return;
     const elements = Array.from(
-      drawer.querySelectorAll<HTMLElement>(
+      activeDrawer.querySelectorAll<HTMLElement>(
         "button:not([disabled]), a[href], input:not([disabled]), [tabindex='0']",
       ),
     );
     if (!elements.length) {
       event.preventDefault();
-      drawer.focus();
+      activeDrawer.focus();
       return;
     }
     // Wrap keyboard focus within the open drawer.
@@ -241,15 +350,70 @@ function AppFrame(props: AppFrameProps) {
   // The docked sidebar shares grid rows with the main pane; the drawer uses a flex column.
   const sidebarContent = () => (
     <>
-      <Show when={slots().sidebarHeader || (!narrow() && slots().header)}>
-        <header class="row-start-1 min-h-12 shrink-0 border-b border-neutral-200">
+      <Show
+        when={
+          slots().sidebarHeader ||
+          (!narrow() && (slots().header || (secondarySidebar() && slots().secondarySidebarHeader)))
+        }
+      >
+        <header
+          class={cn(
+            "row-start-1 min-h-12 shrink-0 border-b border-neutral-200",
+            slots().sidebarHeader?.class,
+          )}
+        >
           {slots().sidebarHeader?.children}
         </header>
       </Show>
       <div class="row-start-2 min-h-0 flex-1 overflow-y-auto">{sidebar()?.children}</div>
-      <Show when={slots().sidebarStatus || (!narrow() && slots().status)}>
-        <footer class="row-start-3 shrink-0 border-t border-neutral-200">
+      <Show
+        when={
+          slots().sidebarStatus ||
+          (!narrow() && (slots().status || (secondarySidebar() && slots().secondarySidebarStatus)))
+        }
+      >
+        <footer
+          class={cn(
+            "row-start-3 shrink-0 border-t border-neutral-200",
+            slots().sidebarStatus?.class,
+          )}
+        >
           {slots().sidebarStatus?.children}
+        </footer>
+      </Show>
+    </>
+  );
+  const secondarySidebarContent = () => (
+    <>
+      <Show
+        when={
+          slots().secondarySidebarHeader ||
+          (!narrow() && (slots().header || (sidebar() && slots().sidebarHeader)))
+        }
+      >
+        <header
+          class={cn(
+            "row-start-1 min-h-12 shrink-0 border-b border-neutral-200",
+            slots().secondarySidebarHeader?.class,
+          )}
+        >
+          {slots().secondarySidebarHeader?.children}
+        </header>
+      </Show>
+      <div class="row-start-2 min-h-0 flex-1 overflow-y-auto">{secondarySidebar()?.children}</div>
+      <Show
+        when={
+          slots().secondarySidebarStatus ||
+          (!narrow() && (slots().status || (sidebar() && slots().sidebarStatus)))
+        }
+      >
+        <footer
+          class={cn(
+            "row-start-3 shrink-0 border-t border-neutral-200",
+            slots().secondarySidebarStatus?.class,
+          )}
+        >
+          {slots().secondarySidebarStatus?.children}
         </footer>
       </Show>
     </>
@@ -259,12 +423,31 @@ function AppFrame(props: AppFrameProps) {
     if (open()) return "true";
     return "false";
   };
+  const secondaryExpanded = () => {
+    if (secondaryOpen()) return "true";
+    return "false";
+  };
+  const secondaryVisibility = () => {
+    if (secondaryOpen()) return "visible";
+    return "hidden";
+  };
+  const secondaryOffset = () => {
+    if (secondaryOpen()) return 0;
+    return 100;
+  };
+  const secondaryBackdropStyle = () => {
+    if (secondaryOpen()) return { opacity: 0.32, "pointer-events": "auto" };
+    return { opacity: 0, "pointer-events": "none" };
+  };
 
   return (
     <main
       ref={frame}
       x-role="app frame"
-      class="@container relative grid h-full min-h-0 min-w-0 grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-neutral-50 text-neutral-800"
+      class={cn(
+        "@container relative grid h-full min-h-0 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-neutral-50 text-neutral-800",
+        props.class,
+      )}
       onPointerDown={pointerDown}
       onPointerMove={pointerMove}
       onPointerUp={pointerEnd}
@@ -273,7 +456,10 @@ function AppFrame(props: AppFrameProps) {
     >
       <Show when={!narrow() && sidebar()}>
         <ResizableSidebar
-          class="col-start-1 row-span-3 row-start-1 grid! min-w-0 grid-rows-subgrid border-r border-neutral-200 bg-neutral-100"
+          class={cn(
+            "col-start-1 row-span-3 row-start-1 grid! min-w-0 grid-rows-subgrid border-r border-neutral-200 bg-neutral-100",
+            sidebar()?.class,
+          )}
           asideClass="row-span-3 grid min-w-0 grid-rows-subgrid"
           sizeKey={sidebar()?.sizeKey}
           selectedItem={sidebar()!.selectedItem}
@@ -282,12 +468,17 @@ function AppFrame(props: AppFrameProps) {
           {sidebarContent()}
         </ResizableSidebar>
       </Show>
-      <section class="col-start-2 row-span-3 row-start-1 grid min-w-0 grid-rows-subgrid overflow-hidden">
+      <section
+        inert={narrow() && (open() || secondaryOpen())}
+        class="col-start-2 row-span-3 row-start-1 grid min-w-0 grid-rows-subgrid overflow-hidden"
+      >
         <Show
           when={
             slots().header ||
             (narrow() && sidebar()) ||
-            (!narrow() && sidebar() && slots().sidebarHeader)
+            (narrow() && secondarySidebar()) ||
+            (!narrow() && sidebar() && slots().sidebarHeader) ||
+            (!narrow() && secondarySidebar() && slots().secondarySidebarHeader)
           }
         >
           <header
@@ -307,15 +498,44 @@ function AppFrame(props: AppFrameProps) {
               </Button>
             </Show>
             <div class="min-w-0 flex-1">{slots().header?.children}</div>
+            <Show when={narrow() && secondarySidebar()}>
+              <Button
+                ref={secondaryButton}
+                title={secondarySidebar()!.label}
+                onClick={showSecondary}
+                aria-expanded={secondaryExpanded()}
+              >
+                <CarbonIcon icon={Menu16} />
+              </Button>
+            </Show>
           </header>
         </Show>
-        <div class="row-start-2 flex min-h-0 flex-col overflow-auto">{slots().main?.children}</div>
-        <Show when={slots().status || (!narrow() && sidebar() && slots().sidebarStatus)}>
-          <footer class="row-start-3 border-t border-neutral-200">
+        <div class={cn("row-start-2 flex min-h-0 flex-col overflow-auto", slots().main?.class)}>
+          {slots().main?.children}
+        </div>
+        <Show
+          when={
+            slots().status ||
+            (!narrow() && sidebar() && slots().sidebarStatus) ||
+            (!narrow() && secondarySidebar() && slots().secondarySidebarStatus)
+          }
+        >
+          <footer class={cn("row-start-3 border-t border-neutral-200", slots().status?.class)}>
             {slots().status?.children}
           </footer>
         </Show>
       </section>
+      <Show when={!narrow() && secondarySidebar()}>
+        <aside
+          aria-label={secondarySidebar()!.label}
+          class={cn(
+            "col-start-3 row-span-3 row-start-1 grid w-50 min-w-0 grid-rows-subgrid border-l border-neutral-200 bg-neutral-100",
+            secondarySidebar()?.class,
+          )}
+        >
+          {secondarySidebarContent()}
+        </aside>
+      </Show>
       <Show when={narrow() && sidebar()}>
         <div
           class={[
@@ -347,13 +567,38 @@ function AppFrame(props: AppFrameProps) {
         >
           <FixedSidebar
             fill
-            class="flex h-full"
+            class={cn("flex h-full", sidebar()?.class)}
             selectedItem={sidebar()!.selectedItem}
             setSelectedItem={sidebar()!.setSelectedItem}
           >
             {sidebarContent()}
           </FixedSidebar>
         </div>
+      </Show>
+      <Show when={narrow() && secondarySidebar()}>
+        <div
+          class="absolute inset-0 z-20 bg-black motion-safe:transition-opacity motion-safe:duration-180"
+          style={secondaryBackdropStyle()}
+          onClick={closeSecondary}
+        />
+        <aside
+          ref={secondaryDrawer}
+          tabindex={-1}
+          role="dialog"
+          aria-label={secondarySidebar()!.label}
+          aria-modal="true"
+          inert={!secondaryOpen()}
+          class={[
+            "absolute inset-y-0 right-0 z-30 flex w-[min(320px,calc(100%-56px))] flex-col bg-neutral-100 shadow-xl motion-safe:transition-[transform,visibility] motion-safe:duration-180 motion-safe:ease-[ease]",
+            secondarySidebar()?.class,
+          ]}
+          style={{
+            transform: `translateX(${secondaryOffset()}%)`,
+            visibility: secondaryVisibility(),
+          }}
+        >
+          {secondarySidebarContent()}
+        </aside>
       </Show>
     </main>
   );
@@ -364,6 +609,9 @@ export default Object.assign(AppFrame, {
   Header,
   Status,
   Sidebar,
+  SecondarySidebar,
+  SecondarySidebarHeader,
+  SecondarySidebarStatus,
   SidebarHeader,
   SidebarStatus,
 });
