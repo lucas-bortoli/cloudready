@@ -13,6 +13,7 @@ export type Mode =
       type: "file";
       suffixes: string[];
       multiple: boolean;
+      filter?: (entry: Extract<FileSystemEntry, { kind: "file" }>) => boolean;
     }
   | { type: "directory" };
 
@@ -52,6 +53,7 @@ function Picker(props: PickerProps) {
     return (
       entry.kind === "file" &&
       mode.type === "file" &&
+      (!mode.filter || mode.filter(entry)) &&
       (mode.suffixes.length === 0 ||
         mode.suffixes.some((suffix) => entry.name.toLowerCase().endsWith(suffix.toLowerCase())))
     );

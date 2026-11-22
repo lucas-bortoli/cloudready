@@ -140,6 +140,27 @@ async fn rest_files_and_oauth_state_use_the_public_listener() {
         .unwrap();
     assert_eq!(read.status(), 200);
     assert_eq!(read.text().await.unwrap(), "hello");
+    let partial = kernel
+        .client
+        .get(format!("{}/api/fs/file?path=/hello.txt", kernel.origin))
+        .header("cookie", &cookie)
+        .header("range", "bytes=1-3")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(partial.status(), 206);
+    assert_eq!(partial.headers()["content-range"], "bytes 1-3/5");
+    assert_eq!(partial.text().await.unwrap(), "ell");
+    let invalid = kernel
+        .client
+        .get(format!("{}/api/fs/file?path=/hello.txt", kernel.origin))
+        .header("cookie", &cookie)
+        .header("range", "bytes=9-")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(invalid.status(), 416);
+    assert_eq!(invalid.headers()["content-range"], "bytes */5");
 
     let authorization: Value = kernel
         .client

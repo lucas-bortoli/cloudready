@@ -1,4 +1,5 @@
 import Folder16 from "@carbon/icons/es/folder/16.js";
+import Music16 from "@carbon/icons/es/music/16.js";
 import Power16 from "@carbon/icons/es/power/16.js";
 import Search16 from "@carbon/icons/es/search/16.js";
 import Settings16 from "@carbon/icons/es/settings/16.js";
@@ -9,6 +10,7 @@ import FileManager from "../../programs/file-manager/FileManager";
 import Flashcards from "../../programs/flashcards/Flashcards";
 import createIlcc from "../../programs/iron-ledger-calorie-cutie/Ilcc";
 import Kodekai from "../../programs/kodekai/Kodekai";
+import MediaPlayer from "../../programs/media-player/MediaPlayer";
 import Button from "../button/Button";
 import { useLayerItem } from "../layer-manager/LayerContext";
 import MachineIntelligenceWindow from "../machine-intelligence/MachineIntelligenceWindow";
@@ -19,6 +21,18 @@ import { useWindowManager } from "../window-manager/WindowManagerContext";
 import CarbonIcon from "./CarbonIcon";
 
 const applications = [
+  {
+    name: "Media Player",
+    description: "Play audio and video",
+    icon: Music16,
+    launch: (windowManager: ReturnType<typeof useWindowManager>) =>
+      windowManager.createWindow({
+        title: "Media Player",
+        size: { width: 800, height: 500 },
+        minimumSize: { width: 320, height: 320 },
+        content: () => <MediaPlayer />,
+      }),
+  },
   {
     name: "Iron Ledger: Calorie Cutie",
     description: "Track your diet",

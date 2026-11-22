@@ -57,6 +57,7 @@ pub(super) async fn handle(State(state): State<Arc<TransportState>>, request: Re
         body.to_vec(),
         token,
         state.origin.clone(),
+        parts.headers,
     )
     .await
 }
@@ -69,6 +70,7 @@ async fn dispatch(
     body: Vec<u8>,
     token: Option<String>,
     origin: String,
+    headers: axum::http::HeaderMap,
 ) -> Response {
     let result = application
         .call(move |database, intelligence| {
@@ -89,7 +91,7 @@ async fn dispatch(
                 // Ownership is always derived from the authenticated token, never a body field.
                 return match session::SessionStore::new(database).current(token.as_deref()) {
                     Ok(user) => filesystem_routes::response(
-                        database, user.id, &method, &path, &url, &mut body,
+                        database, user.id, &method, &path, &url, &mut body, &headers,
                     ),
                     Err(error) => session_routes::error_response(error),
                 };

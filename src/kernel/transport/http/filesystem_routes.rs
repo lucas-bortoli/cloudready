@@ -17,6 +17,7 @@ pub(crate) fn response(
     path: &str,
     url: &str,
     body: &mut impl Read,
+    headers: &axum::http::HeaderMap,
 ) -> Response {
     let mut fs = filesystem::FileSystem::new(database, user_id);
     let query = common::query(url);
@@ -26,18 +27,59 @@ pub(crate) fn response(
         (&Method::GET, "/api/fs/file") => {
             let path = required(&query, "path")?;
             let entry = fs.stat(path)?;
-            let mime_type = match entry {
-                filesystem::Entry::File { mime_type, .. } => mime_type,
-                filesystem::Entry::Directory { .. } => return Err(filesystem::Error::InvalidOperation),
+            let (mime_type, size) = match entry {
+                filesystem::Entry::File {
+                    mime_type, size, ..
+                } => (mime_type, size),
+                filesystem::Entry::Directory { .. } => {
+                    return Err(filesystem::Error::InvalidOperation);
+                }
             };
             let offset = number(&query, "offset")?.unwrap_or(0);
             let length = number(&query, "length")?;
+            if offset == 0 && length.is_none() && !headers.contains_key("if-range") {
+                if let Some(range) = headers.get("range").and_then(|value| value.to_str().ok()) {
+                    if let Some(bounds) = byte_range(range, size) {
+                        match bounds {
+                            Some((start, end)) => {
+                                let mut bytes = Vec::new();
+                                fs.read_file(path, start, Some(end - start + 1), &mut bytes)?;
+                                return Ok(common::response(
+                                    bytes,
+                                    206,
+                                    &[
+                                        ("Content-Type", mime_type.as_str()),
+                                        ("X-Content-Type-Options", "nosniff"),
+                                        ("Accept-Ranges", "bytes"),
+                                        ("Content-Range", &format!("bytes {start}-{end}/{size}")),
+                                        ("Content-Length", &(end - start + 1).to_string()),
+                                    ],
+                                ));
+                            }
+                            None => {
+                                return Ok(common::response(
+                                    r#"{"error":{"code":"invalid-range","message":"Range not satisfiable"}}"#,
+                                    416,
+                                    &[
+                                        ("Content-Type", "application/json"),
+                                        ("Content-Range", &format!("bytes */{size}")),
+                                    ],
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
             let mut bytes = Vec::new();
             fs.read_file(path, offset, length, &mut bytes)?;
             Ok(common::response(
                 bytes,
                 200,
-                &[("Content-Type", mime_type.as_str()), ("X-Content-Type-Options", "nosniff")],
+                &[
+                    ("Content-Type", mime_type.as_str()),
+                    ("X-Content-Type-Options", "nosniff"),
+                    ("Accept-Ranges", "bytes"),
+                ],
             ))
         }
         (&Method::PUT, "/api/fs/file") => {
@@ -186,4 +228,44 @@ struct RevisionInput {
 #[derive(Deserialize)]
 struct DeletionInput {
     deletion_id: String,
+}
+
+// Returns None for malformed or unsupported ranges so the normal response can be used.
+fn byte_range(value: &str, size: u64) -> Option<Option<(u64, u64)>> {
+    let range = value.strip_prefix("bytes=")?;
+    let (start, end) = range.split_once('-')?;
+    if start.is_empty() {
+        let suffix: u64 = end.parse().ok()?;
+        if suffix == 0 || size == 0 {
+            return Some(None);
+        }
+        return Some(Some((size.saturating_sub(suffix), size - 1)));
+    }
+    let start: u64 = start.parse().ok()?;
+    let end = if end.is_empty() {
+        u64::MAX
+    } else {
+        end.parse().ok()?
+    };
+    if start > end {
+        return None;
+    }
+    if start >= size {
+        return Some(None);
+    }
+    Some(Some((start, end.min(size - 1))))
+}
+
+#[cfg(test)]
+mod range_tests {
+    use super::byte_range;
+
+    #[test]
+    fn parses_single_byte_ranges() {
+        assert_eq!(byte_range("bytes=1-3", 5), Some(Some((1, 3))));
+        assert_eq!(byte_range("bytes=2-", 5), Some(Some((2, 4))));
+        assert_eq!(byte_range("bytes=-2", 5), Some(Some((3, 4))));
+        assert_eq!(byte_range("bytes=5-", 5), Some(None));
+        assert_eq!(byte_range("bytes=0-1,3-4", 5), None);
+    }
 }
