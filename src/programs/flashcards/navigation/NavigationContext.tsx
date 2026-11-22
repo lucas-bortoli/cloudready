@@ -16,14 +16,12 @@ function createNavigation() {
   return { route, navigate };
 }
 
-export const NavigationContext = createContext<ReturnType<typeof createNavigation>>();
+export const NavigationContext = createContext<ReturnType<typeof createNavigation> | null>(null);
 
 /** Provides navigation state to one Flashcards window. */
 export function NavigationProvider(props: ParentProps) {
   const navigation = createNavigation();
-  return (
-    <NavigationContext.Provider value={navigation}>{props.children}</NavigationContext.Provider>
-  );
+  return <NavigationContext value={navigation}>{props.children}</NavigationContext>;
 }
 
 /** Returns the navigation state for the current window. */

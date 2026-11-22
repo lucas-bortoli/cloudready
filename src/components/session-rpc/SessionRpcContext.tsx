@@ -1,14 +1,16 @@
-import { createContext, onCleanup, onMount, useContext, type JSX } from "solid-js";
+import { createContext, onSettled, useContext, type ParentProps } from "solid-js";
 import { SessionRpcClient } from "../../lib/session-rpc/SessionRpcClient";
 
 const SessionRpcContext = createContext<SessionRpcClient>();
 
 /** Makes the generic kernel-session duplex available to the active desktop. */
-export function SessionRpcProvider(props: { children: JSX.Element }) {
+export function SessionRpcProvider(props: ParentProps) {
   const client = new SessionRpcClient();
-  onMount(() => client.start());
-  onCleanup(() => client.stop());
-  return <SessionRpcContext.Provider value={client}>{props.children}</SessionRpcContext.Provider>;
+  onSettled(() => {
+    client.start();
+    return () => client.stop();
+  });
+  return <SessionRpcContext value={client}>{props.children}</SessionRpcContext>;
 }
 
 /** Gets the active generic kernel-session RPC client. */

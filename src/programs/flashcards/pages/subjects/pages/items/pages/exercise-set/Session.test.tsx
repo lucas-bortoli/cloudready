@@ -1,5 +1,5 @@
-import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { expect, it, vi } from "vitest";
 import { emptySubjectProgress } from "../../../../../../core/subject-review";
 import type { OpenSubjectEntry } from "../../../../../../ui/createSubjectController";
@@ -57,6 +57,7 @@ it("shows history, reveals an answer and displays the completed score", () => {
     );
     expect(button).toBeDefined();
     button!.click();
+    flush();
   };
   try {
     expect(root.textContent).toContain("Previous attempts");
@@ -133,6 +134,7 @@ it("moves focus between choices with Tab without changing the answer", () => {
     [...root.querySelectorAll("button")]
       .find((button) => button.textContent?.includes("Start attempt"))!
       .click();
+    flush();
     const choices = root.querySelectorAll<HTMLInputElement>('input[type="radio"]');
     choices[0].focus();
     const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
@@ -181,6 +183,7 @@ it("ends an attempt only after confirmation", async () => {
     [...root.querySelectorAll("button")]
       .find((button) => button.textContent?.includes(label))!
       .click();
+    flush();
   };
   try {
     click("Start attempt");
@@ -191,6 +194,7 @@ it("ends an attempt only after confirmation", async () => {
     });
     click("End attempt");
     await Promise.resolve();
+    flush();
     expect(root.textContent).toContain("Prompt");
     dialogMock.show.mockReturnValueOnce({
       exists: () => true,
@@ -199,6 +203,7 @@ it("ends an attempt only after confirmation", async () => {
     });
     click("End attempt");
     await Promise.resolve();
+    flush();
     expect(root.textContent).toContain("Previous attempts");
     expect(root.textContent).toContain("Incomplete");
   } finally {

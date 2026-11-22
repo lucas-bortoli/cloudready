@@ -1,5 +1,6 @@
-import { Show, type Accessor, type JSX } from "solid-js";
-import { Portal } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { Show, type Accessor } from "solid-js";
+import { Portal } from "@solidjs/web";
 import type { WindowDock } from "./WindowManager";
 import { getTaskbarBounds, integerPixels } from "./window-layout";
 

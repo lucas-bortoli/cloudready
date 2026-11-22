@@ -1,5 +1,6 @@
+import type { JSX } from "@solidjs/web";
 import { applyFairyDelta } from "./state";
-import { createContext, createSignal, onCleanup, onMount, useContext, type JSX } from "solid-js";
+import { createContext, createSignal, onSettled, useContext } from "solid-js";
 import { useSessionRpc } from "../../components/session-rpc/SessionRpcContext";
 import { useWindowManager } from "../../components/window-manager/WindowManagerContext";
 
@@ -71,21 +72,19 @@ export function FairyProvider(props: { children: JSX.Element }) {
     if (message?.role === "user" && message.status === "failed") await submit(message.text);
   };
 
-  onMount(() => {
+  onSettled(() => {
     const removeDescribe = rpc.handle("fairy.session.describe", describe);
     const removeSnapshot = rpc.on("fairy.state.snapshot", applyState);
     const removeDelta = rpc.on("fairy.state.delta", applyDelta);
     void rpc.call("fairy.subscribe", {}).catch(() => undefined);
-    onCleanup(() => {
+    return () => {
       removeDescribe();
       removeSnapshot();
       removeDelta();
-    });
+    };
   });
 
-  return (
-    <FairyContext.Provider value={{ state, submit, retry }}>{props.children}</FairyContext.Provider>
-  );
+  return <FairyContext value={{ state, submit, retry }}>{props.children}</FairyContext>;
 }
 
 /** Gets the active Fairy session facade. */

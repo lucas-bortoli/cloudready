@@ -3,38 +3,22 @@ import { useOptionalCurrentWindowId } from "../window-manager/CurrentWindowConte
 import { useOptionalWindowManager } from "../window-manager/WindowManagerContext";
 import { useContextMenu, type ContextMenuItem } from "./ContextMenuContext";
 
-declare module "solid-js" {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace JSX {
-    interface Directives {
-      contextMenu: readonly ContextMenuItem[];
-    }
-    interface DirectiveFunctions {
-      contextMenu: typeof contextMenu;
-    }
-  }
-}
-
-/**
- * Opens the supplied actions when the element itself receives a context-menu request.
+/** Creates a ref that attaches a context menu and cleans it up with its owner.
  *
  * @throws {ContextMenuContextError} When called outside a ContextMenuProvider.
  */
-export function contextMenu(
-  element: HTMLElement,
-  items: Accessor<readonly ContextMenuItem[]>,
-): void {
+export function createContextMenuRef(items: Accessor<readonly ContextMenuItem[]>) {
   const context = useContextMenu();
   const windowId = useOptionalCurrentWindowId();
   const windowManager = useOptionalWindowManager();
+  let element: HTMLElement | undefined;
 
   function handleContextMenu(event: MouseEvent) {
-    if (event.target !== element) return;
+    if (!element || event.target !== element) return;
     const actions = items() ?? [];
     if (!actions.length || event.defaultPrevented) return;
     event.preventDefault();
     event.stopPropagation();
-    // Keyboard context-menu requests may not carry pointer coordinates.
     const bounds = element.getBoundingClientRect();
     const keyboard = event.clientX === 0 && event.clientY === 0;
     context.open({
@@ -46,9 +30,14 @@ export function contextMenu(
     });
   }
 
-  element.addEventListener("contextmenu", handleContextMenu);
   onCleanup(() => {
-    element.removeEventListener("contextmenu", handleContextMenu);
-    context.closeFor(element);
+    if (element) {
+      element.removeEventListener("contextmenu", handleContextMenu);
+      context.closeFor(element);
+    }
   });
+  return (target: HTMLElement) => {
+    element = target;
+    element.addEventListener("contextmenu", handleContextMenu);
+  };
 }

@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 
-import { onMount } from "solid-js";
-import { render } from "solid-js/web";
+import { flush, onSettled } from "solid-js";
+import { render } from "@solidjs/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { LayerProvider } from "../layer-manager/LayerContext";
 import WindowManager from "./WindowManager";
@@ -49,7 +50,7 @@ function TestDesktop(props: {
 }) {
   const windowManager = useWindowManager();
 
-  onMount(() => {
+  onSettled(() => {
     props.onManager(windowManager);
     for (let index = 0; index < (props.windowCount ?? 1); index += 1) {
       windowManager.createWindow({
@@ -79,6 +80,7 @@ function renderWindow(windowCount = 1) {
     ),
     container,
   );
+  flush();
   const window = container.querySelector<HTMLDivElement>('[x-role="window"]');
   const client = container.querySelector<HTMLElement>('[x-role="client content container"]');
 
@@ -178,6 +180,7 @@ describe("WindowsOutlet", () => {
   it("creates and updates manager-owned presentation state", () => {
     const windowManager = new WindowManager();
     const windowId = windowManager.createWindow();
+    flush();
 
     expect(windowManager.getWindows()[0]).toMatchObject({
       position: null,
@@ -206,6 +209,7 @@ describe("WindowsOutlet", () => {
       isMinimized: true,
       isPinned: true,
     });
+    flush();
 
     expect(windowManager.getWindows()[0]).toMatchObject({
       position: { x: 40, y: 20 },
@@ -245,22 +249,28 @@ describe("WindowsOutlet", () => {
   it("keeps automatic placement until an explicit position is set", () => {
     const windowManager = new WindowManager();
     const windowId = windowManager.createWindow();
+    flush();
 
     expect(windowManager.getWindows()[0].isAutoPositioned).toBe(true);
     windowManager.setAutoPosition(windowId, { x: 100, y: 80 });
+    flush();
     expect(windowManager.getWindows()[0].position).toEqual({ x: 100, y: 80 });
 
     windowManager.setPosition(windowId, { x: 30, y: 20 });
     windowManager.setAutoPosition(windowId, { x: 200, y: 160 });
+    flush();
     expect(windowManager.getWindows()[0].position).toEqual({ x: 30, y: 20 });
 
     windowManager.setPosition(windowId, null);
     windowManager.setAutoPosition(windowId, { x: 200, y: 160 });
+    flush();
     expect(windowManager.getWindows()[0].position).toEqual({ x: 200, y: 160 });
   });
 
-  it("centers a rendered window and stops recentering after a drag", () => {
+  it("centers a rendered window and stops recentering after a drag", async () => {
     const { dispose, window, windowManager } = renderWindow();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    flush();
     const entry = windowManager.getWindows()[0];
     expect(entry.position).toEqual({
       x: Math.round((globalThis.window.innerWidth - window.offsetWidth) / 2),
@@ -295,6 +305,7 @@ describe("WindowsOutlet", () => {
     try {
       const windowManager = new WindowManager();
       const id = windowManager.createWindow();
+      flush();
       expect(windowManager.destroyWindow(id)).toBe(true);
       expect(windowManager.getWindows()).toHaveLength(0);
     } finally {
@@ -368,7 +379,7 @@ describe("WindowsOutlet", () => {
   });
 
   it("changes minimize and dock state immediately with reduced motion", async () => {
-    const { dispose, window, windowManager } = renderWindow();
+    const { client, dispose, window, windowManager } = renderWindow();
     const id = windowManager.getWindows()[0].id;
     const originalMatchMedia = globalThis.window.matchMedia;
     const originalAnimate = window.animate;
@@ -379,6 +390,7 @@ describe("WindowsOutlet", () => {
       return { cancel: () => undefined } as unknown as Animation;
     }) as typeof window.animate;
     try {
+      expect(client.classList.contains("shrink-0")).toBe(true);
       windowManager.setMinimized(id, true);
       expect(window.style.display).toBe("none");
       windowManager.setMinimized(id, false);
@@ -386,12 +398,38 @@ describe("WindowsOutlet", () => {
       await Promise.resolve();
       expect(window.style.display).not.toBe("none");
       expect(windowManager.getWindows()[0].dock).toBe("dock-full");
+      expect(client.classList.contains("shrink-0")).toBe(false);
+      expect(client.classList.contains("min-h-0")).toBe(true);
+      expect(client.classList.contains("flex-1")).toBe(true);
       expect(calls).toBe(0);
     } finally {
       globalThis.window.matchMedia = originalMatchMedia;
       window.animate = originalAnimate;
       dispose();
     }
+  });
+
+  it("updates client layout when docking and restoring without diagnostics", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const { client, dispose, windowManager } = renderWindow();
+        const id = windowManager.getWindows()[0].id;
+        try {
+          windowManager.setDock(id, "dock-full");
+          flush();
+          expect(client.classList.contains("flex-1")).toBe(true);
+          expect(client.classList.contains("shrink-0")).toBe(false);
+          windowManager.setDock(id, null);
+          flush();
+          expect(client.classList.contains("flex-1")).toBe(false);
+          expect(client.classList.contains("shrink-0")).toBe(true);
+        } finally {
+          dispose();
+        }
+      },
+      { scenario: "window-dock-client-layout" },
+    );
+    expectNoDiagnostics(artifact);
   });
 
   it("uses the requested size for the client area, excluding the frame", () => {
@@ -413,6 +451,7 @@ describe("WindowsOutlet", () => {
 
     expect(zIndexes()[1]).toBeGreaterThan(zIndexes()[0]);
     firstTitlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+    flush();
 
     expect(zIndexes()[0]).toBeGreaterThan(zIndexes()[1]);
     document.dispatchEvent(pointerEvent("pointerup", 100, 100));
@@ -427,6 +466,7 @@ describe("WindowsOutlet", () => {
 
     windowManager.setPinned(windowManager.getWindows()[0].id, true);
     secondTitlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+    flush();
 
     expect(zIndexes()[0]).toBeGreaterThan(zIndexes()[1]);
     document.dispatchEvent(pointerEvent("pointerup", 100, 100));
@@ -455,8 +495,10 @@ describe("WindowsOutlet", () => {
 
   it.each(["e", "nw"] as const)(
     "keeps an auto-placed window anchored while resizing from %s",
-    (direction) => {
+    async (direction) => {
       const { dispose, window, windowManager } = renderWindow();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      flush();
       const entry = windowManager.getWindows()[0];
       const start = { ...entry.position! };
       const handle = window.querySelectorAll<HTMLElement>('[x-role="resize handle"]')[
@@ -544,29 +586,39 @@ describe("WindowsOutlet", () => {
     dispose();
   });
 
-  it("docks when a titlebar drag ends at a viewport edge", () => {
-    const { dispose, window, windowManager } = renderWindow();
-    const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
+  it("docks when a titlebar drag ends at a viewport edge without diagnostics", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const { dispose, window, windowManager } = renderWindow();
+        try {
+          const titlebar = window.querySelector<HTMLElement>('[x-role="titlebar"]')!;
 
-    titlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
-    document.dispatchEvent(pointerEvent("pointermove", 0, 100));
+          titlebar.dispatchEvent(pointerEvent("pointerdown", 100, 100));
+          document.dispatchEvent(pointerEvent("pointermove", 0, 100));
+          flush();
 
-    const preview = document.querySelector<HTMLElement>('[x-role="dock preview"]');
-    expect(preview?.dataset.dock).toBe("dock-left");
-    expect(preview?.style.right).toBe("50%");
+          const preview = document.querySelector<HTMLElement>('[x-role="dock preview"]');
+          expect(preview?.dataset.dock).toBe("dock-left");
+          expect(preview?.style.right).toBe("50%");
 
-    document.dispatchEvent(pointerEvent("pointerup", 0, 100));
+          document.dispatchEvent(pointerEvent("pointerup", 0, 100));
+          flush();
 
-    expect(window.style.right).toBe("50%");
-    expect(window.style.top).toBe("48px");
-    expect(window.style.bottom).toBe("0px");
-    expect(document.querySelector('[x-role="dock preview"]')).toBeNull();
-    expect(windowManager.getWindows()[0]).toMatchObject({
-      size: { width: 400, height: 300 },
-      dock: "dock-left",
-    });
-
-    dispose();
+          expect(window.style.right).toBe("50%");
+          expect(window.style.top).toBe("48px");
+          expect(window.style.bottom).toBe("0px");
+          expect(document.querySelector('[x-role="dock preview"]')).toBeNull();
+          expect(windowManager.getWindows()[0]).toMatchObject({
+            size: { width: 400, height: 300 },
+            dock: "dock-left",
+          });
+        } finally {
+          dispose();
+        }
+      },
+      { scenario: "window-drag-dock" },
+    );
+    expectNoDiagnostics(artifact);
   });
 
   it.each([

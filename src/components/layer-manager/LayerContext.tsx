@@ -7,7 +7,7 @@ const LayerContext = createContext<LayerManager>();
 export function LayerProvider(props: ParentProps) {
   const layerManager = new LayerManager();
 
-  return <LayerContext.Provider value={layerManager}>{props.children}</LayerContext.Provider>;
+  return <LayerContext value={layerManager}>{props.children}</LayerContext>;
 }
 
 /**

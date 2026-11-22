@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 
-import { createSignal, Show } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush, onSettled, Show } from "solid-js";
+import { render } from "@solidjs/web";
 import { describe, expect, it } from "vitest";
 import { LayerProvider, useLayerItem, useLayerManager } from "./LayerContext";
-import LayerManager, { DisposedLayerItemError, type Layer, type LayerItem } from "./LayerManager";
+import LayerManager, { DisposedLayerItemError, type LayerItem } from "./LayerManager";
 
 describe("LayerManager", () => {
   it("assigns contiguous z-indexes in fixed layer order", () => {
@@ -12,6 +13,7 @@ describe("LayerManager", () => {
     const window = manager.createItem("windowing");
     const background = manager.createItem("background");
     const toast = manager.createItem("toasts");
+    flush();
 
     expect([background.zIndex(), window.zIndex(), toast.zIndex()]).toEqual([0, 1, 2]);
   });
@@ -23,12 +25,16 @@ describe("LayerManager", () => {
     const third = manager.createItem("windowing");
 
     third.sendBack();
+    flush();
     expect([first.zIndex(), second.zIndex(), third.zIndex()]).toEqual([0, 2, 1]);
     third.sendForward();
+    flush();
     expect([first.zIndex(), second.zIndex(), third.zIndex()]).toEqual([0, 1, 2]);
     first.bringToTop();
+    flush();
     expect([first.zIndex(), second.zIndex(), third.zIndex()]).toEqual([2, 0, 1]);
     first.sendToBottom();
+    flush();
     expect([first.zIndex(), second.zIndex(), third.zIndex()]).toEqual([0, 1, 2]);
   });
 
@@ -39,6 +45,7 @@ describe("LayerManager", () => {
     const shell = manager.createItem("shell");
 
     window.moveToLayer("shell");
+    flush();
 
     expect([pinned.zIndex(), shell.zIndex(), window.zIndex()]).toEqual([0, 1, 2]);
   });
@@ -49,14 +56,18 @@ describe("LayerManager", () => {
     const second = manager.createItem("windowing");
 
     first.dispose();
+    flush();
 
     expect(second.zIndex()).toBe(0);
     expect(() => first.bringToTop()).toThrow(DisposedLayerItemError);
   });
 });
 
-function TestItem(props: { layer: Layer; onItem: (item: LayerItem) => void }) {
-  props.onItem(useLayerItem(props.layer));
+function TestItem(props: { onItem: (item: LayerItem) => void }) {
+  const item = useLayerItem("windowing");
+  onSettled(() => {
+    props.onItem(item);
+  });
   return null;
 }
 
@@ -71,9 +82,9 @@ function LayerCleanupTest(props: {
   return (
     <>
       <Show when={showFirst()}>
-        <TestItem layer="windowing" onItem={(item) => (first = item)} />
+        <TestItem onItem={(item) => (first = item)} />
       </Show>
-      <TestItem layer="windowing" onItem={(item) => (second = item)} />
+      <TestItem onItem={(item) => (second = item)} />
       <button
         type="button"
         onClick={() => {
@@ -90,27 +101,34 @@ function LayerCleanupTest(props: {
 }
 
 describe("useLayerItem", () => {
-  it("releases an item when its component unmounts", () => {
-    const container = document.createElement("div");
-    document.body.append(container);
-    let items: { first: LayerItem; second: LayerItem } | undefined;
-    const dispose = render(
-      () => (
-        <LayerProvider>
-          <LayerCleanupTest onItems={(nextItems) => (items = nextItems)} />
-        </LayerProvider>
-      ),
-      container,
+  it("releases an item when its component unmounts", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const container = document.createElement("div");
+        document.body.append(container);
+        let items: { first: LayerItem; second: LayerItem } | undefined;
+        const dispose = render(
+          () => (
+            <LayerProvider>
+              <LayerCleanupTest onItems={(nextItems) => (items = nextItems)} />
+            </LayerProvider>
+          ),
+          container,
+        );
+
+        container.querySelector<HTMLButtonElement>("button")?.click();
+        flush();
+
+        const mountedItems = items;
+        if (!mountedItems) throw new Error("Test items did not mount.");
+        expect(mountedItems.second.zIndex()).toBe(0);
+        expect(() => mountedItems.first.sendToBottom()).toThrow(DisposedLayerItemError);
+
+        dispose();
+        container.remove();
+      },
+      { scenario: "layer-item-cleanup" },
     );
-
-    container.querySelector<HTMLButtonElement>("button")?.click();
-
-    const mountedItems = items;
-    if (!mountedItems) throw new Error("Test items did not mount.");
-    expect(mountedItems.second.zIndex()).toBe(0);
-    expect(() => mountedItems.first.sendToBottom()).toThrow(DisposedLayerItemError);
-
-    dispose();
-    container.remove();
+    expectNoDiagnostics(artifact);
   });
 });

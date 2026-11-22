@@ -112,26 +112,36 @@ interface PickerInstance {
  */
 export default function useFilePicker(mode: Mode) {
   const windowManager = useWindowManager();
-  const [current, setCurrent] = createSignal<PickerInstance | null>(null);
+  let current: PickerInstance | null = null;
+  const [isOpen, setIsOpen] = createSignal(false);
+
+  function closeWindow(windowId: WindowId) {
+    if (!windowManager.destroyWindow(windowId)) {
+      // A newly created window becomes visible to the manager after settlement.
+      queueMicrotask(() => windowManager.destroyWindow(windowId));
+    }
+  }
 
   /** Resolves the file picker with its selected entries and removes its window. */
   function handleConfirm(entries: FileSystemEntry[]) {
-    const _current = current();
+    const _current = current;
     if (_current === null) throw new FilePickerMissingError();
 
     _current.deferred.resolve(entries);
-    windowManager.destroyWindow(_current.windowId);
-    setCurrent(null);
+    current = null;
+    setIsOpen(false);
+    closeWindow(_current.windowId);
   }
 
   /** Rejects the file picker as cancelled, removes its window, and clears its state. */
   function handleCancel() {
-    const _current = current();
+    const _current = current;
     if (_current === null) throw new FilePickerMissingError();
 
     _current.deferred.reject(new FilePickerCancelledError());
-    windowManager.destroyWindow(_current.windowId);
-    setCurrent(null);
+    current = null;
+    setIsOpen(false);
+    closeWindow(_current.windowId);
   }
 
   /**
@@ -144,7 +154,7 @@ export default function useFilePicker(mode: Mode) {
     FileSystemEntry[],
     FilePickerCancelledError | FilePickerExistsError
   > {
-    const _current = current();
+    const _current = current;
     if (_current !== null) {
       return Promise.reject(new FilePickerExistsError());
     }
@@ -166,23 +176,24 @@ export default function useFilePicker(mode: Mode) {
       },
     });
 
-    setCurrent({
+    current = {
       mode,
       windowId,
       deferred,
-    });
+    };
+    setIsOpen(true);
 
     return deferred.promise;
   }
 
   onCleanup(() => {
-    if (current()) {
+    if (current) {
       handleCancel();
     }
   });
 
   return {
     show,
-    isOpen: createMemo(() => current() !== null),
+    isOpen,
   };
 }

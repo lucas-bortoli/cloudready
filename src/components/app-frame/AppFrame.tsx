@@ -1,14 +1,5 @@
-import {
-  children,
-  createEffect,
-  createMemo,
-  createSignal,
-  on,
-  onCleanup,
-  onMount,
-  Show,
-  type JSX,
-} from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { children, createEffect, createMemo, createSignal, onSettled, Show } from "solid-js";
 import { cn } from "../../lib/dom";
 import FixedSidebar from "../sidebar/FixedSidebar";
 import ResizableSidebar from "../sidebar/ResizableSidebar";
@@ -154,7 +145,7 @@ function AppFrame(props: AppFrameProps) {
   let drag: { x: number; y: number; start: number; active: boolean } | undefined;
 
   // Use the application window width, which may differ from the viewport width.
-  onMount(() => {
+  onSettled(() => {
     if (!frame) return;
     const observer = new ResizeObserver(([entry]) => {
       const next = entry.contentRect.width < 600;
@@ -165,16 +156,17 @@ function AppFrame(props: AppFrameProps) {
       }
     });
     observer.observe(frame);
-    onCleanup(() => observer.disconnect());
+    return () => observer.disconnect();
   });
 
   // A caller can signal navigation without coupling the frame to its router.
+  let navigationInitialized = false;
   createEffect(
-    on(
-      () => sidebar()?.navigationKey,
-      () => setOpen(false),
-      { defer: true },
-    ),
+    () => sidebar()?.navigationKey,
+    () => {
+      if (navigationInitialized) setOpen(false);
+      navigationInitialized = true;
+    },
   );
 
   const close = () => {
@@ -300,7 +292,7 @@ function AppFrame(props: AppFrameProps) {
                 ref={menuButton}
                 type="button"
                 aria-label="Open sidebar"
-                aria-expanded={open()}
+                aria-expanded={(open() ?? false).toString() as "true" | "false"}
                 class="mx-2 p-2 outline-sky-300 focus:outline-2 focus:outline-offset-2"
                 onClick={show}
               >
@@ -325,7 +317,7 @@ function AppFrame(props: AppFrameProps) {
         />
         <div
           ref={drawer}
-          tabIndex={-1}
+          tabindex={-1}
           role="dialog"
           aria-label="Sidebar"
           aria-modal="true"

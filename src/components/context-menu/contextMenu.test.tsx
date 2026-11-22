@@ -1,5 +1,5 @@
-import { createSignal, onMount, Show } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, flush, Show } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Button from "../button/Button";
 import { LayerProvider } from "../layer-manager/LayerContext";
@@ -7,9 +7,7 @@ import { WindowManagerProvider, useWindowManager } from "../window-manager/Windo
 import type WindowManager from "../window-manager/WindowManager";
 import WindowsOutlet from "../window-manager/WindowsOutlet";
 import { ContextMenuProvider } from "./ContextMenuContext";
-import { contextMenu } from "./contextMenu";
-
-void contextMenu;
+import { createContextMenuRef } from "./contextMenu";
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
@@ -25,13 +23,13 @@ function setup(managed = true) {
     return (
       <button
         data-menu-target
-        use:contextMenu={[
+        ref={createContextMenuRef(() => [
           { label: "Open", onSelect: select },
           { type: "separator" },
           { type: "label", label: "More actions" },
           { label: "Disabled", onSelect: select, disabled: true },
           { label: "Delete", onSelect: select },
-        ]}
+        ])}
       >
         Target <span>Child</span>
       </button>
@@ -39,10 +37,6 @@ function setup(managed = true) {
   }
   function ManagedWindows() {
     manager = useWindowManager();
-    onMount(() => {
-      manager!.createWindow({ content: Content });
-      manager!.createWindow({ content: () => <button data-other-target>Other window</button> });
-    });
     return <WindowsOutlet />;
   }
   const dispose = render(
@@ -67,6 +61,11 @@ function setup(managed = true) {
     dispose();
     container.remove();
   });
+  if (managed) {
+    manager!.createWindow({ content: Content });
+    manager!.createWindow({ content: () => <button data-other-target>Other window</button> });
+    flush();
+  }
   const target = container.querySelector<HTMLButtonElement>("[data-menu-target]")!;
   const frame = target.closest<HTMLElement>('[x-role="window"]');
   return { target, select, dispose, manager, frame, container };
@@ -94,7 +93,10 @@ describe("contextMenu", () => {
     function FirstWindow() {
       return (
         <Show when={showFirst()}>
-          <button data-first use:contextMenu={[{ label: "First", onSelect: select }]}>
+          <button
+            data-first
+            ref={createContextMenuRef(() => [{ label: "First", onSelect: select }])}
+          >
             First
           </button>
         </Show>
@@ -102,20 +104,22 @@ describe("contextMenu", () => {
     }
     function SecondWindow() {
       return (
-        <button data-second use:contextMenu={[{ label: "Second", onSelect: select }]}>
+        <button
+          data-second
+          ref={createContextMenuRef(() => [{ label: "Second", onSelect: select }])}
+        >
           Second
         </button>
       );
     }
     function Desktop() {
       manager = useWindowManager();
-      onMount(() => {
-        manager!.createWindow({ content: FirstWindow });
-        manager!.createWindow({ content: SecondWindow });
-      });
       return (
         <>
-          <button data-desktop use:contextMenu={[{ label: "Desktop", onSelect: select }]}>
+          <button
+            data-desktop
+            ref={createContextMenuRef(() => [{ label: "Desktop", onSelect: select }])}
+          >
             Desktop
           </button>
           <WindowsOutlet />
@@ -138,14 +142,19 @@ describe("contextMenu", () => {
       dispose();
       container.remove();
     });
+    manager!.createWindow({ content: FirstWindow });
+    manager!.createWindow({ content: SecondWindow });
+    flush();
     const first = container.querySelector<HTMLButtonElement>("[data-first]")!;
     const second = container.querySelector<HTMLButtonElement>("[data-second]")!;
     const desktop = container.querySelector<HTMLButtonElement>("[data-desktop]")!;
     open(first);
     await Promise.resolve();
+    flush();
     expect(manager!.activeWindowId()).toBe(manager!.getWindows()[0].id);
     open(second);
     await Promise.resolve();
+    flush();
     expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1);
     expect(document.querySelector('[role="menuitem"]')?.textContent).toBe("Second");
     expect(manager!.activeWindowId()).toBe(manager!.getWindows()[1].id);
@@ -153,6 +162,7 @@ describe("contextMenu", () => {
     expect(document.querySelector('[role="menuitem"]')?.textContent).toBe("Second");
     open(desktop);
     await Promise.resolve();
+    flush();
     expect(document.querySelector('[role="menuitem"]')?.textContent).toBe("Desktop");
     expect(manager!.activeWindowId()).toBeNull();
   });
@@ -167,7 +177,9 @@ describe("contextMenu", () => {
         <LayerProvider>
           <ContextMenuProvider>
             <Show when={visible()}>
-              <button use:contextMenu={[{ label: "Open", onSelect: select }]}>Target</button>
+              <button ref={createContextMenuRef(() => [{ label: "Open", onSelect: select }])}>
+                Target
+              </button>
             </Show>
           </ContextMenuProvider>
         </LayerProvider>
@@ -181,16 +193,20 @@ describe("contextMenu", () => {
     open(container.querySelector("button")!);
     setVisible(false);
     await Promise.resolve();
+    flush();
     expect(document.querySelector('[role="menu"]')).toBeNull();
     setVisible(true);
+    flush();
     open(container.querySelector("button")!);
     await Promise.resolve();
+    flush();
     expect(document.querySelector('[role="menu"]')).not.toBeNull();
     setVisible(false);
+    flush();
     expect(document.querySelector('[role="menu"]')).toBeNull();
   });
 
-  it("forwards use:contextMenu on Button with reactive items and a separate ref", async () => {
+  it("attaches to Button with reactive items and a separate ref", async () => {
     const first = vi.fn();
     const second = vi.fn();
     const [items, setItems] = createSignal([{ label: "First", onSelect: first }]);
@@ -204,9 +220,7 @@ describe("contextMenu", () => {
       () => (
         <LayerProvider>
           <ContextMenuProvider>
-            <Button ref={captureButton} use:contextMenu={items()}>
-              Actions
-            </Button>
+            <Button ref={[captureButton, createContextMenuRef(items)]}>Actions</Button>
           </ContextMenuProvider>
         </LayerProvider>
       ),
@@ -220,12 +234,15 @@ describe("contextMenu", () => {
     expect(target!.hasAttribute("use:contextmenu")).toBe(false);
     open(target!);
     await Promise.resolve();
+    flush();
     expect(document.querySelector('[role="menuitem"]')?.textContent).toBe("First");
     document.querySelector<HTMLButtonElement>('[role="menuitem"]')!.click();
     expect(first).toHaveBeenCalledOnce();
     setItems([{ label: "Second", onSelect: second }]);
+    flush();
     open(target!);
     await Promise.resolve();
+    flush();
     expect(document.querySelector('[role="menuitem"]')?.textContent).toBe("Second");
     document.querySelector<HTMLButtonElement>('[role="menuitem"]')!.click();
     expect(second).toHaveBeenCalledOnce();
@@ -239,16 +256,21 @@ describe("contextMenu", () => {
     document.body.append(container);
     let target: HTMLButtonElement | undefined;
 
-    function attachMenu(element: HTMLButtonElement) {
+    function captureButton(element: HTMLButtonElement) {
       target = element;
-      contextMenu(element, () => [{ label: "Open", onSelect: select }]);
     }
 
     const dispose = render(
       () => (
         <LayerProvider>
           <ContextMenuProvider>
-            <Button ref={attachMenu} startIcon={<span>Icon</span>}>
+            <Button
+              ref={[
+                captureButton,
+                createContextMenuRef(() => [{ label: "Open", onSelect: select }]),
+              ]}
+              startIcon={<span>Icon</span>}
+            >
               Label
             </Button>
           </ContextMenuProvider>
@@ -263,6 +285,7 @@ describe("contextMenu", () => {
     expect(target).toBe(container.querySelector("button"));
     expect(open(target!).defaultPrevented).toBe(true);
     await Promise.resolve();
+    flush();
     document.querySelector<HTMLButtonElement>('[role="menuitem"]')!.click();
     expect(select).toHaveBeenCalledOnce();
     dispose();
@@ -294,6 +317,7 @@ describe("contextMenu", () => {
     const { target, select, manager, frame } = setup();
     expect(open(target).defaultPrevented).toBe(true);
     await Promise.resolve();
+    flush();
     const items = document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
     expect(document.querySelector('[role="separator"]')).not.toBeNull();
     expect(document.querySelector('[role="presentation"]')?.textContent).toBe("More actions");
@@ -302,6 +326,7 @@ describe("contextMenu", () => {
     expect(frame?.getAttribute("data-active")).toBe("true");
     expect(manager!.activeWindowId()).toBe(manager!.getWindows()[0].id);
     items[0].click();
+    flush();
     expect(select).toHaveBeenCalledOnce();
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(frame?.getAttribute("data-active")).toBe("true");
@@ -312,9 +337,11 @@ describe("contextMenu", () => {
     const { target, frame } = setup();
     open(target);
     await Promise.resolve();
+    flush();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
     expect(document.activeElement?.textContent).toBe("Delete");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    flush();
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(document.activeElement).toBe(target);
     expect(frame?.getAttribute("data-active")).toBe("true");
@@ -324,6 +351,7 @@ describe("contextMenu", () => {
     const { target, frame } = setup();
     open(target);
     await Promise.resolve();
+    flush();
     const tab = (shiftKey = false) => {
       const event = new KeyboardEvent("keydown", {
         key: "Tab",
@@ -347,6 +375,7 @@ describe("contextMenu", () => {
     const { target, select } = setup(false);
     open(target);
     await Promise.resolve();
+    flush();
     const item = document.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
     expect(document.activeElement).toBe(item);
     item.click();
@@ -358,9 +387,11 @@ describe("contextMenu", () => {
     const { target, frame, container, manager } = setup();
     open(target);
     await Promise.resolve();
+    flush();
     const other = container.querySelector<HTMLButtonElement>("[data-other-target]")!;
     other.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     other.focus();
+    flush();
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(frame?.hasAttribute("data-active")).toBe(false);
     expect(manager!.activeWindowId()).toBe(manager!.getWindows()[1].id);
@@ -370,6 +401,7 @@ describe("contextMenu", () => {
     const { target, manager } = setup();
     open(target);
     await Promise.resolve();
+    flush();
     const id = manager!.getWindows()[0].id;
     manager!.destroyWindow(id);
     expect(document.querySelector('[role="menu"]')).toBeNull();
@@ -384,7 +416,9 @@ describe("contextMenu", () => {
     expect(document.querySelector('[role="menu"]')).toBeNull();
     open(target);
     await Promise.resolve();
+    flush();
     dispose();
+    flush();
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(manager!.activeWindowId()).toBeNull();
   });

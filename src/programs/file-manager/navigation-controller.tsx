@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import useDialog from "../../components/dialog/Dialog";
 import { filesystem, type FileSystemEntry } from "../../filesystem/FileSystemClient";
 
@@ -27,15 +27,13 @@ export default function createNavigationController(
     );
   });
 
-  createEffect(
-    on(visibleEntries, (visible) => {
-      const names = new Set(visible.map((entry) => entry.name));
-      setSelectedItems((selected) => {
-        const retained = [...selected].filter((name) => names.has(name));
-        return retained.length === selected.size ? selected : new Set(retained);
-      });
-    }),
-  );
+  createEffect(visibleEntries, (visible) => {
+    const names = new Set(visible.map((entry) => entry.name));
+    setSelectedItems((selected) => {
+      const retained = [...selected].filter((name) => names.has(name));
+      return retained.length === selected.size ? selected : new Set(retained);
+    });
+  });
 
   const showDialog = useDialog();
 
@@ -61,36 +59,37 @@ export default function createNavigationController(
     );
   }
 
-  createEffect(() => {
-    const target = path();
-    refreshVersion();
-    let current = true;
-    onCleanup(() => {
-      current = false;
-    });
-    setSelectedItems(new Set([]));
-    filesystem
-      .list(target)
-      .then((result) => {
-        if (current) setEntries(result);
-      })
-      .catch((error) => {
-        if (!current) return;
-        showDialog({
-          icon: "error",
-          title: "Entry Fetch Fail",
-          content: () => (
-            <div>
-              <p>
-                Sorry, I couldn't list files in <code>{target}</code>.
-              </p>
-              <pre>{JSON.stringify(error)}</pre>
-            </div>
-          ),
-          actions: { ok: "OK" },
+  createEffect(
+    () => ({ target: path(), version: refreshVersion() }),
+    ({ target }) => {
+      let current = true;
+      setSelectedItems(new Set([]));
+      filesystem
+        .list(target)
+        .then((result) => {
+          if (current) setEntries(result);
+        })
+        .catch((error) => {
+          if (!current) return;
+          showDialog({
+            icon: "error",
+            title: "Entry Fetch Fail",
+            content: () => (
+              <div>
+                <p>
+                  Sorry, I couldn't list files in <code>{target}</code>.
+                </p>
+                <pre>{JSON.stringify(error)}</pre>
+              </div>
+            ),
+            actions: { ok: "OK" },
+          });
         });
-      });
-  });
+      return () => {
+        current = false;
+      };
+    },
+  );
 
   return {
     path,

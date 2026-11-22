@@ -1,4 +1,4 @@
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { ContextMenuProvider } from "./components/context-menu/ContextMenuContext";
 import { HotkeyProvider } from "./components/hotkeys/HotkeyContext";
 import { LayerProvider } from "./components/layer-manager/LayerContext";

@@ -1,4 +1,5 @@
-import { createMemo, createSignal, For, onCleanup, onMount, type JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createMemo, For, onCleanup, onSettled } from "solid-js";
 import Deferred from "../../lib/deferred";
 import type { Size2d } from "../../lib/math";
 import generateUuid from "../../lib/uuid";
@@ -82,15 +83,17 @@ function DialogContentWrapper(props: DialogContentWrapperProps) {
 
   const windowManager = useWindowManager();
   const windowId = useCurrentWindowId();
+  onSettled(() => {
+    const frame = requestAnimationFrame(() => {
+      if (!mainRef || !footerRef || !mainRef.parentElement) return;
 
-  onMount(() => {
-    if (!mainRef || !footerRef || !mainRef.parentElement) return;
-
-    const size: Size2d = {
-      width: DIALOG_WIDTH,
-      height: footerRef.scrollHeight + mainRef.scrollHeight,
-    };
-    windowManager.setSize(windowId, size);
+      const size: Size2d = {
+        width: DIALOG_WIDTH,
+        height: footerRef.scrollHeight + mainRef.scrollHeight,
+      };
+      windowManager.setSize(windowId, size);
+    });
+    return () => cancelAnimationFrame(frame);
   });
 
   const imageUrl = createMemo(() => {
@@ -136,43 +139,44 @@ function DialogContentWrapper(props: DialogContentWrapperProps) {
  */
 export default function useDialog() {
   const windowManager: WindowManager = useWindowManager();
-  const [dialogs, setDialogs] = createSignal<ReadonlyMap<DialogId, DialogInstance>>(new Map());
+  const dialogs = new Map<DialogId, DialogInstance>();
 
   /** Resolves a dialog with its selected action and removes its window. */
   function handleConfirm(id: DialogId, action: string) {
-    const dialog = dialogs().get(id);
+    const dialog = dialogs.get(id);
     if (!dialog) throw new DialogMissingError(id);
     dialog.deferred.resolve(action);
     windowManager.destroyWindow(dialog.windowId);
-    setDialogs((old) => {
-      const newMap = new Map(old);
-      if (newMap.has(id)) newMap.delete(id);
-      return newMap;
-    });
+    dialogs.delete(id);
   }
 
   /** Rejects a dialog as cancelled, removes its window, and clears its state. */
   function handleCancel(id: DialogId) {
-    const dialog = dialogs().get(id);
+    const dialog = dialogs.get(id);
     if (!dialog) throw new DialogMissingError(id);
     dialog.deferred.reject(RejectReasonDialogCancelled);
     windowManager.destroyWindow(dialog.windowId);
-    setDialogs((old) => {
-      const newMap = new Map(old);
-      if (newMap.has(id)) newMap.delete(id);
-      return newMap;
-    });
+    dialogs.delete(id);
   }
 
   function handleHandleEmphasize(id: DialogId) {
-    const dialog = dialogs().get(id);
+    const dialog = dialogs.get(id);
     if (!dialog) throw new DialogMissingError(id);
+    if (!windowManager.getWindows().some((window) => window.id === dialog.windowId)) {
+      // Creation is scheduled; keep the request until the window can be addressed.
+      queueMicrotask(() => {
+        if (!dialogs.has(id)) return;
+        windowManager.setPinned(dialog.windowId, true);
+        windowManager.bringToTop(dialog.windowId);
+      });
+      return;
+    }
     windowManager.setPinned(dialog.windowId, true);
     windowManager.bringToTop(dialog.windowId);
   }
 
   function handleHandleExists(id: DialogId) {
-    return dialogs().has(id);
+    return dialogs.has(id);
   }
 
   /** Opens a pinned dialog window and returns its eventual selected action. */
@@ -204,14 +208,10 @@ export default function useDialog() {
 
     const deferred = new Deferred<string, RejectReasonDialogCancelled>();
 
-    setDialogs((old) => {
-      const newMap = new Map(old);
-      newMap.set(id, {
-        id,
-        windowId,
-        deferred,
-      });
-      return newMap;
+    dialogs.set(id, {
+      id,
+      windowId,
+      deferred,
     });
 
     return {
@@ -222,11 +222,12 @@ export default function useDialog() {
   }
 
   onCleanup(() => {
-    dialogs().forEach((dialog) => {
-      handleCancel(dialog.id);
-      windowManager.finishDestroyWindow(dialog.windowId);
+    dialogs.forEach((dialog) => {
+      // Cleanup may run during settlement, when flushing window updates is not reentrant.
+      queueMicrotask(() => windowManager.finishDestroyWindow(dialog.windowId));
+      dialog.deferred.reject(RejectReasonDialogCancelled);
+      dialogs.delete(dialog.id);
     });
-    setDialogs(new Map());
   });
 
   return create;

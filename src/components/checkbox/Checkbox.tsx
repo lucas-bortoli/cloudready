@@ -1,4 +1,5 @@
-import { createEffect, splitProps, type JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createEffect, omit, Show } from "solid-js";
 import { cn } from "../../lib/dom";
 
 type NativeCheckboxProps = Omit<
@@ -56,7 +57,8 @@ export interface CheckboxProps extends NativeCheckboxProps {
  * throws.
  */
 export default function Checkbox(props: CheckboxProps) {
-  const [local, nativeProps] = splitProps(props, [
+  const nativeProps = omit(
+    props,
     "children",
     "class",
     "checked",
@@ -64,14 +66,14 @@ export default function Checkbox(props: CheckboxProps) {
     "indeterminate",
     "onCheckedChange",
     "x-role",
-  ]);
+  );
   let input: HTMLInputElement | undefined;
-  const isInactive = () => local.disabled ?? false;
-  const isIndeterminate = () => local.indeterminate ?? false;
+  const isInactive = () => props.disabled ?? false;
+  const isIndeterminate = () => props.indeterminate ?? false;
 
-  createEffect(() => {
+  createEffect(isIndeterminate, (indeterminate) => {
     if (input) {
-      input.indeterminate = isIndeterminate();
+      input.indeterminate = indeterminate;
     }
   });
 
@@ -81,7 +83,11 @@ export default function Checkbox(props: CheckboxProps) {
       return;
     }
 
-    local.onCheckedChange(isIndeterminate() ? true : event.currentTarget.checked);
+    if (isIndeterminate()) {
+      props.onCheckedChange(true);
+    } else {
+      props.onCheckedChange(event.currentTarget.checked);
+    }
   };
 
   return (
@@ -89,7 +95,7 @@ export default function Checkbox(props: CheckboxProps) {
       class={cn(
         "inline-flex cursor-pointer items-center gap-2 text-neutral-800",
         isInactive() && "cursor-not-allowed opacity-55",
-        local.class,
+        props.class,
       )}
     >
       <input
@@ -97,36 +103,39 @@ export default function Checkbox(props: CheckboxProps) {
         {...nativeProps}
         ref={input}
         aria-checked={isIndeterminate() ? "mixed" : undefined}
-        aria-disabled={isInactive() || undefined}
-        checked={local.checked}
+        aria-disabled={isInactive() ? "true" : undefined}
+        checked={props.checked}
         class="peer sr-only"
-        x-role={local["x-role"]}
+        x-role={props["x-role"]}
         onClick={handleClick}
       />
       <span
         aria-hidden="true"
         class="grid size-4 place-items-center rounded-xs border border-neutral-400 bg-neutral-50 shadow-sm transition-colors peer-hover:bg-neutral-200 peer-focus:bg-neutral-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sky-300 peer-aria-disabled:cursor-not-allowed"
-        data-state={isIndeterminate() ? "mixed" : local.checked ? "checked" : "unchecked"}
+        data-state={isIndeterminate() ? "mixed" : props.checked ? "checked" : "unchecked"}
       >
-        {isIndeterminate() ? (
+        <Show
+          when={isIndeterminate()}
+          fallback={
+            <Show when={props.checked}>
+              <svg class="size-3" fill="none" viewBox="0 0 12 12">
+                <path
+                  d="m2.5 6 2.1 2.1L9.5 3.5"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                />
+              </svg>
+            </Show>
+          }
+        >
           <svg class="size-3" fill="none" viewBox="0 0 12 12">
             <path d="M2.5 6h7" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" />
           </svg>
-        ) : (
-          local.checked && (
-            <svg class="size-3" fill="none" viewBox="0 0 12 12">
-              <path
-                d="m2.5 6 2.1 2.1L9.5 3.5"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.5"
-              />
-            </svg>
-          )
-        )}
+        </Show>
       </span>
-      <span>{local.children}</span>
+      <span>{props.children}</span>
     </label>
   );
 }

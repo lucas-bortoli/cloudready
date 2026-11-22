@@ -1,5 +1,5 @@
-import { createSignal, type Accessor, type JSX } from "solid-js";
-import { createStore, produce, type SetStoreFunction } from "solid-js/store";
+import type { JSX } from "@solidjs/web";
+import { createSignal, createStore, flush, type Accessor, type StoreSetter } from "solid-js";
 import type { Point2d, Size2d } from "../../lib/math";
 import generateUuid from "../../lib/uuid";
 import LayerManager, { type LayerItem } from "../layer-manager/LayerManager";
@@ -121,7 +121,7 @@ export default class WindowManager {
   /** Reactive, read-only list of managed windows. */
   public readonly getWindows: Accessor<readonly WindowEntry[]>;
   /** Updates the reactive collection of managed windows. */
-  private readonly setWindows: SetStoreFunction<WindowState[]>;
+  private readonly setWindows: StoreSetter<WindowState[]>;
   private readonly layerManager: LayerManager;
   public readonly motion = new WindowMotion();
   /**
@@ -130,6 +130,7 @@ export default class WindowManager {
   public readonly activeWindowId: Accessor<WindowId | null>;
   private readonly setActiveWindowId: (id: WindowId | null) => void;
   private readonly frames = new Map<WindowId, HTMLElement>();
+  private readonly windowLayers = new Map<WindowId, LayerItem>();
   private readonly overlays = new Map<HTMLElement, { windowId: WindowId }>();
   private trackedDocument: Document | null = null;
   private browserFocused = false;
@@ -161,6 +162,7 @@ export default class WindowManager {
    * @throws {WindowOverlayAlreadyRegisteredError} When the element is already registered.
    */
   public registerOwnedOverlay(windowId: WindowId, element: HTMLElement): WindowOverlayRegistration {
+    if (this.windowLayers.has(windowId) && !this.findWindow(windowId)) flush();
     if (!this.canActivate(windowId)) throw new WindowActivationOwnerError();
     if (this.overlays.has(element)) throw new WindowOverlayAlreadyRegisteredError();
     const registration = { windowId };
@@ -268,6 +270,7 @@ export default class WindowManager {
 
   /**
    * Creates a new window with the given options.
+   * The window becomes visible to reactive reads after the scheduled update settles.
    * @param options Optional window properties. Omitted properties use defaults.
    * @returns The ID of the newly created window.
    */
@@ -275,23 +278,26 @@ export default class WindowManager {
     const id = makeWindowId();
     const isPinned = options?.isPinned ?? false;
     const layerItem = this.layerManager.createItem(isPinned ? "windowing:pinned" : "windowing");
-    this.setWindows(this.getWindows().length, {
-      id,
-      title: options?.title ?? "Untitled",
-      position: options?.position ?? null,
-      isAutoPositioned: options?.position === undefined,
-      isClosing: false,
-      dock: options?.dock ?? null,
-      isMinimized: options?.isMinimized ?? false,
-      isMinimizable: options?.isMinimizable ?? true,
-      isPinned,
-      zIndex: layerItem.zIndex,
-      layerItem,
-      isResizable: options?.isResizable ?? true,
-      closer: options?.closer,
-      size: options?.size ?? { width: 400, height: 300 },
-      minimumSize: options?.minimumSize ?? { width: 200, height: 150 },
-      content: options?.content ?? (() => undefined),
+    this.windowLayers.set(id, layerItem);
+    this.setWindows((windows) => {
+      windows.push({
+        id,
+        title: options?.title ?? "Untitled",
+        position: options?.position ?? null,
+        isAutoPositioned: options?.position === undefined,
+        isClosing: false,
+        dock: options?.dock ?? null,
+        isMinimized: options?.isMinimized ?? false,
+        isMinimizable: options?.isMinimizable ?? true,
+        isPinned,
+        zIndex: layerItem.zIndex,
+        layerItem,
+        isResizable: options?.isResizable ?? true,
+        closer: options?.closer,
+        size: options?.size ?? { width: 400, height: 300 },
+        minimumSize: options?.minimumSize ?? { width: 200, height: 150 },
+        content: options?.content ?? (() => undefined),
+      });
     });
     return id;
   }
@@ -302,6 +308,8 @@ export default class WindowManager {
    * @returns Whether a window was removed.
    */
   public destroyWindow(windowId: WindowId): boolean {
+    // Creation is scheduled, but callers can request destruction in the same turn.
+    if (this.windowLayers.has(windowId) && !this.findWindow(windowId)) flush();
     const windowIndex = this.getWindows().findIndex((window) => window.id === windowId);
 
     if (windowIndex < 0 || this.getWindows()[windowIndex].isClosing) {
@@ -312,7 +320,9 @@ export default class WindowManager {
     if (this.motion.prefersReducedMotion()) {
       this.finishDestroyWindow(windowId);
     } else {
-      this.setWindows(windowIndex, "isClosing", true);
+      this.updateWindow(windowId, (window) => {
+        window.isClosing = true;
+      });
       this.motion.scheduleClose(windowId, () => this.finishDestroyWindow(windowId));
     }
     this.refreshActivation();
@@ -322,20 +332,21 @@ export default class WindowManager {
   /** Completes removal after an exit animation, or immediately when motion is reduced. */
   public finishDestroyWindow(windowId: WindowId): void {
     this.motion.finishClose(windowId);
-    const windowIndex = this.getWindows().findIndex((window) => window.id === windowId);
-    if (windowIndex < 0) return;
+    const layer = this.windowLayers.get(windowId);
+    if (!layer) return;
 
     this.unregisterFrame(windowId);
     for (const [element, registration] of this.overlays) {
       if (registration.windowId === windowId) this.overlays.delete(element);
     }
-    this.getWindows()[windowIndex].layerItem.dispose();
+    layer.dispose();
+    this.windowLayers.delete(windowId);
 
-    this.setWindows(
-      produce((windows) => {
-        windows.splice(windowIndex, 1);
-      }),
-    );
+    this.setWindows((windows) => {
+      const windowIndex = windows.findIndex((window) => window.id === windowId);
+      if (windowIndex >= 0) windows.splice(windowIndex, 1);
+    });
+    flush();
     this.refreshActivation();
   }
 
@@ -345,7 +356,9 @@ export default class WindowManager {
    * @param newTitle The new title for the window.
    */
   public setTitle(windowId: WindowId, newTitle: string) {
-    this.setWindows((window) => window.id === windowId, "title", newTitle);
+    this.updateWindow(windowId, (window) => {
+      window.title = newTitle;
+    });
   }
 
   /**
@@ -354,19 +367,31 @@ export default class WindowManager {
    * @param position New top-left position, or `null` to request automatic placement.
    */
   public setPosition(windowId: WindowId, position: Point2d | null) {
-    this.setWindows((window) => window.id === windowId, {
-      position,
-      isAutoPositioned: position === null,
+    this.updateWindow(windowId, (window) => {
+      if (window.position && position) {
+        window.position.x = position.x;
+        window.position.y = position.y;
+      } else {
+        window.position = position;
+      }
+      window.isAutoPositioned = position === null;
     });
   }
 
   /** Updates measured automatic placement without disabling future recentering. */
   public setAutoPosition(windowId: WindowId, position: Point2d): void {
-    this.setWindows(
-      (window) => window.id === windowId && window.isAutoPositioned,
-      "position",
-      position,
-    );
+    // Placement is also measured during settlement, when flush is not reentrant.
+    this.setWindows((windows) => {
+      const window = windows.find((entry) => entry.id === windowId);
+      if (window?.isAutoPositioned) {
+        if (window.position) {
+          window.position.x = position.x;
+          window.position.y = position.y;
+        } else {
+          window.position = position;
+        }
+      }
+    });
   }
 
   /**
@@ -375,11 +400,23 @@ export default class WindowManager {
    * @param dock New dock layout, or `null` for a floating window.
    */
   public setDock(windowId: WindowId, dock: WindowDock) {
+    if (this.windowLayers.has(windowId) && !this.findWindow(windowId)) flush();
     const entry = this.getWindows().find((window) => window.id === windowId);
     if (!entry || entry.dock === dock || entry.isClosing) return;
     const before = this.motion.beforeDock(entry);
-    this.setWindows((window) => window.id === windowId, { dock, isAutoPositioned: false });
+    this.updateWindow(windowId, (window) => {
+      window.dock = dock;
+      window.isAutoPositioned = false;
+    });
     this.motion.afterDock(windowId, dock, before, () => this.findWindow(windowId));
+  }
+
+  private updateWindow(windowId: WindowId, update: (window: WindowState) => void): void {
+    this.setWindows((windows) => {
+      const window = windows.find((entry) => entry.id === windowId);
+      if (window) update(window);
+    });
+    flush();
   }
 
   private findWindow(windowId: WindowId): WindowState | undefined {
@@ -392,10 +429,13 @@ export default class WindowManager {
    * @param isMinimized Whether the window should be minimized.
    */
   public setMinimized(windowId: WindowId, isMinimized: boolean) {
+    if (this.windowLayers.has(windowId) && !this.findWindow(windowId)) flush();
     const entry = this.getWindows().find((window) => window.id === windowId);
     if (!entry || entry.isClosing) return;
     this.motion.setMinimized(entry, isMinimized, (value) => {
-      this.setWindows((window) => window.id === windowId, "isMinimized", value);
+      this.updateWindow(windowId, (window) => {
+        window.isMinimized = value;
+      });
       this.refreshActivation();
     });
     this.refreshActivation();
@@ -403,24 +443,22 @@ export default class WindowManager {
 
   /** Updates whether a window stays above ordinary application windows. */
   public setPinned(windowId: WindowId, isPinned: boolean) {
-    const window = this.getWindows().find((entry) => entry.id === windowId);
-    if (!window) return;
-    window.layerItem.moveToLayer(isPinned ? "windowing:pinned" : "windowing");
-    this.setWindows((entry) => entry.id === windowId, "isPinned", isPinned);
+    const layer = this.windowLayers.get(windowId);
+    if (!layer) return;
+    layer.moveToLayer(isPinned ? "windowing:pinned" : "windowing");
+    this.updateWindow(windowId, (window) => {
+      window.isPinned = isPinned;
+    });
   }
 
   /** Moves a window to the front of its current stacking layer. */
   public bringToTop(windowId: WindowId) {
-    this.getWindows()
-      .find((entry) => entry.id === windowId)
-      ?.layerItem.bringToTop();
+    this.windowLayers.get(windowId)?.bringToTop();
   }
 
   /** Moves a window one position toward the back of its stacking layer. */
   public sendBack(windowId: WindowId) {
-    this.getWindows()
-      .find((entry) => entry.id === windowId)
-      ?.layerItem.sendBack();
+    this.windowLayers.get(windowId)?.sendBack();
   }
 
   /**
@@ -429,7 +467,9 @@ export default class WindowManager {
    * @param isMinimizable Whether the minimize control should be available.
    */
   public setMinimizable(windowId: WindowId, isMinimizable: boolean) {
-    this.setWindows((window) => window.id === windowId, "isMinimizable", isMinimizable);
+    this.updateWindow(windowId, (window) => {
+      window.isMinimizable = isMinimizable;
+    });
   }
 
   /**
@@ -438,20 +478,23 @@ export default class WindowManager {
    * @param isResizable Whether resize handles should be available while floating.
    */
   public setResizable(windowId: WindowId, isResizable: boolean) {
-    this.setWindows((window) => window.id === windowId, "isResizable", isResizable);
+    this.updateWindow(windowId, (window) => {
+      window.isResizable = isResizable;
+    });
   }
 
   /**
    * Updates the function that approves closing a window.
    * @param windowId The ID of the window to update.
    * @param closer Returns whether the window should be removed. Omit to hide the close control.
+   * @param defer Whether to let Solid schedule the update, such as during settlement.
    */
-  public setCloser(windowId: WindowId, closer?: WindowCloser) {
-    this.setWindows(
-      (window) => window.id === windowId,
-      "closer",
-      () => closer,
-    );
+  public setCloser(windowId: WindowId, closer?: WindowCloser, defer = false) {
+    this.setWindows((windows) => {
+      const window = windows.find((entry) => entry.id === windowId);
+      if (window) window.closer = closer;
+    });
+    if (!defer) flush();
   }
 
   /**
@@ -460,7 +503,10 @@ export default class WindowManager {
    * @param size New client width and height in CSS pixels.
    */
   public setSize(windowId: WindowId, size: Size2d) {
-    this.setWindows((window) => window.id === windowId, "size", size);
+    this.updateWindow(windowId, (window) => {
+      window.size.width = size.width;
+      window.size.height = size.height;
+    });
   }
 
   /**
@@ -469,6 +515,8 @@ export default class WindowManager {
    * @param minimumSize New minimum client width and height in CSS pixels.
    */
   public setMinimumSize(windowId: WindowId, minimumSize: Size2d) {
-    this.setWindows((window) => window.id === windowId, "minimumSize", minimumSize);
+    this.updateWindow(windowId, (window) => {
+      window.minimumSize = minimumSize;
+    });
   }
 }

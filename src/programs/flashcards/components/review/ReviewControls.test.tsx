@@ -1,5 +1,5 @@
-import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { expect, it, vi } from "vitest";
 import ReviewControls from "./ReviewControls";
 
@@ -33,6 +33,7 @@ it("keeps actions visible and prevents ending while a card awaits a rating", () 
     expect(end.hasAttribute("aria-disabled")).toBe(false);
     expect(good.getAttribute("aria-disabled")).toBe("true");
     setRevealed(true);
+    flush();
     expect(end.getAttribute("aria-disabled")).toBe("true");
     expect(show.getAttribute("aria-disabled")).toBe("true");
     expect(good.hasAttribute("aria-disabled")).toBe(false);

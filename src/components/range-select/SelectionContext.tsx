@@ -27,13 +27,13 @@ export interface SelectionProviderProps<T> extends ParentProps {
 export function SelectionProvider<T>(props: SelectionProviderProps<T>) {
   const [selectionAnchor, setSelectionAnchor] = createSignal<unknown>(null);
   const context: SelectionContextValue = {
-    selectedItems: props.selectedItems,
+    selectedItems: () => props.selectedItems(),
     setSelectedItems: (items) => props.setSelectedItems(items as ReadonlySet<T>),
     selectionAnchor,
     setSelectionAnchor: (value) => setSelectionAnchor(() => value),
     items: new Map(),
   };
-  return <SelectionContext.Provider value={context}>{props.children}</SelectionContext.Provider>;
+  return <SelectionContext value={context}>{props.children}</SelectionContext>;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { batch, createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onSettled } from "solid-js";
 import { integerPixels, taskbarHeight } from "./window-layout";
 import type { WindowDock, WindowEntry } from "./WindowManager";
 import { getTaskbarBounds } from "./window-layout";
@@ -55,6 +55,7 @@ export default function useWindowInteraction(entry: WindowEntry) {
   let activePointerId: number | undefined;
   let interaction: Interaction | undefined;
   let sizeObserver: ResizeObserver | undefined;
+  let initialCenterFrame: number | undefined;
 
   const windowManager = useWindowManager();
   const [dockPreview, setDockPreview] = createSignal<WindowDock>(null);
@@ -196,11 +197,9 @@ export default function useWindowInteraction(entry: WindowEntry) {
         y: event.clientY - 16,
       };
 
-      batch(() => {
-        windowManager.setPosition(entry.id, position);
-        windowManager.motion.suppressNextDockAnimation(entry.id);
-        windowManager.setDock(entry.id, null);
-      });
+      windowManager.setPosition(entry.id, position);
+      windowManager.motion.suppressNextDockAnimation(entry.id);
+      windowManager.setDock(entry.id, null);
       startInteraction(event, {
         type: "drag",
         startX: event.clientX,
@@ -252,6 +251,7 @@ export default function useWindowInteraction(entry: WindowEntry) {
 
   onCleanup(() => {
     stopInteraction();
+    if (initialCenterFrame !== undefined) cancelAnimationFrame(initialCenterFrame);
     sizeObserver?.disconnect();
     window.removeEventListener("resize", centerWindow);
   });
@@ -270,8 +270,12 @@ export default function useWindowInteraction(entry: WindowEntry) {
     });
   };
 
-  onMount(() => {
-    centerWindow();
+  onSettled(() => {
+    // Wait until layout can be measured without forcing it during reactive settlement.
+    initialCenterFrame = requestAnimationFrame(() => {
+      initialCenterFrame = undefined;
+      centerWindow();
+    });
     if (windowElement && typeof ResizeObserver !== "undefined") {
       sizeObserver = new ResizeObserver(centerWindow);
       sizeObserver.observe(windowElement);

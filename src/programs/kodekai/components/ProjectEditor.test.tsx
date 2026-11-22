@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
+import { flush } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Model } from "../model/model";
 import ProjectEditor from "./ProjectEditor";
@@ -42,6 +43,7 @@ describe("ProjectEditor", () => {
 
     title.value = "  ";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     root
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
@@ -49,6 +51,7 @@ describe("ProjectEditor", () => {
 
     title.value = "  Website  ";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     root
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
@@ -63,6 +66,7 @@ describe("ProjectEditor", () => {
     const title = root.querySelector("textarea")!;
     title.value = "Updated";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     root
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
@@ -80,6 +84,7 @@ describe("ProjectEditor", () => {
     const title = root.querySelector("textarea")!;
     title.value = "Unsaved";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
 
     [...root.querySelectorAll("button")]
       .find((button) => button.textContent === "Cancelar")!

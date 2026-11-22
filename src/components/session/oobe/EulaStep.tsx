@@ -1,5 +1,5 @@
-import { createEffect, createResource } from "solid-js";
 import LegalConsent from "./LegalConsent";
+import { useLegalDocument } from "./useLegalDocument";
 
 async function loadEula(): Promise<string> {
   const response = await fetch("/eula.txt");
@@ -12,15 +12,13 @@ export default function EulaStep(props: {
   onAcceptedChange: (accepted: boolean) => void;
   onReadyChange: (ready: boolean) => void;
 }) {
-  const [eula] = createResource(loadEula);
-
-  createEffect(() => props.onReadyChange(eula() !== undefined));
+  const eula = useLegalDocument(loadEula, (ready) => props.onReadyChange(ready));
 
   return (
     <LegalConsent
       accepted={props.accepted}
-      document={eula()}
-      error={eula.error}
+      document={eula.document()}
+      error={eula.error()}
       name="EULA"
       onAcceptedChange={props.onAcceptedChange}
     />

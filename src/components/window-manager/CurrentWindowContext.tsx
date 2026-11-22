@@ -1,7 +1,7 @@
 import { createContext, untrack, useContext, type ParentProps } from "solid-js";
 import type { WindowId } from "./WindowManager";
 
-const CurrentWindowIdContext = createContext<WindowId>();
+const CurrentWindowIdContext = createContext<WindowId | null>(null);
 
 /** Thrown when window content reads its ID outside a current-window provider. */
 export class CurrentWindowContextMissingError extends Error {
@@ -15,11 +15,7 @@ export class CurrentWindowContextMissingError extends Error {
 export function CurrentWindowProvider(props: ParentProps<{ windowId: WindowId }>) {
   const windowId = untrack(() => props.windowId);
 
-  return (
-    <CurrentWindowIdContext.Provider value={windowId}>
-      {props.children}
-    </CurrentWindowIdContext.Provider>
-  );
+  return <CurrentWindowIdContext value={windowId}>{props.children}</CurrentWindowIdContext>;
 }
 
 /**
@@ -41,5 +37,5 @@ export function useCurrentWindowId(): WindowId {
  * Returns the current content window's ID, or undefined outside a window.
  */
 export function useOptionalCurrentWindowId(): WindowId | undefined {
-  return useContext(CurrentWindowIdContext);
+  return useContext(CurrentWindowIdContext) ?? undefined;
 }

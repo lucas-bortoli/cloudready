@@ -1,13 +1,10 @@
 // @vitest-environment happy-dom
 
-import { createSignal, untrack, type JSX } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, flush } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
-import { SelectionProvider } from "../range-select/SelectionContext";
-import { selectionItem } from "../range-select/rangeSelect";
 import Button from "./Button";
-
-void selectionItem;
 
 function renderButton(button: () => JSX.Element) {
   const container = document.createElement("div");
@@ -29,24 +26,12 @@ function renderButton(button: () => JSX.Element) {
 }
 
 describe("Button", () => {
-  it("forwards selection directives and keeps their values reactive", () => {
-    const [selected, setSelected] = createSignal<ReadonlySet<string>>(new Set());
-    const [value, setValue] = createSignal("first");
-    const { dispose, element } = renderButton(() => (
-      <SelectionProvider selectedItems={selected} setSelectedItems={setSelected}>
-        <Button use:selectionItem={value()}>Select</Button>
-      </SelectionProvider>
-    ));
+  it("forwards a ref to the native button", () => {
+    const ref = vi.fn();
+    const { dispose, element } = renderButton(() => <Button ref={ref}>Select</Button>);
 
-    expect(element.hasAttribute("use:selectionitem")).toBe(false);
-    element.click();
-    expect([...untrack(selected)]).toEqual(["first"]);
-    setValue("second");
-    element.click();
-    expect([...untrack(selected)]).toEqual(["second"]);
+    expect(ref).toHaveBeenCalledWith(element);
     dispose();
-    element.click();
-    expect([...untrack(selected)]).toEqual(["second"]);
   });
 
   it("uses the compact secondary button defaults", () => {
@@ -110,6 +95,7 @@ describe("Button", () => {
 
     expect(element.getAttribute("aria-busy")).toBeNull();
     setLoading(true);
+    flush();
     expect(element.getAttribute("aria-busy")).toBe("true");
     expect(element.querySelector("svg")).not.toBeNull();
 

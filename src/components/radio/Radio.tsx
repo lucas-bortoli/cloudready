@@ -1,4 +1,5 @@
-import { splitProps, type JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { omit, Show } from "solid-js";
 import { cn } from "../../lib/dom";
 import { useRadioGroup } from "./RadioGroup";
 
@@ -58,16 +59,13 @@ export interface RadioProps extends NativeRadioProps {
  */
 export default function Radio(props: RadioProps) {
   const radioGroup = useRadioGroup();
-  const [local, nativeProps] = splitProps(props, [
-    "children",
-    "class",
-    "disabled",
-    "onKeyDown",
-    "value",
-    "x-role",
-  ]);
-  const isInactive = () => local.disabled ?? false;
-  const isSelected = () => radioGroup.value() === local.value;
+  const nativeProps = omit(props, "children", "class", "disabled", "onKeyDown", "value", "x-role");
+  const isInactive = () => props.disabled ?? false;
+  const isSelected = () => radioGroup.value() === props.value;
+  const ariaDisabled = () => {
+    if (isInactive()) return "true";
+    return undefined;
+  };
 
   const handleChange: JSX.EventHandler<HTMLInputElement, Event> = (event) => {
     if (isInactive()) {
@@ -76,7 +74,7 @@ export default function Radio(props: RadioProps) {
     }
 
     if (!isSelected()) {
-      radioGroup.onValueChange(local.value);
+      radioGroup.onValueChange(props.value);
     }
   };
 
@@ -94,7 +92,7 @@ export default function Radio(props: RadioProps) {
       event.preventDefault();
     }
 
-    local.onKeyDown?.(event);
+    props.onKeyDown?.(event);
   };
 
   return (
@@ -102,18 +100,18 @@ export default function Radio(props: RadioProps) {
       class={cn(
         "inline-flex cursor-pointer items-center gap-2 text-neutral-800",
         isInactive() && "cursor-not-allowed opacity-55",
-        local.class,
+        props.class,
       )}
     >
       <input
         type="radio"
         {...nativeProps}
-        aria-disabled={isInactive() || undefined}
+        aria-disabled={ariaDisabled()}
         checked={isSelected()}
         class="peer sr-only"
         name={radioGroup.name()}
-        value={local.value}
-        x-role={local["x-role"]}
+        value={props.value}
+        x-role={props["x-role"]}
         onChange={handleChange}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
@@ -123,9 +121,11 @@ export default function Radio(props: RadioProps) {
         class="grid size-4 place-items-center rounded-full border border-neutral-400 bg-neutral-50 shadow-sm outline-sky-300 transition-colors peer-hover:bg-neutral-200 peer-focus:bg-neutral-200 peer-focus:outline-2 peer-focus:outline-offset-2 peer-aria-disabled:cursor-not-allowed"
         data-state={isSelected() ? "checked" : "unchecked"}
       >
-        {isSelected() && <span class="size-2 rounded-full bg-neutral-800" />}
+        <Show when={isSelected()}>
+          <span class="size-2 rounded-full bg-neutral-800" />
+        </Show>
       </span>
-      <span>{local.children}</span>
+      <span>{props.children}</span>
     </label>
   );
 }

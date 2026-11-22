@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush, onSettled, Show } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LayerProvider } from "../../components/layer-manager/LayerContext";
 import { CurrentWindowProvider } from "../../components/window-manager/CurrentWindowContext";
@@ -9,6 +11,8 @@ import {
   useWindowManager,
 } from "../../components/window-manager/WindowManagerContext";
 import WindowsOutlet from "../../components/window-manager/WindowsOutlet";
+import type WindowManager from "../../components/window-manager/WindowManager";
+import type { WindowId } from "../../components/window-manager/WindowManager";
 import { formatIsoDateTime } from "../../lib/iso-date-time";
 import { Model } from "./model/model";
 import Kodekai from "./Kodekai";
@@ -40,13 +44,22 @@ function findCard(container: ParentNode, cardId: string) {
   )!;
 }
 
-function TestKodekai(props: { model: Model }) {
-  const windowId = useWindowManager().createWindow();
+function TestKodekai(props: {
+  model: Model;
+  onReady: (manager: WindowManager) => void;
+  windowId: WindowId | undefined;
+}) {
+  const manager = useWindowManager();
+  onSettled(() => props.onReady(manager));
   return (
     <>
-      <CurrentWindowProvider windowId={windowId}>
-        <Kodekai model={props.model} />
-      </CurrentWindowProvider>
+      <Show when={props.windowId}>
+        {(windowId) => (
+          <CurrentWindowProvider windowId={windowId()}>
+            <Kodekai model={props.model} />
+          </CurrentWindowProvider>
+        )}
+      </Show>
       <WindowsOutlet />
     </>
   );
@@ -61,16 +74,26 @@ function renderBoard() {
   const thirdId = model.createCard({ projectId, title: "Third", expiration });
   const container = document.createElement("div");
   document.body.append(container);
+  let manager!: WindowManager;
+  const [windowId, setWindowId] = createSignal<WindowId>();
   const dispose = render(
     () => (
       <LayerProvider>
         <WindowManagerProvider>
-          <TestKodekai model={model} />
+          <TestKodekai
+            model={model}
+            onReady={(value) => {
+              manager = value;
+            }}
+            windowId={windowId()}
+          />
         </WindowManagerProvider>
       </LayerProvider>
     ),
     container,
   );
+  setWindowId(manager.createWindow());
+  flush();
   const board = container.querySelector<HTMLElement>('[x-role="kodekai"]')!;
   const icebox = container.querySelector<HTMLUListElement>('[data-kodekai-bucket="icebox"]')!;
   const inProgress = container.querySelector<HTMLUListElement>(
@@ -117,7 +140,19 @@ afterEach(() => {
 });
 
 describe("Kodekai card dragging", () => {
-  it("uses a clone preview and reorders without shifting the source before drop", () => {
+  it("settles the board fixture without reactive diagnostics", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const { board, dispose } = renderBoard();
+        expect(board).not.toBeNull();
+        dispose();
+      },
+      { scenario: "kodekai-board-fixture" },
+    );
+    expectNoDiagnostics(artifact);
+  });
+
+  it("uses a clone preview and reorders without shifting the source before drop", async () => {
     const { boundingRect, container, dispose, firstId, model, secondId, source, thirdId } =
       renderBoard();
 
@@ -129,6 +164,7 @@ describe("Kodekai card dragging", () => {
     expect(container.querySelector("[data-kodekai-drop-indicator]")).toBeNull();
 
     document.dispatchEvent(pointerEvent("pointermove", 10, 180));
+    flush();
 
     const preview = document.querySelector<HTMLLIElement>('li[aria-hidden="true"]');
     expect(preview).not.toBeNull();
@@ -142,6 +178,8 @@ describe("Kodekai card dragging", () => {
     );
 
     document.dispatchEvent(pointerEvent("pointerup", 10, 180));
+    flush();
+    await Promise.resolve();
 
     const movedCard = Array.from(
       container.querySelectorAll<HTMLLIElement>("[data-kodekai-card]"),
@@ -156,7 +194,7 @@ describe("Kodekai card dragging", () => {
     ]);
     expect(container.querySelector('[role="dialog"]')).toBeNull();
     expect(document.querySelector('li[aria-hidden="true"]')).toBeNull();
-    expect(source.className).not.toContain("opacity-0");
+    expect(movedCard.className).not.toContain("opacity-0");
     boundingRect.mockRestore();
     dispose();
   });
@@ -167,6 +205,7 @@ describe("Kodekai card dragging", () => {
     source.dispatchEvent(pointerEvent("pointerdown", 10, 30));
     document.dispatchEvent(pointerEvent("pointermove", 320, 20));
     document.dispatchEvent(pointerEvent("pointerup", 320, 20));
+    flush();
 
     expect(model.getCard(firstId)).toMatchObject({ bucket: "in-progress", displayIndex: 0 });
     expect(inProgress.querySelectorAll("[data-kodekai-card]")).toHaveLength(1);
@@ -273,11 +312,12 @@ describe("Kodekai card keyboard navigation", () => {
     dispose();
   });
 
-  it("moves cards horizontally to the matching visual row and retains focus", () => {
+  it("moves cards horizontally to the matching visual row and retains focus", async () => {
     const { cardRects, dispose, firstId, inProgress, model, secondId, thirdId } = renderBoard();
 
     model.moveCard(secondId, { bucket: "in-progress", displayIndex: 0 });
     model.moveCard(thirdId, { bucket: "in-progress", displayIndex: 1 });
+    flush();
     const destinationCards = inProgress.querySelectorAll<HTMLLIElement>("[data-kodekai-card]");
     cardRects.set(destinationCards[0], rect(300, 10, 256, 40));
     cardRects.set(destinationCards[1], rect(300, 60, 256, 40));
@@ -286,6 +326,8 @@ describe("Kodekai card keyboard navigation", () => {
     cardRects.set(currentSource, rect(0, 20, 256, 40));
     currentSource.focus();
     currentSource.dispatchEvent(keyboardEvent("ArrowRight"));
+    flush();
+    await Promise.resolve();
 
     expect(model.getCard(firstId)).toMatchObject({ bucket: "in-progress", displayIndex: 1 });
     expect(model.listCards(model.getCard(firstId).projectId).map((card) => card.id)).toEqual([
@@ -317,16 +359,20 @@ describe("Kodekai card editor focus", () => {
     )!;
 
     newCardButton.click();
+    flush();
     const title = document.querySelector<HTMLTextAreaElement>(
       '[x-role="kodekai card editor"] textarea',
     )!;
     title.value = "Created";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     document
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    flush();
     vi.runAllTimers();
     await Promise.resolve();
+    flush();
 
     const createdCard = model
       .listCards(model.listProjects()[0].id)
@@ -341,6 +387,7 @@ describe("Kodekai card editor focus", () => {
 
     source.focus();
     source.click();
+    flush();
     expect(document.activeElement).toBe(
       document.querySelector('[x-role="kodekai card editor"] textarea'),
     );
@@ -348,8 +395,10 @@ describe("Kodekai card editor focus", () => {
     document
       .querySelector('[x-role="kodekai card editor"] textarea')!
       .dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    flush();
     vi.runAllTimers();
     await Promise.resolve();
+    flush();
 
     expect(document.activeElement).toBe(findCard(document, firstId));
     dispose();
@@ -361,16 +410,20 @@ describe("Kodekai card editor focus", () => {
 
     source.focus();
     source.click();
+    flush();
     const title = document.querySelector<HTMLTextAreaElement>(
       '[x-role="kodekai card editor"] textarea',
     )!;
     title.value = "Updated";
     title.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     document
       .querySelector("form")!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    flush();
     vi.runAllTimers();
     await Promise.resolve();
+    flush();
 
     const updatedCard = findCard(document, firstId);
     expect(updatedCard.textContent).toContain("Updated");
@@ -385,7 +438,9 @@ describe("Kodekai card deletion", () => {
     const { dispose, firstId, model, source } = renderBoard();
 
     source.click();
+    flush();
     document.querySelector<HTMLButtonElement>('[x-role="kodekai card editor"] button')!.click();
+    flush();
     [...document.querySelectorAll<HTMLButtonElement>("button")]
       .find((button) => button.textContent === "Excluir")!
       .click();
@@ -410,9 +465,11 @@ describe("Kodekai project management", () => {
     )!;
     input.value = title;
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    flush();
     document
       .querySelector('[x-role="kodekai project editor"] form')!
       .dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    flush();
   }
 
   it("creates a project and selects it", async () => {
@@ -420,9 +477,12 @@ describe("Kodekai project management", () => {
     const { dispose, model } = renderBoard();
 
     toolbarButton("New Project...").click();
+    flush();
     saveProjectTitle("New project");
+    flush();
     vi.runAllTimers();
     await Promise.resolve();
+    flush();
 
     const created = model.listProjects().find((project) => project.title === "New project")!;
     expect(document.querySelector<HTMLSelectElement>("select")?.value).toBe(created.id);
@@ -434,6 +494,7 @@ describe("Kodekai project management", () => {
     const { dispose, model } = renderBoard();
 
     toolbarButton("Edit Project...").click();
+    flush();
     saveProjectTitle("Renamed project");
 
     expect(model.listProjects()[0].title).toBe("Renamed project");
@@ -447,9 +508,12 @@ describe("Kodekai project management", () => {
     vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
 
     toolbarButton("Edit Project...").click();
+    flush();
     [...document.querySelectorAll("button")]
       .find((button) => button.textContent === "Excluir projeto")!
       .click();
+    await Promise.resolve();
+    flush();
     await Promise.resolve();
 
     expect(model.listProjects().map((project) => project.id)).toEqual([remainingId]);

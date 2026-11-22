@@ -1,7 +1,9 @@
+import type { JSX } from "@solidjs/web";
 // @vitest-environment happy-dom
 
-import { createSignal, type JSX } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
 import Radio from "./Radio";
 import RadioGroup, { RadioGroupContextError } from "./RadioGroup";
@@ -76,6 +78,7 @@ describe("Radio", () => {
     const indicators = document.body.querySelectorAll<HTMLElement>("[data-state]");
 
     setValue("dark");
+    flush();
 
     expect(inputs[0].checked).toBe(false);
     expect(inputs[1].checked).toBe(true);
@@ -84,6 +87,33 @@ describe("Radio", () => {
     expect(indicators[1].querySelector("span")).not.toBeNull();
 
     dispose();
+  });
+
+  it("updates selection and forwarded props without Solid diagnostics", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const [value, setValue] = createSignal("light");
+        const [required, setRequired] = createSignal(false);
+        const { dispose, inputs } = renderRadio(() => (
+          <RadioGroup name="theme" onValueChange={setValue} value={value()}>
+            <Radio required={required()} value="light">
+              Light
+            </Radio>
+            <Radio value="dark">Dark</Radio>
+          </RadioGroup>
+        ));
+        flush();
+        setValue("dark");
+        setRequired(true);
+        flush();
+        expect(inputs[0].required).toBe(true);
+        expect(inputs[0].checked).toBe(false);
+        expect(inputs[1].checked).toBe(true);
+        dispose();
+      },
+      { scenario: "radio-reactivity" },
+    );
+    expectNoDiagnostics(artifact);
   });
 
   it("forwards x-role only when supplied", () => {

@@ -3,20 +3,6 @@ import { cn } from "../../lib/dom";
 import { useLayerManager } from "../layer-manager/LayerContext";
 import { useSelection } from "./SelectionContext";
 
-declare module "solid-js" {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace JSX {
-    interface Directives {
-      selectionBoundary: boolean;
-      selectionItem: unknown;
-    }
-    interface DirectiveFunctions {
-      selectionBoundary: typeof selectionBoundary;
-      selectionItem: typeof selectionItem;
-    }
-  }
-}
-
 type SelectionGesture = {
   startX: number;
   startY: number;
@@ -26,17 +12,18 @@ type SelectionGesture = {
 
 /**
  * Enables drag selection from empty space in a container.
- * Register selectable descendants with the selectionItem directive.
+ * Register selectable descendants with the selection item ref.
  * Ctrl/Cmd preserves existing selection; plain dragging replaces it.
  * Escape clears the selection when focus is within the boundary.
  * Arrow keys and Home/End move focus; Shift extends selection and Ctrl/Cmd moves without selecting.
  * Ctrl/Cmd+A selects all items and Ctrl/Cmd+Space toggles the focused item.
- * The directive owns the overlay and removes its listeners when Solid disposes it.
+ * The ref owns the overlay and removes its listeners when Solid disposes it.
  *
  * @throws {SelectionContextError} When called outside a SelectionProvider.
  * @throws {LayerContextError} When called outside a LayerProvider.
  */
-export function selectionBoundary(element: HTMLElement): void {
+export function createSelectionBoundaryRef() {
+  let element: HTMLElement;
   const options = useSelection();
   const layerItem = useLayerManager().createItem("dragging-items");
   const rangeSelectBox = document.createElement("div");
@@ -46,9 +33,12 @@ export function selectionBoundary(element: HTMLElement): void {
 
   let selectionGesture: SelectionGesture | null = null;
 
-  createEffect(() => {
-    rangeSelectBox.style.zIndex = String(layerItem.zIndex());
-  });
+  createEffect(
+    () => layerItem.zIndex(),
+    (zIndex) => {
+      rangeSelectBox.style.zIndex = String(zIndex);
+    },
+  );
 
   function handlePointerMove(event: PointerEvent) {
     if (!selectionGesture) return;
@@ -196,8 +186,6 @@ export function selectionBoundary(element: HTMLElement): void {
     nextElement.focus();
   }
 
-  element.addEventListener("pointerdown", handlePointerDown);
-  element.addEventListener("keydown", handleKeyDown);
   onCleanup(() => {
     finishGesture();
     element.removeEventListener("pointerdown", handlePointerDown);
@@ -205,6 +193,11 @@ export function selectionBoundary(element: HTMLElement): void {
     rangeSelectBox.remove();
     layerItem.dispose();
   });
+  return (target: HTMLElement) => {
+    element = target;
+    element.addEventListener("pointerdown", handlePointerDown);
+    element.addEventListener("keydown", handleKeyDown);
+  };
 }
 
 /**
@@ -213,9 +206,9 @@ export function selectionBoundary(element: HTMLElement): void {
  *
  * @throws {SelectionContextError} When called outside a SelectionProvider.
  */
-export function selectionItem(element: HTMLElement, value: () => unknown): void {
+export function createSelectionItemRef(value: () => unknown) {
+  let element: HTMLElement;
   const selection = useSelection();
-  selection.items.set(element, value);
 
   function handleClick(event: MouseEvent) {
     const current = value();
@@ -257,13 +250,17 @@ export function selectionItem(element: HTMLElement, value: () => unknown): void 
     }
   }
 
-  element.addEventListener("click", handleClick);
-  // Capture runs before a context-menu directive reads the current selection.
-  element.addEventListener("contextmenu", handleContextMenu, true);
   onCleanup(() => {
     element.removeEventListener("click", handleClick);
     element.removeEventListener("contextmenu", handleContextMenu, true);
     selection.items.delete(element);
     if (selection.selectionAnchor() === value()) selection.setSelectionAnchor(null);
   });
+  return (target: HTMLElement) => {
+    element = target;
+    selection.items.set(element, value);
+    element.addEventListener("click", handleClick);
+    // Capture runs before a context-menu handler reads the current selection.
+    element.addEventListener("contextmenu", handleContextMenu, true);
+  };
 }

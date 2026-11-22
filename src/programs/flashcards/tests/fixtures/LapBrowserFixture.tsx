@@ -1,5 +1,5 @@
-import { createSignal, onMount, type ParentProps } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, onSettled, type ParentProps } from "solid-js";
+import { render } from "@solidjs/web";
 import { ContextMenuProvider } from "../../../../components/context-menu/ContextMenuContext";
 import { LayerProvider } from "../../../../components/layer-manager/LayerContext";
 import {
@@ -20,9 +20,9 @@ function FixtureSubject(props: ParentProps<{ subject: OpenSubjectPackage }>) {
   } as never;
   const subjects = { subjects: () => [{ path: "fixture", subject: props.subject }] } as never;
   return (
-    <NavigationContext.Provider value={navigation}>
-      <SubjectsContext.Provider value={subjects}>{props.children}</SubjectsContext.Provider>
-    </NavigationContext.Provider>
+    <NavigationContext value={navigation}>
+      <SubjectsContext value={subjects}>{props.children}</SubjectsContext>
+    </NavigationContext>
   );
 }
 
@@ -98,7 +98,7 @@ export function mountLapFixture(sample: Blob) {
   };
   const Launcher = () => {
     const manager = useWindowManager();
-    onMount(() => {
+    onSettled(() => {
       manager.createWindow({
         title: "LAP",
         size: { width: 800, height: 600 },

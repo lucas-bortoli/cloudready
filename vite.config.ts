@@ -1,11 +1,11 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
-import solid from "vite-plugin-solid";
+import solid from "@solidjs/vite-plugin";
 
 const isVitest = Boolean(process.env.VITEST);
 
 export default defineConfig({
-  plugins: [tailwindcss(), solid({ hot: !isVitest })],
+  plugins: [tailwindcss(), solid({ refresh: !isVitest })],
   root: "src",
   publicDir: "public",
   server: {

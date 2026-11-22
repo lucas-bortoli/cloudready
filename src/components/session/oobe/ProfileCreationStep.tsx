@@ -69,7 +69,7 @@ export default function ProfileCreationStep(props: {
               data-selected={selectedPicture() === picture ? true : undefined}
               onClick={handlePictureClick.bind(null, picture)}
               onKeyDown={handlePictureKeyDown.bind(null, picture)}
-              tabIndex={0}
+              tabindex={0}
             />
           )}
         </For>

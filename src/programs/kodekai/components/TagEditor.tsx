@@ -1,4 +1,4 @@
-import { createSignal, For, onMount } from "solid-js";
+import { createSignal, For, onSettled } from "solid-js";
 import Button from "../../../components/button/Button";
 import TextInput from "../../../components/text-input/TextInput";
 import focusTrap from "../../../lib/focus-trap";
@@ -51,7 +51,7 @@ export default function TagEditor(props: TagEditorProps) {
   const handleBackdropClick = (event: MouseEvent) => {
     if (event.target === event.currentTarget) props.onClose();
   };
-  onMount(() => nameInput?.focus());
+  onSettled(() => nameInput?.focus());
 
   return (
     <div
@@ -65,7 +65,7 @@ export default function TagEditor(props: TagEditorProps) {
         aria-modal="true"
         aria-label="Manage tags"
         class="w-full max-w-md rounded border border-neutral-400 bg-white p-5 shadow-xl"
-        use:focusTrap={focusTrap}
+        ref={focusTrap()}
         onKeyDown={handleKeyDown}
       >
         <h2 class="mb-4 text-lg font-semibold">Manage tags</h2>

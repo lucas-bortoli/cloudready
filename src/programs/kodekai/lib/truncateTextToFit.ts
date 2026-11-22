@@ -10,8 +10,13 @@ export function truncateTextToFit(
     return count === words.length ? value : `${value}\u2026`;
   };
 
+  // Most card text fits without truncation; avoid a layout pass for each search step.
+  const fullContent = contentFor(words.length);
+  element.textContent = fullContent;
+  if (fits()) return fullContent;
+
   let minimum = 0;
-  let maximum = words.length;
+  let maximum = words.length - 1;
   while (minimum < maximum) {
     const midpoint = Math.ceil((minimum + maximum) / 2);
     element.textContent = contentFor(midpoint);

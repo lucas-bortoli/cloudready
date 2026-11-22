@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 
-import { type ParentProps } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createSignal, flush, type ParentProps } from "solid-js";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
 import { HotkeyProvider, HotkeyRegistry, useHotkey } from "./HotkeyContext";
 
@@ -10,7 +11,8 @@ function pressKey(key: string) {
 }
 
 function KeyBinding(props: { handler: (event: KeyboardEvent) => boolean }) {
-  useHotkey({ eventType: "keydown", handler: props.handler });
+  const handleKey = (event: KeyboardEvent) => props.handler(event);
+  useHotkey({ eventType: "keydown", handler: handleKey });
   return undefined;
 }
 
@@ -19,6 +21,36 @@ function TestProvider(props: ParentProps) {
 }
 
 describe("HotkeyRegistry", () => {
+  it("uses the current handler when a binding prop changes", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const container = document.createElement("div");
+        const first = vi.fn(() => true);
+        const second = vi.fn(() => true);
+        const [useSecond, setUseSecond] = createSignal(false);
+        const dispose = render(
+          () => (
+            <TestProvider>
+              <KeyBinding handler={useSecond() ? second : first} />
+            </TestProvider>
+          ),
+          container,
+        );
+
+        document.dispatchEvent(pressKey("A"));
+        setUseSecond(true);
+        flush();
+        document.dispatchEvent(pressKey("B"));
+
+        expect(first).toHaveBeenCalledOnce();
+        expect(second).toHaveBeenCalledOnce();
+        dispose();
+      },
+      { scenario: "hotkey-handler-replacement" },
+    );
+    expectNoDiagnostics(artifact);
+  });
+
   it("owns Keyboard Lock API capture and release", async () => {
     const originalKeyboard = Object.getOwnPropertyDescriptor(navigator, "keyboard");
     const lock = vi.fn(async () => undefined);
@@ -55,23 +87,29 @@ describe("HotkeyRegistry", () => {
     registry.dispose();
   });
 
-  it("unregisters a component binding when its component unmounts", () => {
-    const container = document.createElement("div");
-    const handler = vi.fn(() => true);
-    const dispose = render(
-      () => (
-        <TestProvider>
-          <KeyBinding handler={handler} />
-        </TestProvider>
-      ),
-      container,
+  it("unregisters a component binding when its component unmounts", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const container = document.createElement("div");
+        const handler = vi.fn(() => true);
+        const dispose = render(
+          () => (
+            <TestProvider>
+              <KeyBinding handler={handler} />
+            </TestProvider>
+          ),
+          container,
+        );
+
+        document.dispatchEvent(pressKey("Meta"));
+        expect(handler).toHaveBeenCalledOnce();
+
+        dispose();
+        document.dispatchEvent(pressKey("Meta"));
+        expect(handler).toHaveBeenCalledOnce();
+      },
+      { scenario: "hotkey-provider" },
     );
-
-    document.dispatchEvent(pressKey("Meta"));
-    expect(handler).toHaveBeenCalledOnce();
-
-    dispose();
-    document.dispatchEvent(pressKey("Meta"));
-    expect(handler).toHaveBeenCalledOnce();
+    expectNoDiagnostics(artifact);
   });
 });

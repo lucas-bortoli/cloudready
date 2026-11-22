@@ -120,7 +120,7 @@ export function HotkeyProvider(props: ParentProps) {
   const hotkeys = new HotkeyRegistry();
   onCleanup(() => hotkeys.dispose());
 
-  return <HotkeyContext.Provider value={hotkeys}>{props.children}</HotkeyContext.Provider>;
+  return <HotkeyContext value={hotkeys}>{props.children}</HotkeyContext>;
 }
 
 /**

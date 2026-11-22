@@ -13,15 +13,16 @@ export default function FairyPopover(props: FairyPopoverProps) {
   const [showNewMessage, setShowNewMessage] = createSignal(false);
   const [atBottom, setAtBottom] = createSignal(true);
   let messageList: HTMLDivElement | undefined;
-  let previousRevision = fairy.state().revision;
+  let previousRevision: number | undefined;
 
   const isAtBottom = () => {
     if (!messageList) return true;
     return messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight <= 24;
   };
   const handleMessageListScroll = () => {
-    setAtBottom(isAtBottom());
-    if (atBottom()) setShowNewMessage(false);
+    const bottom = isAtBottom();
+    setAtBottom(bottom);
+    if (bottom) setShowNewMessage(false);
   };
   const scrollToBottom = () => {
     if (!messageList) return;
@@ -30,18 +31,19 @@ export default function FairyPopover(props: FairyPopoverProps) {
     setAtBottom(true);
   };
 
-  createEffect(() => {
-    const state = fairy.state();
-    const revision = state.revision;
-    if (revision === previousRevision) return;
-
-    if (atBottom()) {
-      queueMicrotask(scrollToBottom);
-    } else {
-      setShowNewMessage(true);
-    }
-    previousRevision = revision;
-  });
+  createEffect(
+    () => ({ revision: fairy.state().revision, bottom: atBottom() }),
+    ({ revision, bottom }) => {
+      if (previousRevision !== undefined && revision !== previousRevision) {
+        if (bottom) {
+          queueMicrotask(scrollToBottom);
+        } else {
+          setShowNewMessage(true);
+        }
+      }
+      previousRevision = revision;
+    },
+  );
   const send = async () => {
     const text = draft().trim();
     if (!text || fairy.state().phase !== "awaiting-input") return;
@@ -58,6 +60,8 @@ export default function FairyPopover(props: FairyPopoverProps) {
     }
   };
   const handleSend = () => void send();
+  const handleClose = () => props.onClose();
+  const handleConnect = () => props.onConnect();
   return (
     <section
       id="fairy-conversation"
@@ -70,7 +74,7 @@ export default function FairyPopover(props: FairyPopoverProps) {
         <button
           class="outline-sky-300 focus:outline-2 focus:outline-offset-2"
           type="button"
-          onClick={props.onClose}
+          onClick={handleClose}
         >
           Close
         </button>
@@ -84,7 +88,7 @@ export default function FairyPopover(props: FairyPopoverProps) {
             <button
               class="mt-3 rounded bg-neutral-800 px-3 py-2 text-white outline-sky-300 focus:outline-2 focus:outline-offset-2"
               type="button"
-              onClick={props.onConnect}
+              onClick={handleConnect}
             >
               Open Machine Intelligence
             </button>

@@ -1,34 +1,37 @@
-import { createSignal, For, onMount } from "solid-js";
+import { createSignal, For, onCleanup, onSettled } from "solid-js";
 import fallbackProfilePicture from "../../data/default-user-pictures/fallback-picture.png";
-import { sessions, type UserId, type UserProfile } from "./SessionClient";
+import { sessions, type UserProfile } from "./SessionClient";
 
-export default function ProfilePicker(props: { onSelected: (user: UserProfile) => void }) {
+export interface ProfilePickerProps {
+  onSelected: (user: UserProfile) => void;
+}
+
+export default function ProfilePicker(props: ProfilePickerProps) {
   const [profiles, setProfiles] = createSignal<readonly UserProfile[]>([]);
-  const [profileImages, setProfileImages] = createSignal<ReadonlyMap<UserId, string>>(new Map());
   const [error, setError] = createSignal<string>();
+  let disposed = false;
 
-  onMount(async () => {
+  const loadProfiles = async () => {
     try {
       const profiles = await sessions.profiles();
-
-      setProfiles(profiles);
-      setProfileImages(() => {
-        const images = new Map<UserId, string>();
-
-        profiles.forEach((profile) => {
-          if (profile.profilePicture) {
-            images.set(profile.id, `/api/profile-picture/${profile.id}`);
-          } else {
-            images.set(profile.id, fallbackProfilePicture);
-          }
-        });
-
-        return images;
-      });
+      if (!disposed) setProfiles(profiles);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not load profiles.");
+      if (!disposed)
+        setError(reason instanceof Error ? reason.message : "Could not load profiles.");
     }
+  };
+
+  onSettled(() => {
+    void loadProfiles();
   });
+  onCleanup(() => {
+    disposed = true;
+  });
+
+  const profileImage = (profile: UserProfile) => {
+    if (profile.profilePicture) return `/api/profile-picture/${profile.id}`;
+    return fallbackProfilePicture;
+  };
 
   const choose = async (profile: UserProfile) => {
     try {
@@ -58,7 +61,7 @@ export default function ProfilePicker(props: { onSelected: (user: UserProfile) =
             >
               <div
                 class="inline-block size-20 rounded-full bg-cover bg-center shadow-md outline-2 outline-transparent filter-[brightness(90%)_contrast(90%)] transition-[filter] duration-300 ease-in-out group-hover:filter-none"
-                style={{ "background-image": `url(${profileImages().get(profile.id)!})` }}
+                style={{ "background-image": `url(${profileImage(profile)})` }}
               />
               {profile.displayName}
             </button>

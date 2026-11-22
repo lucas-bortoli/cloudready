@@ -1,7 +1,9 @@
+import type { JSX } from "@solidjs/web";
 // @vitest-environment happy-dom
 
-import { For, onCleanup, onMount, untrack, type JSX } from "solid-js";
-import { render } from "solid-js/web";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { For, flush, onCleanup, onSettled, untrack } from "solid-js";
+import { render } from "@solidjs/web";
 import { describe, expect, it, vi } from "vitest";
 import { LayerProvider } from "../layer-manager/LayerContext";
 import WindowManager, { type WindowCloser } from "./WindowManager";
@@ -18,14 +20,8 @@ function TestWindow(props: {
 }) {
   const windowManager = useWindowManager();
 
-  onMount(() => {
+  onSettled(() => {
     props.onManager(windowManager);
-    windowManager.createWindow({
-      closer: props.closer,
-      content: props.content,
-      isMinimizable: props.isMinimizable,
-      isResizable: props.isResizable,
-    });
   });
 
   return <For each={windowManager.getWindows()}>{(entry) => <Window entry={entry} />}</For>;
@@ -56,6 +52,17 @@ function renderWindow(options?: {
     ),
     container,
   );
+  flush();
+  if (!windowManager) {
+    throw new Error("Window manager did not render.");
+  }
+  windowManager.createWindow({
+    closer: options?.closer,
+    content: options?.content,
+    isMinimizable: options?.isMinimizable,
+    isResizable: options?.isResizable,
+  });
+  flush();
   const window = container.querySelector<HTMLDivElement>('[x-role="window"]');
 
   if (!windowManager || !window) {
@@ -192,6 +199,32 @@ describe("Window", () => {
     expect(windowManager.getWindows()).toHaveLength(1);
 
     dispose();
+  });
+
+  it("registers and cleans up a client closer without diagnostics", async () => {
+    const closer = vi.fn(() => false);
+    const setCloser = vi.spyOn(WindowManager.prototype, "setCloser");
+
+    try {
+      const { artifact } = await captureArtifact(
+        () => {
+          const { dispose, window, windowManager } = renderWindow({
+            content: () => <CloserContent closer={closer} />,
+          });
+          const windowId = windowManager.getWindows()[0].id;
+
+          expect(setCloser).toHaveBeenCalledWith(windowId, closer, true);
+          closeControl(window).click();
+          expect(closer).toHaveBeenCalledOnce();
+          dispose();
+          expect(setCloser).toHaveBeenCalledWith(windowId, undefined, true);
+        },
+        { scenario: "window-closer-lifecycle" },
+      );
+      expectNoDiagnostics(artifact);
+    } finally {
+      setCloser.mockRestore();
+    }
   });
 
   it("keeps the window when its closer declines the close request", () => {

@@ -1,7 +1,7 @@
 import Checkmark16 from "@carbon/icons/es/checkmark/16.js";
 import Close16 from "@carbon/icons/es/close/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
-import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onSettled, Show } from "solid-js";
 import "./Editor.css";
 import Button from "../../../components/button/Button";
 import CarbonIcon from "../../../components/taskbar/CarbonIcon";
@@ -65,11 +65,14 @@ export default function ProjectEditor(props: ProjectEditorProps) {
     if (event.key === "Escape") requestClose();
   };
 
-  createEffect(() => {
-    setTitle(props.project?.title ?? "");
-  });
+  createEffect(
+    () => props.project?.title ?? "",
+    (title) => {
+      setTitle(title);
+    },
+  );
 
-  onMount(() => titleInput?.focus());
+  onSettled(() => titleInput?.focus());
   onCleanup(() => {
     if (closeTimer !== undefined) window.clearTimeout(closeTimer);
   });
@@ -77,18 +80,22 @@ export default function ProjectEditor(props: ProjectEditorProps) {
   return (
     <div
       x-role="kodekai project editor backdrop"
-      class="kodekai-editor-backdrop absolute inset-0 z-30 flex items-center justify-center overflow-auto bg-neutral-900/35 p-4"
-      classList={{ "kodekai-editor-closing": isClosing() }}
+      class={[
+        "kodekai-editor-backdrop absolute inset-0 z-30 flex items-center justify-center overflow-auto bg-neutral-900/35 p-4",
+        { "kodekai-editor-closing": isClosing() },
+      ]}
       onClick={handleBackdropClick}
     >
       <section
         aria-labelledby="kodekai-project-editor-title"
         aria-modal="true"
-        class="kodekai-editor-dialog w-full max-w-md rounded border border-neutral-400 bg-white p-5 shadow-xl"
-        classList={{ "kodekai-editor-closing": isClosing() }}
+        class={[
+          "kodekai-editor-dialog w-full max-w-md rounded border border-neutral-400 bg-white p-5 shadow-xl",
+          { "kodekai-editor-closing": isClosing() },
+        ]}
         x-role="kodekai project editor"
         role="dialog"
-        use:focusTrap={focusTrap}
+        ref={focusTrap()}
         onKeyDown={handleKeyDown}
       >
         <h2 class="mb-4 text-lg font-semibold" id="kodekai-project-editor-title">

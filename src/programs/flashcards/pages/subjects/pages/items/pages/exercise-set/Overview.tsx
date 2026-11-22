@@ -48,7 +48,7 @@ export default function Overview(props: OverviewProps) {
               {(attempt) => (
                 <li class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">
                   <div class="flex flex-col gap-1">
-                    <time class="font-medium" dateTime={new Date(attempt.startedAt).toISOString()}>
+                    <time class="font-medium" datetime={new Date(attempt.startedAt).toISOString()}>
                       {new Date(attempt.startedAt).toLocaleString()}
                     </time>
                     <span class="text-neutral-500">

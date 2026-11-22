@@ -1,4 +1,5 @@
-import { createContext, useContext, type JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createContext, useContext } from "solid-js";
 
 interface RadioGroupContextValue {
   name: () => string;
@@ -6,7 +7,7 @@ interface RadioGroupContextValue {
   value: () => string;
 }
 
-const RadioGroupContext = createContext<RadioGroupContextValue>();
+const RadioGroupContext = createContext<RadioGroupContextValue | null>(null);
 
 /** Raised when a {@link Radio} is rendered without a containing {@link RadioGroup}. */
 export class RadioGroupContextError extends Error {
@@ -36,7 +37,7 @@ export interface RadioGroupProps {
 /** Provides controlled native-radio selection state without rendering a wrapper element. */
 export default function RadioGroup(props: RadioGroupProps) {
   return (
-    <RadioGroupContext.Provider
+    <RadioGroupContext
       value={{
         name: () => props.name,
         onValueChange: (value) => props.onValueChange(value),
@@ -44,7 +45,7 @@ export default function RadioGroup(props: RadioGroupProps) {
       }}
     >
       {props.children}
-    </RadioGroupContext.Provider>
+    </RadioGroupContext>
   );
 }
 

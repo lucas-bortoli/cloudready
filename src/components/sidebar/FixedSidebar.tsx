@@ -29,8 +29,10 @@ export default function FixedSidebar(props: FixedSidebarProps) {
   return (
     <SidebarProvider selectedItem={props.selectedItem} setSelectedItem={props.setSelectedItem}>
       <aside
-        class={cn("shrink-0 flex-col overflow-y-auto bg-neutral-100", props.class)}
-        classList={{ "w-full": props.fill, "w-50": !props.fill }}
+        class={[
+          cn("shrink-0 flex-col overflow-y-auto bg-neutral-100", props.class),
+          { "w-full": props.fill, "w-50": !props.fill },
+        ]}
       >
         {props.children}
       </aside>

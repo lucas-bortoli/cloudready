@@ -1,4 +1,4 @@
-import { batch, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { createMemo, createSignal, flush, onCleanup, Show, untrack } from "solid-js";
 import Button from "../../../../components/button/Button";
 import type { Rating } from "../../core/fsrs";
 import type { FlashcardDeck } from "../../core/learning-program";
@@ -45,12 +45,14 @@ export function SubjectDeckReview(props: SubjectDeckReviewProps) {
       return;
     }
     // Keep the old face mounted while the review queue advances behind it.
-    batch(() => {
-      setOutgoing({ card: current, revealed: review.revealed() });
-      action();
-      if (review.card() === current) setOutgoing(undefined);
-    });
-    if (outgoing()) transitionTimer = window.setTimeout(() => setOutgoing(undefined), 180);
+    setOutgoing({ card: current, revealed: review.revealed() });
+    action();
+    flush();
+    if (review.card() === current) {
+      setOutgoing(undefined);
+    } else {
+      transitionTimer = window.setTimeout(() => setOutgoing(undefined), 180);
+    }
   };
 
   const handleRate = (rating: Rating) => transitionToNextCard(() => review.rate(rating));

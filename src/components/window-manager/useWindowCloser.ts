@@ -1,4 +1,4 @@
-import { onCleanup } from "solid-js";
+import { onCleanup, onSettled } from "solid-js";
 import { useCurrentWindowId } from "./CurrentWindowContext";
 import type { WindowCloser } from "./WindowManager";
 import { useWindowManager } from "./WindowManagerContext";
@@ -13,6 +13,6 @@ export default function useWindowCloser(closer: WindowCloser) {
   const windowId = useCurrentWindowId();
   const windowManager = useWindowManager();
 
-  windowManager.setCloser(windowId, closer);
-  onCleanup(() => windowManager.setCloser(windowId));
+  onSettled(() => windowManager.setCloser(windowId, closer, true));
+  onCleanup(() => windowManager.setCloser(windowId, undefined, true));
 }

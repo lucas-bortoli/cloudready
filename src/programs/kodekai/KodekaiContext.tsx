@@ -26,20 +26,22 @@ export function KodekaiProvider(props: ParentProps<KodekaiProviderProps>) {
       revision();
       return props.model;
     },
-    undefined,
     { equals: false },
   );
 
-  createEffect(() => {
-    const unsubscribe = props.model.subscribe(() => {
-      setRevision((current) => current + 1);
-    });
-    onCleanup(() => {
-      unsubscribe();
-    });
-  });
+  let unsubscribe: (() => void) | undefined;
+  createEffect(
+    () => props.model,
+    (currentModel) => {
+      unsubscribe?.();
+      unsubscribe = currentModel.subscribe(() => {
+        setRevision((current) => current + 1);
+      });
+    },
+  );
+  onCleanup(() => unsubscribe?.());
 
-  return <KodekaiContext.Provider value={model}>{props.children}</KodekaiContext.Provider>;
+  return <KodekaiContext value={model}>{props.children}</KodekaiContext>;
 }
 
 /**

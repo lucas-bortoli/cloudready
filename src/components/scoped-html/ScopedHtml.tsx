@@ -29,22 +29,27 @@ export function ScopedHtml(props: ScopedHtmlProps) {
   };
   root.addEventListener("click", handleClick);
 
-  createEffect(() => {
-    body.className = `content-body ${props.bodyClass ?? ""}`.trimEnd();
-    base.textContent = `
+  createEffect(
+    () => [props.bodyClass, props.baseCss] as const,
+    ([bodyClass, baseCss]) => {
+      body.className = `content-body ${bodyClass ?? ""}`.trimEnd();
+      base.textContent = `
       :host { display: block; min-width: 0; contain: paint; }
       .content-body { display: flow-root; overflow-wrap: anywhere; }
       img, video { max-width: 100%; }
-      ${props.baseCss ?? ""}
+      ${baseCss ?? ""}
     `;
-  });
+    },
+  );
 
-  createEffect(() => {
-    const content = props.content;
-    styles.textContent = content?.css ?? "";
-    const children = document.createDocumentFragment();
-    while (content?.body.firstChild) children.append(content.body.firstChild);
-    body.replaceChildren(children);
-  });
+  createEffect(
+    () => props.content,
+    (content) => {
+      styles.textContent = content?.css ?? "";
+      const children = document.createDocumentFragment();
+      while (content?.body.firstChild) children.append(content.body.firstChild);
+      body.replaceChildren(children);
+    },
+  );
   return host;
 }

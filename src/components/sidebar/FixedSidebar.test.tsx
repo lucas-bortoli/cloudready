@@ -1,6 +1,6 @@
 import Education16 from "@carbon/icons/es/education/16.js";
-import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { expect, it } from "vitest";
 import FixedSidebar from "./FixedSidebar";
 import { SidebarItem } from "./SidebarItem";
@@ -21,6 +21,7 @@ it("highlights only the selected item and updates selection on click", () => {
   expect(first.hasAttribute("data-selected")).toBe(true);
   expect(second.hasAttribute("data-selected")).toBe(false);
   second.click();
+  flush();
   expect(first.hasAttribute("data-selected")).toBe(false);
   expect(second.hasAttribute("data-selected")).toBe(true);
   dispose();

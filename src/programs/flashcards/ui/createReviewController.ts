@@ -1,12 +1,4 @@
-import {
-  batch,
-  createEffect,
-  createMemo,
-  createSignal,
-  on,
-  onCleanup,
-  type Accessor,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, type Accessor } from "solid-js";
 import { createAudioPlayer } from "../browser/audio-player";
 import type { LoadedPackage } from "../browser/session";
 import type { AnkiCard } from "../core/anki";
@@ -113,21 +105,21 @@ export function createReviewController(
     player.dispose();
   });
 
-  createEffect(
-    on(loaded, (current) => {
-      // A subscription belongs to one package even when two windows share its store.
-      setDeckId("");
-      setRevealed(false);
-      player.stop();
-      setRevision((value) => value + 1);
-      if (current) {
-        const unsubscribe = current.store.subscribe(() => {
-          setRevision((value) => value + 1);
-        });
-        onCleanup(unsubscribe);
-      }
-    }),
-  );
+  let unsubscribe: (() => void) | undefined;
+  onCleanup(() => unsubscribe?.());
+  createEffect(loaded, (current) => {
+    // A subscription belongs to one package even when two windows share its store.
+    unsubscribe?.();
+    unsubscribe = undefined;
+    setDeckId("");
+    setRevealed(false);
+    player.stop();
+    if (current) {
+      unsubscribe = current.store.subscribe(() => {
+        setRevision((value) => value + 1);
+      });
+    }
+  });
 
   const collection = createMemo(() => {
     return loaded()?.collection;
@@ -254,18 +246,22 @@ export function createReviewController(
     player.play(names, collection()?.media ?? {});
   };
   let playedCard = "";
-  createEffect(() => {
-    const card = currentCard();
-    const id = card ? `${deckId()}:${card.id}` : "";
-    if (id !== playedCard) {
-      playedCard = id;
-      setRevealed(false);
-      if (card) {
-        // Automatic question audio is attempted once per card, not on clock ticks.
-        play(rendered()?.frontAudio ?? []);
+  createEffect(
+    () => {
+      const card = currentCard();
+      return { id: card ? `${deckId()}:${card.id}` : "", sounds: rendered()?.frontAudio ?? [] };
+    },
+    ({ id, sounds }) => {
+      if (id !== playedCard) {
+        playedCard = id;
+        setRevealed(false);
+        if (id) {
+          // Automatic question audio is attempted once per card, not on clock ticks.
+          play(sounds);
+        }
       }
-    }
-  });
+    },
+  );
 
   const selectDeck = (id: string): void => {
     setDeckId(id);
@@ -290,10 +286,8 @@ export function createReviewController(
     const store = loaded()?.store;
     if (card && store && !store.busy && !store.error) {
       // The queue and answer update as one transition, avoiding a flash of the old front.
-      batch(() => {
-        setRevealed(false);
-        void store.rate(card, rating);
-      });
+      setRevealed(false);
+      void store.rate(card, rating);
     }
   };
   const undo = (): void => {

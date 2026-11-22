@@ -72,8 +72,10 @@ export default function WindowSwitcher() {
           <For each={switchableWindows()}>
             {(window) => (
               <div
-                class="truncate rounded-xs px-3 py-2"
-                classList={{ "bg-sky-600": window.id === selectedWindowId() }}
+                class={[
+                  "truncate rounded-xs px-3 py-2",
+                  { "bg-sky-600": window.id === selectedWindowId() },
+                ]}
               >
                 {window.title}
               </div>

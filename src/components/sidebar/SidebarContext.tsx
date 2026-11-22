@@ -13,7 +13,7 @@ const SidebarContext = createContext<SidebarContextValue>();
 
  */
 export function SidebarProvider(props: ParentProps<SidebarContextValue>) {
-  return <SidebarContext.Provider value={props}>{props.children}</SidebarContext.Provider>;
+  return <SidebarContext value={props}>{props.children}</SidebarContext>;
 }
 
 /**

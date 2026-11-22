@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import {
   useClient,
   type MachineIntelligenceConnection,
@@ -31,7 +31,7 @@ export default function MachineIntelligenceWindow() {
     }
   };
 
-  onMount(() => {
+  onSettled(() => {
     void load().catch((cause: unknown) => setError(message(cause)));
   });
 

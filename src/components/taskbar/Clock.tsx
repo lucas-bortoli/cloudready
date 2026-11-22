@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
@@ -8,7 +8,7 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
 export default function Clock() {
   const [time, setTime] = createSignal(new Date());
 
-  onMount(() => {
+  onSettled(() => {
     let timer: number | undefined;
 
     const refresh = () => {
@@ -18,15 +18,15 @@ export default function Clock() {
 
     timer = window.setTimeout(refresh, 60_000 - (Date.now() % 60_000));
 
-    onCleanup(() => {
+    return () => {
       if (timer !== undefined) {
         window.clearTimeout(timer);
       }
-    });
+    };
   });
 
   return (
-    <time class="flex h-10 items-center px-3 tabular-nums" dateTime={time().toISOString()}>
+    <time class="flex h-10 items-center px-3 tabular-nums" datetime={time().toISOString()}>
       {timeFormatter.format(time())}
     </time>
   );

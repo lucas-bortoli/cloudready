@@ -1,4 +1,5 @@
-import { createRoot } from "solid-js";
+import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
+import { createRoot, flush } from "solid-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FileSystemEntry } from "../../filesystem/FileSystemClient";
 import { filesystem } from "../../filesystem/FileSystemClient";
@@ -17,10 +18,12 @@ beforeEach(() => {
 afterEach(() => cleanups.splice(0).forEach((cleanup) => cleanup()));
 
 function setup() {
-  return createRoot((dispose) => {
+  const controller = createRoot((dispose) => {
     cleanups.push(dispose);
     return createNavigationController();
   });
+  flush();
+  return controller;
 }
 
 function pending<T>() {
@@ -40,38 +43,61 @@ describe("file manager navigation", () => {
     expect(controller.canGoBack()).toBe(false);
     expect(controller.canGoForward()).toBe(false);
     controller.goBack();
+    flush();
     controller.goForward();
+    flush();
     controller.navigateTo("/");
+    flush();
     expect(controller.canGoBack()).toBe(false);
     controller.navigateTo("/a");
+    flush();
     controller.navigateTo("/b");
+    flush();
     controller.navigateTo("/b");
+    flush();
     expect(controller.canGoBack()).toBe(true);
     controller.goBack();
+    flush();
     expect(controller.path()).toBe("/a");
     expect(controller.canGoForward()).toBe(true);
     controller.goBack();
+    flush();
     expect(controller.path()).toBe("/");
     expect(controller.canGoBack()).toBe(false);
     controller.goForward();
+    flush();
     expect(controller.path()).toBe("/a");
     controller.navigateTo("/c");
+    flush();
     expect(controller.canGoForward()).toBe(false);
     controller.goForward();
+    flush();
     expect(controller.path()).toBe("/c");
     controller.goBack();
+    flush();
     expect(controller.path()).toBe("/a");
   });
 
-  it("clears selection when moving through history", () => {
-    const controller = setup();
-    controller.navigateTo("/a");
-    controller.setSelectedItems(new Set(["entry"]));
-    controller.goBack();
-    expect(controller.selectedItems().size).toBe(0);
-    controller.setSelectedItems(new Set(["entry"]));
-    controller.goForward();
-    expect(controller.selectedItems().size).toBe(0);
+  it("clears selection when moving through history", async () => {
+    const { artifact } = await captureArtifact(
+      () => {
+        const controller = setup();
+        controller.navigateTo("/a");
+        flush();
+        controller.setSelectedItems(new Set(["entry"]));
+        flush();
+        controller.goBack();
+        flush();
+        expect(controller.selectedItems().size).toBe(0);
+        controller.setSelectedItems(new Set(["entry"]));
+        flush();
+        controller.goForward();
+        flush();
+        expect(controller.selectedItems().size).toBe(0);
+      },
+      { scenario: "file-manager-navigation" },
+    );
+    expectNoDiagnostics(artifact);
   });
 
   it("ignores stale listing results and errors after navigation", async () => {
@@ -84,7 +110,9 @@ describe("file manager navigation", () => {
       .mockReturnValueOnce(third.promise);
     const controller = setup();
     controller.navigateTo("/a");
+    flush();
     controller.goBack();
+    flush();
     const entry = {
       id: "file",
       name: "current",
@@ -95,11 +123,13 @@ describe("file manager navigation", () => {
     } as Awaited<ReturnType<typeof filesystem.list>>[number];
     third.resolve([entry]);
     await Promise.resolve();
+    flush();
     expect(controller.entries().map((item: FileSystemEntry) => item.name)).toEqual(["current"]);
     first.resolve([]);
     second.reject(new Error("obsolete"));
     await Promise.resolve();
     await Promise.resolve();
+    flush();
     expect(controller.entries().map((item: FileSystemEntry) => item.name)).toEqual(["current"]);
     expect(showDialog).not.toHaveBeenCalled();
   });

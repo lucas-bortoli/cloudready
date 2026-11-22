@@ -1,4 +1,4 @@
-import { batch, createSignal, onCleanup } from "solid-js";
+import { createSignal, flush, onCleanup, onSettled } from "solid-js";
 import { filesystem } from "../../../filesystem/FileSystemClient";
 import type { SubjectProgress } from "../core/learning-program";
 import { emptySubjectProgress } from "../core/subject-review";
@@ -36,6 +36,8 @@ function createSubjectEntry(path: string, subject: OpenSubjectPackage) {
 
   const save = (): Promise<void> => {
     if (pending) return pending;
+    // A save can immediately follow an edit in the same event.
+    flush();
     if (!dirty()) return Promise.resolve();
     const snapshot = progress();
     const operation = persist(snapshot).finally(() => {
@@ -43,16 +45,14 @@ function createSubjectEntry(path: string, subject: OpenSubjectPackage) {
       setSaving(false);
     });
     pending = operation;
-    batch(() => {
-      setSaving(true);
-      setSaveError("");
-    });
+    setSaving(true);
+    setSaveError("");
     return operation;
   };
 
   const updateProgress = (next: SubjectProgress): void => {
     setProgress(next);
-    if (!saving() && !dirty()) setSaveError("");
+    if (!saving() && next === saved()) setSaveError("");
   };
 
   return {
@@ -171,11 +171,9 @@ export function createSubjectController() {
       }
       const { entry } = shared;
       shared.windows += 1;
-      batch(() => {
-        setSubjects((entries) => [...entries, entry]);
-        setSubject(entry.subject);
-        setSelection(null);
-      });
+      setSubjects((entries) => [...entries, entry]);
+      setSubject(entry.subject);
+      setSelection(null);
       rememberPath(path);
     } catch (cause) {
       if (!current.signal.aborted && lifecycle !== "disposed") {
@@ -204,7 +202,9 @@ export function createSubjectController() {
     if (lifecycle === "restoring") lifecycle = "active";
   }
 
-  void restoreSubjects();
+  onSettled(() => {
+    void restoreSubjects();
+  });
 
   onCleanup(() => {
     lifecycle = "disposed";

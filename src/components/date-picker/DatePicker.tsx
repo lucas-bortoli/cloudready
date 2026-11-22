@@ -1,4 +1,5 @@
-import { splitProps, type JSX } from "solid-js";
+import { omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import Calendar16 from "@carbon/icons/es/calendar/16.js";
 import { cn } from "../../lib/dom";
 import CarbonIcon from "../taskbar/CarbonIcon";
@@ -59,7 +60,8 @@ export interface DatePickerProps extends NativeDateInputProps {
  * The component never throws.
  */
 export default function DatePicker(props: DatePickerProps) {
-  const [local, nativeProps] = splitProps(props, [
+  const nativeProps = omit(
+    props,
     "class",
     "disabled",
     "onClick",
@@ -67,8 +69,8 @@ export default function DatePicker(props: DatePickerProps) {
     "onValueChange",
     "value",
     "x-role",
-  ]);
-  const isInactive = () => local.disabled ?? false;
+  );
+  const isInactive = () => props.disabled ?? false;
 
   function preventEdits(event: InputEvent | ClipboardEvent | DragEvent) {
     if (isInactive()) {
@@ -80,11 +82,11 @@ export default function DatePicker(props: DatePickerProps) {
     const input = event.currentTarget;
 
     if (isInactive()) {
-      input.value = local.value;
+      input.value = props.value;
       return;
     }
 
-    local.onValueChange(input.value);
+    props.onValueChange(input.value);
   }
 
   const handleKeyDown: JSX.EventHandler<HTMLInputElement, KeyboardEvent> = (event) => {
@@ -92,11 +94,11 @@ export default function DatePicker(props: DatePickerProps) {
       event.preventDefault();
     }
 
-    local.onKeyDown?.(event);
+    props.onKeyDown?.(event);
   };
 
   const handleClick: JSX.EventHandler<HTMLInputElement, MouseEvent> = (event) => {
-    local.onClick?.(event);
+    props.onClick?.(event);
 
     if (isInactive() || event.defaultPrevented) return;
 
@@ -113,15 +115,15 @@ export default function DatePicker(props: DatePickerProps) {
         "relative inline-block h-7 min-w-0 cursor-pointer justify-self-start rounded-xs border border-neutral-400 bg-neutral-50 text-neutral-800 shadow transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-sky-300 hover:bg-neutral-200 focus:bg-neutral-200 aria-disabled:cursor-not-allowed aria-disabled:opacity-55",
         props.class,
       )}
-      aria-disabled={isInactive() || undefined}
+      aria-disabled={isInactive() ? "true" : undefined}
     >
       <input
         {...nativeProps}
-        aria-disabled={isInactive() || undefined}
+        aria-disabled={isInactive() ? "true" : undefined}
         class="relative z-0 block h-full w-full appearance-none py-0 pr-7 pl-2 outline-none [&::-webkit-calendar-picker-indicator]:opacity-0"
         type="date"
-        value={local.value}
-        x-role={local["x-role"]}
+        value={props.value}
+        x-role={props["x-role"]}
         onBeforeInput={preventEdits}
         onClick={handleClick}
         onDrop={preventEdits}

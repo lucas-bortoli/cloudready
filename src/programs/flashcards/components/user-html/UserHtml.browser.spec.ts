@@ -7,6 +7,19 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript((url) => Reflect.set(window, "lapFixtureUrl", url), fixtureUrl);
 });
 
+test("renders a standalone local image", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const fixture = await import(Reflect.get(window, "lapFixtureUrl"));
+    fixture.mountLessonFixture('<img src="assets/picture.svg" alt="Picture">');
+  });
+
+  const image = page.getByRole("group", { name: "Lesson" }).getByRole("img", { name: "Picture" });
+  await expect(image).toHaveAttribute("src", /^blob:/);
+  await expect(image).toHaveJSProperty("complete", true);
+  await expect(image).toHaveJSProperty("naturalWidth", 10);
+});
+
 test("isolates lesson scripts and remote resources while allowing navigation and assets", async ({
   page,
 }) => {

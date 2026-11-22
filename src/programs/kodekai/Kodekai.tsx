@@ -1,16 +1,8 @@
+import type { JSX } from "@solidjs/web";
 import Edit16 from "@carbon/icons/es/edit/16.js";
 import FolderAdd16 from "@carbon/icons/es/folder--add/16.js";
 import TaskAdd16 from "@carbon/icons/es/task--add/16.js";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-  type JSX,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import Button from "../../components/button/Button";
 import Dropdown from "../../components/dropdown/Dropdown";
 import CarbonIcon from "../../components/taskbar/CarbonIcon";
@@ -38,9 +30,7 @@ import { KodekaiStore } from "./model/persistence";
 /** Renders the Kodekai board for the model supplied by its provider. */
 function KodekaiView() {
   const model = useKodekai();
-  const [selectedProject, setSelectedProject] = createSignal<ProjectId | undefined>(
-    model().listProjects()[0]?.id,
-  );
+  const [selectedProject, setSelectedProject] = createSignal<ProjectId>();
   const [rootElement, setRootElement] = createSignal<HTMLElement>();
   const [editorOpen, setEditorOpen] = createSignal(false);
   const [editingCard, setEditingCard] = createSignal<CardData>();
@@ -59,6 +49,10 @@ function KodekaiView() {
   const tags = createMemo(() => (selectedProject() ? model().listTags(selectedProject()!) : []));
   const cardDrag = useCardDrag({ model, rootElement });
 
+  onSettled(() => {
+    setSelectedProject(model().listProjects()[0]?.id);
+  });
+
   const openEditor = (card?: CardData) => {
     focusReturnTarget =
       document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
@@ -70,6 +64,7 @@ function KodekaiView() {
   const closeEditor = (focusCardId = focusReturnCardId) => {
     const returnTarget = focusReturnTarget;
     const returnCardId = focusCardId;
+    const board = rootElement();
     setEditorOpen(false);
     setEditingCard(undefined);
     focusReturnTarget = undefined;
@@ -77,9 +72,9 @@ function KodekaiView() {
 
     queueMicrotask(() => {
       const updatedCard = returnCardId
-        ? Array.from(
-            rootElement()?.querySelectorAll<HTMLElement>("[data-kodekai-card]") ?? [],
-          ).find((element) => element.dataset.kodekaiCard === returnCardId)
+        ? Array.from(board?.querySelectorAll<HTMLElement>("[data-kodekai-card]") ?? []).find(
+            (element) => element.dataset.kodekaiCard === returnCardId,
+          )
         : undefined;
       (updatedCard ?? (returnTarget?.isConnected ? returnTarget : undefined))?.focus();
     });
@@ -104,18 +99,25 @@ function KodekaiView() {
     });
   };
 
-  createEffect(() => {
-    const selectedProjectId = selectedProject();
-    if (selectedProjectId === undefined) return;
-    if (!projects().some((project) => project.id === selectedProjectId)) {
-      setSelectedProject(undefined);
-    }
-  });
+  createEffect(
+    () => {
+      const id = selectedProject();
+      return id !== undefined && !projects().some((project) => project.id === id);
+    },
+    (missing) => {
+      if (missing) setSelectedProject(undefined);
+    },
+  );
 
-  createEffect(() => {
-    const tagId = tagFilter();
-    if (tagId && !tags().some((tag) => tag.id === tagId)) setTagFilter(undefined);
-  });
+  createEffect(
+    () => {
+      const id = tagFilter();
+      return id !== undefined && !tags().some((tag) => tag.id === id);
+    },
+    (missing) => {
+      if (missing) setTagFilter(undefined);
+    },
+  );
 
   const openSelectedProjectEditor: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (event) => {
     const projectId = selectedProject();
@@ -340,11 +342,13 @@ export default function Kodekai(props: KodekaiProps) {
     }
   };
 
-  onMount(() => void load());
-  onCleanup(() => {
-    disposed = true;
-    unsubscribe?.();
-    if (store()?.getStatus().dirty) void store()?.save();
+  onSettled(() => {
+    void load();
+    return () => {
+      disposed = true;
+      unsubscribe?.();
+      if (store()?.getStatus().dirty) void store()?.save();
+    };
   });
   const retrySave = () => void store()?.save();
   const retryLoad = () => void load();

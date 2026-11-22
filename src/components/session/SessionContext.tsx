@@ -1,4 +1,4 @@
-import { createContext, createSignal, Match, onMount, Switch, useContext } from "solid-js";
+import { createContext, createSignal, Match, onSettled, Switch, useContext } from "solid-js";
 import Desktop from "./Desktop";
 import { MachineIntelligenceProvider } from "../machine-intelligence/MachineIntelligenceContext";
 import { SessionRpcProvider } from "../session-rpc/SessionRpcContext";
@@ -57,7 +57,7 @@ export function SessionProvider() {
     }
   };
 
-  onMount(() => {
+  onSettled(() => {
     const minimumLoadingDuration = new Promise<void>((resolve) => {
       window.setTimeout(resolve, MINIMUM_LOADING_DURATION);
     });
@@ -83,7 +83,7 @@ export function SessionProvider() {
       <Match
         when={state() === "active"}
         children={
-          <SessionContext.Provider value={{ user: activeUser as () => UserProfile, signOut }}>
+          <SessionContext value={{ user: activeUser as () => UserProfile, signOut }}>
             <MachineIntelligenceProvider>
               <SessionRpcProvider>
                 <FairyProvider>
@@ -91,7 +91,7 @@ export function SessionProvider() {
                 </FairyProvider>
               </SessionRpcProvider>
             </MachineIntelligenceProvider>
-          </SessionContext.Provider>
+          </SessionContext>
         }
       />
     </Switch>
