@@ -17,7 +17,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: Check formatting, linting, and types
@@ -47,7 +47,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build

@@ -7,8 +7,8 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: "happy-dom",
-      // Keep concurrent DOM simulations from distorting Solid's timing diagnostics.
-      maxWorkers: 2,
+      // Avoid competing DOM simulations inflating Solid's wall-clock timing diagnostics in CI.
+      maxWorkers: 1,
       exclude: [...configDefaults.exclude, "**/*.browser.spec.ts"],
     },
   }),

@@ -1,6 +1,6 @@
 import { captureArtifact, expectNoDiagnostics } from "@solidjs/diagnostics";
 import { createRoot, flush } from "solid-js";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { filesystem } from "../../../filesystem/FileSystemClient";
 import { openSubjectPackage, writeSubjectPackage } from "../core/subject-package/package";
 import type { OpenSubjectPackage } from "../core/subject-package/types";
@@ -13,6 +13,13 @@ vi.mock("../core/subject-package/package", () => ({
   openSubjectPackage: vi.fn(),
   writeSubjectPackage: vi.fn(),
 }));
+beforeEach(() => {
+  const values = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+  });
+});
 afterEach(() => {
   vi.resetAllMocks();
   vi.unstubAllGlobals();
@@ -207,6 +214,8 @@ it("shares drafts across windows and releases the archive after the last window 
   const mount = () => createRoot((dispose) => ({ controller: createSubjectController(), dispose }));
   const first = mount();
   const second = mount();
+  // Finish both initial restores before either window remembers the shared path.
+  flush();
   try {
     await first.controller.openFile("/shared.lap");
     await second.controller.openFile("/shared.lap");
