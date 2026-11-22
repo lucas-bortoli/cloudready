@@ -1,4 +1,7 @@
-import { createContext, createSignal, useContext, type ParentProps } from "solid-js";
+import { createContext, useContext, type ParentProps } from "solid-js";
+
+import { createNavigator } from "../../../components/navigation/createNavigator";
+import { useWindowBack } from "../../../components/window-manager/WindowBackContext";
 
 type RouteId = "/" | "/trash" | "/subjects/:subjectId" | "/subjects/:subjectId/items/:itemId";
 
@@ -12,8 +15,8 @@ type RouteParams<Path extends string> = Path extends `${string}:${infer Param}/$
 export type Route = { [Id in RouteId]: { id: Id } & RouteParams<Id> }[RouteId];
 
 function createNavigation() {
-  const [route, navigate] = createSignal<Route>({ id: "/" });
-  return { route, navigate };
+  const navigator = createNavigator<Route>({ id: "/" });
+  return { ...navigator, navigate: navigator.push };
 }
 
 export const NavigationContext = createContext<ReturnType<typeof createNavigation> | null>(null);
@@ -21,6 +24,7 @@ export const NavigationContext = createContext<ReturnType<typeof createNavigatio
 /** Provides navigation state to one Flashcards window. */
 export function NavigationProvider(props: ParentProps) {
   const navigation = createNavigation();
+  useWindowBack("history", { available: navigation.canGoBack, run: navigation.goBack });
   return <NavigationContext value={navigation}>{props.children}</NavigationContext>;
 }
 

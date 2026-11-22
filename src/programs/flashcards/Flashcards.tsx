@@ -2,14 +2,16 @@ import Book16 from "@carbon/icons/es/book/16.js";
 import DocumentAdd16 from "@carbon/icons/es/document--add/16.js";
 import DocumentMultiple16 from "@carbon/icons/es/document--multiple-01/16.js";
 import Folder16 from "@carbon/icons/es/folder/16.js";
+import Save16 from "@carbon/icons/es/save/16.js";
 import Task16 from "@carbon/icons/es/task/16.js";
 import TrashCan16 from "@carbon/icons/es/trash-can/16.js";
-import { createEffect, createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import AppFrame from "../../components/app-frame/AppFrame";
 import Button from "../../components/button/Button";
 import useDialog from "../../components/dialog/Dialog";
 import { SidebarItem } from "../../components/sidebar/SidebarItem";
 import { SidebarSection } from "../../components/sidebar/SidebarSection";
+import CarbonIcon from "../../components/taskbar/CarbonIcon";
 import useFilePicker from "../file-manager/file-picker/FilePicker";
 import { SubjectsProvider, useSubjects } from "./components/subjects/SubjectsContext";
 import { useCurrentSubjectEntry } from "./components/subjects/useCurrentSubject";
@@ -34,6 +36,15 @@ function MainWindow() {
   const subjectOpener = useSubjects();
   const navigation = useNavigation();
   const currentSubject = useCurrentSubjectEntry();
+  const [sidebarCloseCount, setSidebarCloseCount] = createSignal(0);
+
+  const navigateSidebar = (route: Parameters<typeof navigation.navigate>[0]) => {
+    if (JSON.stringify(navigation.route()) === JSON.stringify(route)) {
+      setSidebarCloseCount((count) => count + 1);
+    } else {
+      navigation.navigate(route);
+    }
+  };
 
   const handleSave = () => {
     void currentSubject()?.save();
@@ -78,13 +89,13 @@ function MainWindow() {
 
   const handleSelect = (id: string) => {
     if (id === "management:trash") {
-      navigation.navigate({ id: "/trash" });
+      navigateSidebar({ id: "/trash" });
       return;
     }
   };
 
   const handleItemClick = (subjectPath: string, itemId: string) => {
-    navigation.navigate({
+    navigateSidebar({
       id: "/subjects/:subjectId/items/:itemId",
       subjectId: subjectPath,
       itemId,
@@ -92,7 +103,7 @@ function MainWindow() {
   };
 
   const handleSubjectClick = (subjectPath: string) => {
-    navigation.navigate({ id: "/subjects/:subjectId", subjectId: subjectPath });
+    navigateSidebar({ id: "/subjects/:subjectId", subjectId: subjectPath });
   };
 
   const subjectKey = (subjectPath: string) => JSON.stringify([subjectPath]);
@@ -130,10 +141,12 @@ function MainWindow() {
   return (
     <div x-role="flashcards" class="h-full min-h-0">
       <AppFrame>
-        <AppFrame.SidebarHeader>Hello</AppFrame.SidebarHeader>
+        <AppFrame.SidebarHeader>
+          <h1 class="text-2xl">LAP</h1>
+        </AppFrame.SidebarHeader>
         <AppFrame.Sidebar
           sizeKey="flashcards.sidebar.width"
-          navigationKey={JSON.stringify(navigation.route())}
+          navigationKey={JSON.stringify([navigation.entry().id, sidebarCloseCount()])}
           selectedItem={sidebarSelectedItem()}
           setSelectedItem={handleSelect}
         >
@@ -166,30 +179,35 @@ function MainWindow() {
         <Show when={currentSubject()}>
           {(entry) => (
             <AppFrame.Header>
-              <span role="status" class="text-sm">
-                <Show
-                  when={entry().saving()}
-                  fallback={<Show when={entry().dirty()}>Unsaved changes</Show>}
+              <section class="flex items-center justify-end gap-2">
+                <span role="status" class="text-sm">
+                  <Show
+                    when={entry().saving()}
+                    fallback={<Show when={entry().dirty()}>Unsaved changes</Show>}
+                  >
+                    Saving subject…
+                  </Show>
+                </span>
+                <Button
+                  disabled={!entry().dirty()}
+                  loading={entry().saving()}
+                  startIcon={<CarbonIcon icon={Save16} />}
+                  onClick={handleSave}
                 >
-                  Saving subject…
+                  Save
+                </Button>
+                <Show when={entry().saveError()}>
+                  <p role="alert" class="text-sm text-red-700">
+                    Could not save subject. {entry().saveError()} Select Save to retry.
+                  </p>
                 </Show>
-              </span>
-              <Button disabled={!entry().dirty()} loading={entry().saving()} onClick={handleSave}>
-                Save
-              </Button>
-              <Show when={entry().saveError()}>
-                <p role="alert" class="text-sm text-red-700">
-                  Could not save subject. {entry().saveError()} Select Save to retry.
-                </p>
-              </Show>
+              </section>
             </AppFrame.Header>
           )}
         </Show>
         <AppFrame.Main>
           <PageRouter />
         </AppFrame.Main>
-        <AppFrame.Status>Hi</AppFrame.Status>
-        <AppFrame.SidebarStatus>Bye</AppFrame.SidebarStatus>
       </AppFrame>
     </div>
   );

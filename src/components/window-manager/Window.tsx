@@ -7,6 +7,7 @@ import Titlebar from "./Titlebar";
 import useWindowInteraction from "./useWindowInteraction";
 import { getFrameStyle, getWindowStyle, integerPixels } from "./window-layout";
 import "./Window.css";
+import { WindowBackProvider } from "./WindowBackContext";
 import type { WindowDock, WindowEntry } from "./WindowManager";
 import { useWindowManager } from "./WindowManagerContext";
 
@@ -72,25 +73,27 @@ export default function Window(props: WindowProps) {
       onKeyDown={handleKeyDown}
       onAnimationEnd={handleAnimationEnd}
     >
-      <Titlebar entry={props.entry} onPointerDown={interaction.onTitlebarPointerDown} />
-      <main
-        x-role="client content container"
-        ref={[interaction.setClientElement, focusTrap()]}
-        class={[
-          "relative z-0 w-full overflow-hidden bg-white text-neutral-600",
-          { "min-h-0 flex-1": !!props.entry.dock, "shrink-0": !props.entry.dock },
-        ]}
-        style={{
-          height: props.entry.dock ? undefined : integerPixels(props.entry.size.height),
-          "min-height": props.entry.dock
-            ? undefined
-            : integerPixels(props.entry.minimumSize.height),
-        }}
-      >
-        <CurrentWindowProvider windowId={props.entry.id}>
-          {props.entry.content()}
-        </CurrentWindowProvider>
-      </main>
+      <WindowBackProvider>
+        <Titlebar entry={props.entry} onPointerDown={interaction.onTitlebarPointerDown} />
+        <main
+          x-role="client content container"
+          ref={[interaction.setClientElement, focusTrap()]}
+          class={[
+            "relative z-0 w-full overflow-hidden bg-white text-neutral-600",
+            { "min-h-0 flex-1": !!props.entry.dock, "shrink-0": !props.entry.dock },
+          ]}
+          style={{
+            height: props.entry.dock ? undefined : integerPixels(props.entry.size.height),
+            "min-height": props.entry.dock
+              ? undefined
+              : integerPixels(props.entry.minimumSize.height),
+          }}
+        >
+          <CurrentWindowProvider windowId={props.entry.id}>
+            {props.entry.content()}
+          </CurrentWindowProvider>
+        </main>
+      </WindowBackProvider>
       <Show when={!props.entry.dock && props.entry.isResizable}>
         <ResizeHandles onResizePointerDown={interaction.onResizePointerDown} />
       </Show>

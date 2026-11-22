@@ -4,6 +4,7 @@ import Pin16 from "@carbon/icons/es/pin/16.js";
 import { Show } from "solid-js";
 import CarbonIcon from "../taskbar/CarbonIcon";
 import type { WindowEntry } from "./WindowManager";
+import { useWindowBackController } from "./WindowBackContext";
 import { useWindowManager } from "./WindowManagerContext";
 
 /** Renders a window title and the controls that operate on its frame. */
@@ -12,9 +13,11 @@ export default function Titlebar(props: {
   onPointerDown: (event: PointerEvent) => void;
 }) {
   const windowManager = useWindowManager();
+  const back = useWindowBackController();
 
   const handlePointerDown = (event: PointerEvent) => props.onPointerDown(event);
   const stopPointerDown = (event: PointerEvent) => event.stopPropagation();
+  const goBack = () => back?.run();
   const togglePinned = () => windowManager.setPinned(props.entry.id, !props.entry.isPinned);
   const minimize = () => windowManager.setMinimized(props.entry.id, true);
   const toggleMaximized = () =>
@@ -30,21 +33,24 @@ export default function Titlebar(props: {
       class="flex h-8 w-full shrink-0 items-center bg-neutral-600 px-1 text-neutral-50 group-data-[active=true]/window:bg-neutral-800"
       onPointerDown={handlePointerDown}
     >
-      <button
-        aria-label="Back"
-        class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
-        type="button"
-        onPointerDown={stopPointerDown}
-        onClick={togglePinned}
-      >
-        <CarbonIcon icon={Send16} />
-      </button>
+      <Show when={back?.registered()}>
+        <button
+          aria-label="Back"
+          disabled={!back?.available()}
+          class="relative z-20 inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+          type="button"
+          onPointerDown={stopPointerDown}
+          onClick={goBack}
+        >
+          <CarbonIcon icon={Send16} />
+        </button>
+      </Show>
       <h1 class="ml-1">{props.entry.title}</h1>
       <div class="ml-auto inline-flex gap-0.5">
         <button
           aria-label={props.entry.isPinned ? "Unpin window" : "Pin window"}
           aria-pressed={(props.entry.isPinned ?? false).toString() as "true" | "false"}
-          class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+          class="relative z-20 inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
           type="button"
           onPointerDown={stopPointerDown}
           onClick={togglePinned}
@@ -54,7 +60,7 @@ export default function Titlebar(props: {
         <Show when={props.entry.isMinimizable}>
           <button
             aria-label="Minimize window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+            class="relative z-20 inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={minimize}
@@ -65,7 +71,7 @@ export default function Titlebar(props: {
         <Show when={props.entry.isResizable}>
           <button
             aria-label="Maximize window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+            class="relative z-20 inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={toggleMaximized}
@@ -76,7 +82,7 @@ export default function Titlebar(props: {
         <Show when={props.entry.closer}>
           <button
             aria-label="Close window"
-            class="inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:z-10 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
+            class="relative z-20 inline-flex size-6 cursor-pointer items-center justify-center rounded-xs bg-neutral-600 outline-sky-300 group-data-[active=true]/window:bg-neutral-800 hover:bg-neutral-700 focus:outline-2 focus:outline-offset-2 active:bg-neutral-800"
             type="button"
             onPointerDown={stopPointerDown}
             onClick={close}

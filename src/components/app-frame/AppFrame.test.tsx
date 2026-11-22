@@ -73,13 +73,20 @@ it("renders sidebar slot items within the sidebar context", async () => {
         flush();
         expect(root.querySelector('[role="dialog"] aside button')?.textContent).toBe("Folder");
         expect(root.querySelector('[role="dialog"] aside footer')?.textContent).toBe("One folder");
-        (root.querySelector('[aria-label="Open sidebar"]') as HTMLButtonElement).click();
+        const menuButton = root.querySelector<HTMLButtonElement>('[aria-label="Open sidebar"]')!;
+        expect(menuButton.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+        const drawer = root.querySelector<HTMLElement>('[role="dialog"]')!;
+        expect(drawer.classList.contains("motion-safe:transition-[transform,visibility]")).toBe(
+          true,
+        );
+        menuButton.click();
         flush();
         expect((root.querySelector('[role="dialog"]') as HTMLElement).style.visibility).toBe(
           "visible",
         );
         setNavigationKey("other");
         flush();
+        expect(drawer.hasAttribute("inert")).toBe(true);
         expect((root.querySelector('[role="dialog"]') as HTMLElement).style.visibility).toBe(
           "hidden",
         );

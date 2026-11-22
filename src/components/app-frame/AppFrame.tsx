@@ -1,8 +1,12 @@
+import Menu16 from "@carbon/icons/es/menu/16.js";
 import type { JSX } from "@solidjs/web";
 import { children, createEffect, createMemo, createSignal, onSettled, Show } from "solid-js";
 import { cn } from "../../lib/dom";
+import Button from "../button/Button";
 import FixedSidebar from "../sidebar/FixedSidebar";
 import ResizableSidebar from "../sidebar/ResizableSidebar";
+import CarbonIcon from "../taskbar/CarbonIcon";
+import { useWindowBack } from "../window-manager/WindowBackContext";
 
 /** Props for the application frame and its named slots. */
 export interface AppFrameProps {
@@ -173,6 +177,7 @@ function AppFrame(props: AppFrameProps) {
     setOpen(false);
     menuButton?.focus();
   };
+  useWindowBack("dismiss", { available: () => narrow() && open(), run: close });
   const show = () => {
     setOpen(true);
     requestAnimationFrame(() =>
@@ -250,6 +255,10 @@ function AppFrame(props: AppFrameProps) {
     </>
   );
   const fraction = () => progress() ?? (open() ? 1 : 0);
+  const sidebarExpanded = () => {
+    if (open()) return "true";
+    return "false";
+  };
 
   return (
     <main
@@ -283,21 +292,19 @@ function AppFrame(props: AppFrameProps) {
         >
           <header
             class={cn(
-              "row-start-1 flex min-h-12 items-center border-b border-neutral-200",
+              "row-start-1 flex min-h-12 items-center border-b border-neutral-200 px-2",
               slots().header?.class,
             )}
           >
             <Show when={narrow() && sidebar()}>
-              <button
+              <Button
                 ref={menuButton}
-                type="button"
-                aria-label="Open sidebar"
-                aria-expanded={(open() ?? false).toString() as "true" | "false"}
-                class="mx-2 p-2 outline-sky-300 focus:outline-2 focus:outline-offset-2"
+                title="Open sidebar"
                 onClick={show}
+                aria-expanded={sidebarExpanded()}
               >
-                ☰
-              </button>
+                <CarbonIcon icon={Menu16} />
+              </Button>
             </Show>
             <div class="min-w-0 flex-1">{slots().header?.children}</div>
           </header>
@@ -311,7 +318,10 @@ function AppFrame(props: AppFrameProps) {
       </section>
       <Show when={narrow() && sidebar()}>
         <div
-          class="absolute inset-0 z-20 bg-black"
+          class={[
+            "absolute inset-0 z-20 bg-black",
+            { "motion-safe:transition-opacity motion-safe:duration-180": progress() === null },
+          ]}
           style={{ opacity: fraction() * 0.32, "pointer-events": fraction() > 0 ? "auto" : "none" }}
           onClick={close}
         />
@@ -321,10 +331,17 @@ function AppFrame(props: AppFrameProps) {
           role="dialog"
           aria-label="Sidebar"
           aria-modal="true"
-          class="absolute inset-y-0 left-0 z-30 w-[min(320px,calc(100%-56px))] bg-neutral-100 shadow-xl"
+          inert={!open()}
+          class={[
+            "absolute inset-y-0 left-0 z-30 w-[min(320px,calc(100%-56px))] bg-neutral-100 shadow-xl",
+            {
+              // Visibility stays visible until the slide-out transition finishes.
+              "motion-safe:transition-[transform,visibility] motion-safe:duration-180 motion-safe:ease-[ease]":
+                progress() === null,
+            },
+          ]}
           style={{
             transform: `translateX(${(fraction() - 1) * 100}%)`,
-            transition: progress() === null ? "transform 180ms ease" : "none",
             visibility: fraction() > 0 ? "visible" : "hidden",
           }}
         >
